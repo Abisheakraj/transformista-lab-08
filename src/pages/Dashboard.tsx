@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -106,7 +105,7 @@ const Dashboard = () => {
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-end">
-                  <Button onClick={() => navigate(`/project/${project.id}`)} variant="outline">
+                  <Button onClick={() => navigate(`/projects/${project.id}`)} variant="outline">
                     Open Project
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
