@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -16,6 +15,8 @@ import {
   Background,
   useNodesState,
   useEdgesState,
+  useReactFlow,
+  NodeTypes,
   addEdge,
   Connection,
   Panel,
@@ -35,7 +36,6 @@ interface SchemaTable {
   columns: { name: string; type: string }[];
 }
 
-// Custom node types
 const TableNode = ({ data }: { data: any }) => {
   return (
     <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
@@ -144,14 +144,9 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
   const [isNodeSelectorOpen, setIsNodeSelectorOpen] = useState(false);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   
-  // Initial nodes with proper positioning for spacious layout
-  const initialNodes: Node[] = [];
-  const initialEdges: Edge[] = [];
-
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   
-  // Mock data for available sources
   const mockSources = [
     {
       id: "src1",
@@ -333,7 +328,6 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-      {/* Left sidebar */}
       <div className="md:col-span-1">
         <div className="rounded-lg border h-[600px] flex flex-col">
           <div className="p-4 border-b">
@@ -430,7 +424,6 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
         </div>
       </div>
       
-      {/* Main flow design area */}
       <div className="md:col-span-3">
         <div className="flex justify-between items-center mb-4">
           <h3 className="font-medium">Flow Designer</h3>
@@ -449,7 +442,7 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
           </div>
         </div>
         
-        <div ref={reactFlowWrapper} className="h-[600px] border rounded-lg overflow-hidden bg-gray-50">
+        <div className="border rounded-lg h-[600px] overflow-hidden" ref={reactFlowWrapper}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -465,16 +458,9 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
               style: { strokeWidth: 2 }
             }}
           >
-            <Background variant="dots" gap={12} size={1} />
+            <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
             <Controls />
-            <MiniMap 
-              nodeStrokeColor={(n) => {
-                return n.type === 'table' ? '#0041d0' : '#ff0072';
-              }}
-              nodeColor={(n) => {
-                return n.type === 'table' ? '#e6f2ff' : '#ffe6f2';
-              }}
-            />
+            <MiniMap />
           </ReactFlow>
         </div>
 

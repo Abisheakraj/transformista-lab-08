@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,55 +63,64 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-10">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">My Projects</h1>
-        <Button onClick={() => setIsDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Project
-        </Button>
-      </div>
-
-      {projects.length === 0 ? (
-        <Card className="text-center py-16">
-          <CardContent>
-            <p className="text-muted-foreground mb-4">You don't have any projects yet.</p>
-            <Button onClick={() => setIsDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Your First Project
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {projects.map((project) => (
-            <Card key={project.id} className="hover-scale">
-              <CardHeader>
-                <CardTitle>{project.name}</CardTitle>
-                <CardDescription>{project.description}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-sm text-muted-foreground">
-                  <p>Created: {formatDate(project.createdAt)}</p>
-                  <p>Last updated: {formatDate(project.updatedAt)}</p>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-end">
-                <Button onClick={() => navigate(`/projects/${project.id}`)} variant="outline">
-                  Open Project
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
+    <div>
+      <header className="border-b">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="text-2xl font-bold text-primary">DataGenieAI</div>
+          <Button variant="ghost" onClick={() => navigate("/")}>Home</Button>
         </div>
-      )}
+      </header>
+      
+      <div className="container mx-auto px-4 py-10">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">My Projects</h1>
+          <Button onClick={() => setIsDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Project
+          </Button>
+        </div>
 
-      <CreateProjectDialog 
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        onSubmit={handleCreateProject}
-      />
+        {projects.length === 0 ? (
+          <Card className="text-center py-16">
+            <CardContent>
+              <p className="text-muted-foreground mb-4">You don't have any projects yet.</p>
+              <Button onClick={() => setIsDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Your First Project
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {projects.map((project) => (
+              <Card key={project.id} className="hover-scale">
+                <CardHeader>
+                  <CardTitle>{project.name}</CardTitle>
+                  <CardDescription>{project.description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-sm text-muted-foreground">
+                    <p>Created: {formatDate(project.createdAt)}</p>
+                    <p>Last updated: {formatDate(project.updatedAt)}</p>
+                  </div>
+                </CardContent>
+                <CardFooter className="flex justify-end">
+                  <Button onClick={() => navigate(`/projects/${project.id}`)} variant="outline">
+                    Open Project
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        <CreateProjectDialog 
+          open={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          onSubmit={handleCreateProject}
+        />
+      </div>
     </div>
   );
 };

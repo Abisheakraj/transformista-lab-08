@@ -12,6 +12,12 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+      {/* Header with Logo */}
+      <header className="container mx-auto px-4 py-6 flex justify-between items-center">
+        <div className="text-2xl font-bold text-primary">DataGenieAI</div>
+        <Button variant="ghost" onClick={() => navigate("/dashboard")}>Dashboard</Button>
+      </header>
+      
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-20">
         <div className="flex flex-col items-center text-center mb-16">
