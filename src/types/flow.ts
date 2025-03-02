@@ -1,4 +1,6 @@
 
+import { Position } from '@xyflow/react';
+
 export interface FlowNode {
   id: string;
   type: 'table' | 'transformation' | 'output';
@@ -16,8 +18,8 @@ export interface FlowNode {
   // Add these properties for React Flow
   selected?: boolean;
   dragging?: boolean;
-  targetPosition?: 'left' | 'right' | 'top' | 'bottom';
-  sourcePosition?: 'left' | 'right' | 'top' | 'bottom';
+  targetPosition?: Position;
+  sourcePosition?: Position;
 }
 
 export interface FlowEdge {

@@ -19,6 +19,10 @@ import {
   addEdge,
   Connection,
   Panel,
+  Node,
+  Edge,
+  Position,
+  BackgroundVariant,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
@@ -141,8 +145,8 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   
   // Initial nodes with proper positioning for spacious layout
-  const initialNodes: FlowNode[] = [];
-  const initialEdges: FlowEdge[] = [];
+  const initialNodes: Node[] = [];
+  const initialEdges: Edge[] = [];
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -223,7 +227,7 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
     : [];
 
   const onConnect = useCallback((params: Connection) => {
-    const newEdge: FlowEdge = {
+    const newEdge: Edge = {
       ...params,
       id: `edge-${params.source}-${params.target}`,
       animated: true,
@@ -234,7 +238,7 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
 
   const addNodeToFlow = (table: SchemaTable) => {
     const xPos = nodes.length * 300 + 50;
-    const newNode: FlowNode = {
+    const newNode: Node = {
       id: `table-${Date.now()}`,
       type: 'table',
       position: { x: xPos, y: 100 },
@@ -243,8 +247,8 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
         source: selectedDatabase ? mockSources.find(db => db.id === selectedDatabase)?.name : "",
         columns: table.columns,
       },
-      sourcePosition: 'right',
-      targetPosition: 'left',
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
     };
     
     setNodes((nds) => [...nds, newNode]);
@@ -255,7 +259,7 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
     const sourceNode = nodes.find(node => node.id === sourceNodeId);
     if (!sourceNode) return;
     
-    const newNode: FlowNode = {
+    const newNode: Node = {
       id: `transformation-${Date.now()}`,
       type: 'transformation',
       position: { x: sourceNode.position.x + 300, y: sourceNode.position.y },
@@ -264,11 +268,11 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
         type,
         sourceNodeId,
       },
-      sourcePosition: 'right',
-      targetPosition: 'left',
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
     };
     
-    const newEdge: FlowEdge = {
+    const newEdge: Edge = {
       id: `edge-${sourceNodeId}-${newNode.id}`,
       source: sourceNodeId,
       target: newNode.id,
@@ -303,7 +307,7 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
         type = nodeType;
     }
     
-    const newNode: FlowNode = {
+    const newNode: Node = {
       id: `${nodeType}-${Date.now()}`,
       type: nodeType === "output" ? "table" : "transformation",
       position: { 
@@ -314,8 +318,8 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
         label: `${label} ${nodeCount + 1}`,
         type: type,
       },
-      sourcePosition: 'right',
-      targetPosition: 'left',
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
     };
     
     setNodes((nds) => [...nds, newNode]);
