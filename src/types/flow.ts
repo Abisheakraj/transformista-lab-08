@@ -13,12 +13,22 @@ export interface FlowNode {
     type?: string;
     sourceNodeId?: string;
   };
+  // Add these properties for React Flow
+  selected?: boolean;
+  dragging?: boolean;
+  targetPosition?: 'left' | 'right' | 'top' | 'bottom';
+  sourcePosition?: 'left' | 'right' | 'top' | 'bottom';
 }
 
 export interface FlowEdge {
   id: string;
   source: string;
   target: string;
+  // Add these properties for React Flow
+  animated?: boolean;
+  style?: React.CSSProperties;
+  type?: string;
+  markerEnd?: string;
 }
 
 export interface DataFlow {

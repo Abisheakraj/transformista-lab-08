@@ -1,13 +1,26 @@
 
-import { useState, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Search, Database, Filter, ArrowRight, ArrowDown, Plus, Save, Code, Settings } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Search, Database, Filter, ArrowRight, ArrowDown, Plus, Save, Code, Settings, HardDrive, Cog, ArrowRightLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { FlowNode, FlowEdge } from "@/types/flow";
+import {
+  ReactFlow,
+  MiniMap,
+  Controls,
+  Background,
+  useNodesState,
+  useEdgesState,
+  addEdge,
+  Connection,
+  Panel,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 
 interface FlowDesignerTabProps {
   projectId: string;
@@ -18,13 +31,121 @@ interface SchemaTable {
   columns: { name: string; type: string }[];
 }
 
+// Custom node types
+const TableNode = ({ data }: { data: any }) => {
+  return (
+    <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+      <div className="font-semibold text-base mb-2">{data.label}</div>
+      {data.source && <div className="text-xs text-muted-foreground mb-2">{data.source}</div>}
+      {data.columns && (
+        <div className="max-h-40 overflow-auto">
+          {data.columns.map((col: { name: string; type: string }) => (
+            <div key={col.name} className="text-xs py-1 border-b border-gray-100 flex justify-between">
+              <span>{col.name}</span>
+              <span className="text-muted-foreground">{col.type}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const TransformationNode = ({ data }: { data: any }) => {
+  return (
+    <div className="bg-blue-50 rounded-lg shadow-md p-4 border border-blue-100">
+      <div className="font-semibold text-base mb-2">{data.label}</div>
+      <div className="text-xs text-muted-foreground">{data.type} transformation</div>
+      <div className="mt-2">
+        <Button variant="outline" size="sm" className="w-full">
+          <Settings className="h-3 w-3 mr-1" />
+          Configure
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+const nodeTypes = {
+  table: TableNode,
+  transformation: TransformationNode,
+};
+
+type NodeSelectorType = {
+  type: string;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+};
+
+const nodeSelectors: NodeSelectorType[] = [
+  {
+    type: "table",
+    label: "Source Table",
+    description: "Add a data source table",
+    icon: <Database className="h-5 w-5" />,
+  },
+  {
+    type: "filter",
+    label: "Filter",
+    description: "Filter data based on conditions",
+    icon: <Filter className="h-5 w-5" />,
+  },
+  {
+    type: "join",
+    label: "Join",
+    description: "Join multiple data sources",
+    icon: <ArrowRightLeft className="h-5 w-5" />,
+  },
+  {
+    type: "output",
+    label: "Output",
+    description: "Data output destination",
+    icon: <HardDrive className="h-5 w-5" />,
+  },
+];
+
+const NodeSelector = ({ isOpen, onClose, onAddNode }: { isOpen: boolean; onClose: () => void; onAddNode: (type: string) => void }) => {
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Node</DialogTitle>
+          <DialogDescription>Select a node type to add to your flow</DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-2 gap-4 py-4">
+          {nodeSelectors.map((nodeType) => (
+            <Button
+              key={nodeType.type}
+              variant="outline"
+              className="flex flex-col items-center justify-center h-24 p-4 hover:bg-muted"
+              onClick={() => onAddNode(nodeType.type)}
+            >
+              <div className="text-primary mb-2">{nodeType.icon}</div>
+              <div className="font-medium">{nodeType.label}</div>
+              <div className="text-xs text-muted-foreground mt-1">{nodeType.description}</div>
+            </Button>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
-  const [nodes, setNodes] = useState<FlowNode[]>([]);
-  const [edges, setEdges] = useState<FlowEdge[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDatabase, setSelectedDatabase] = useState<string | null>(null);
   const [selectedTable, setSelectedTable] = useState<SchemaTable | null>(null);
   const [isTransformSheetOpen, setIsTransformSheetOpen] = useState(false);
+  const [isNodeSelectorOpen, setIsNodeSelectorOpen] = useState(false);
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  
+  // Initial nodes with proper positioning for spacious layout
+  const initialNodes: FlowNode[] = [];
+  const initialEdges: FlowEdge[] = [];
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   
   // Mock data for available sources
   const mockSources = [
@@ -101,19 +222,32 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
     ? mockSources.find(db => db.id === selectedDatabase)?.tables
     : [];
 
+  const onConnect = useCallback((params: Connection) => {
+    const newEdge: FlowEdge = {
+      ...params,
+      id: `edge-${params.source}-${params.target}`,
+      animated: true,
+      style: { stroke: '#555' },
+    };
+    setEdges((eds) => addEdge(newEdge, eds));
+  }, [setEdges]);
+
   const addNodeToFlow = (table: SchemaTable) => {
+    const xPos = nodes.length * 300 + 50;
     const newNode: FlowNode = {
-      id: `node-${Date.now()}`,
-      type: "table",
-      position: { x: nodes.length * 250 + 50, y: 100 },
+      id: `table-${Date.now()}`,
+      type: 'table',
+      position: { x: xPos, y: 100 },
       data: {
         label: table.name,
         source: selectedDatabase ? mockSources.find(db => db.id === selectedDatabase)?.name : "",
         columns: table.columns,
       },
+      sourcePosition: 'right',
+      targetPosition: 'left',
     };
     
-    setNodes([...nodes, newNode]);
+    setNodes((nds) => [...nds, newNode]);
     setSelectedTable(null);
   };
 
@@ -123,165 +257,74 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
     
     const newNode: FlowNode = {
       id: `transformation-${Date.now()}`,
-      type: "transformation",
-      position: { x: sourceNode.position.x, y: sourceNode.position.y + 200 },
+      type: 'transformation',
+      position: { x: sourceNode.position.x + 300, y: sourceNode.position.y },
       data: {
         label: `${type} Transformation`,
         type,
         sourceNodeId,
       },
+      sourcePosition: 'right',
+      targetPosition: 'left',
     };
     
     const newEdge: FlowEdge = {
       id: `edge-${sourceNodeId}-${newNode.id}`,
       source: sourceNodeId,
       target: newNode.id,
+      animated: true,
     };
     
-    setNodes([...nodes, newNode]);
-    setEdges([...edges, newEdge]);
+    setNodes((nds) => [...nds, newNode]);
+    setEdges((eds) => [...eds, newEdge]);
     setIsTransformSheetOpen(false);
   };
 
-  // This would be replaced with a proper flow visualization library like React Flow
-  const visualizeFlow = () => {
-    if (nodes.length === 0) {
-      return (
-        <div className="flex items-center justify-center h-96 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-          <div className="text-center">
-            <p className="text-muted-foreground mb-4">Your flow is empty. Start by selecting source tables from the left panel.</p>
-          </div>
-        </div>
-      );
+  const onAddGenericNode = (nodeType: string) => {
+    const nodeCount = nodes.filter(n => n.type === nodeType).length;
+    let label = "";
+    let type = "";
+    
+    switch (nodeType) {
+      case "filter":
+        label = "Filter Transformation";
+        type = "filter";
+        break;
+      case "join":
+        label = "Join Transformation";
+        type = "join";
+        break;
+      case "output":
+        label = "Output Destination";
+        type = "output";
+        break;
+      default:
+        label = "New Node";
+        type = nodeType;
     }
+    
+    const newNode: FlowNode = {
+      id: `${nodeType}-${Date.now()}`,
+      type: nodeType === "output" ? "table" : "transformation",
+      position: { 
+        x: Math.random() * 300 + 200, 
+        y: Math.random() * 200 + 100 
+      },
+      data: {
+        label: `${label} ${nodeCount + 1}`,
+        type: type,
+      },
+      sourcePosition: 'right',
+      targetPosition: 'left',
+    };
+    
+    setNodes((nds) => [...nds, newNode]);
+    setIsNodeSelectorOpen(false);
+  };
 
-    return (
-      <div className="relative bg-gray-50 rounded-lg border h-[600px] p-4 overflow-auto">
-        {nodes.map(node => (
-          <div
-            key={node.id}
-            className={`absolute p-4 rounded-lg shadow-md w-56 ${
-              node.type === 'table' ? 'bg-white' : 'bg-blue-50'
-            }`}
-            style={{ left: node.position.x, top: node.position.y }}
-          >
-            <div className="font-semibold mb-2">{node.data.label}</div>
-            {node.type === 'table' && (
-              <>
-                <div className="text-xs text-muted-foreground mb-2">{node.data.source}</div>
-                <div className="max-h-32 overflow-auto">
-                  {node.data.columns?.map(col => (
-                    <div key={col.name} className="text-xs py-1 border-b border-gray-100 flex justify-between">
-                      <span>{col.name}</span>
-                      <span className="text-muted-foreground">{col.type}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3 flex justify-end">
-                  <Sheet open={isTransformSheetOpen} onOpenChange={setIsTransformSheetOpen}>
-                    <SheetTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        <Plus className="h-3 w-3 mr-1" />
-                        Transform
-                      </Button>
-                    </SheetTrigger>
-                    <SheetContent>
-                      <SheetHeader>
-                        <SheetTitle>Add Transformation</SheetTitle>
-                        <SheetDescription>
-                          Select a transformation to apply to the data from {node.data.label}.
-                        </SheetDescription>
-                      </SheetHeader>
-                      <div className="grid gap-4 py-4">
-                        <Button 
-                          variant="outline" 
-                          className="justify-start" 
-                          onClick={() => addTransformationNode("filter", node.id)}
-                        >
-                          <Filter className="h-4 w-4 mr-2" />
-                          Filter Records
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          className="justify-start"
-                          onClick={() => addTransformationNode("aggregate", node.id)}
-                        >
-                          <ArrowDown className="h-4 w-4 mr-2" />
-                          Aggregate Data
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          className="justify-start"
-                          onClick={() => addTransformationNode("join", node.id)}
-                        >
-                          <ArrowRight className="h-4 w-4 mr-2" />
-                          Join Tables
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          className="justify-start"
-                          onClick={() => addTransformationNode("custom", node.id)}
-                        >
-                          <Code className="h-4 w-4 mr-2" />
-                          Custom SQL
-                        </Button>
-                      </div>
-                    </SheetContent>
-                  </Sheet>
-                </div>
-              </>
-            )}
-            {node.type === 'transformation' && (
-              <div className="flex justify-end mt-2">
-                <Button variant="outline" size="sm">
-                  <Settings className="h-3 w-3 mr-1" />
-                  Configure
-                </Button>
-              </div>
-            )}
-          </div>
-        ))}
-        
-        {/* Simple representation of edges - in a real app, use a proper flow library */}
-        <svg className="absolute top-0 left-0 w-full h-full pointer-events-none">
-          {edges.map(edge => {
-            const sourceNode = nodes.find(n => n.id === edge.source);
-            const targetNode = nodes.find(n => n.id === edge.target);
-            
-            if (!sourceNode || !targetNode) return null;
-            
-            const sourceX = sourceNode.position.x + 112; // Center of node width (224/2)
-            const sourceY = sourceNode.position.y + 80; // Bottom of source node
-            const targetX = targetNode.position.x + 112;
-            const targetY = targetNode.position.y;
-            
-            return (
-              <g key={edge.id}>
-                <path
-                  d={`M${sourceX},${sourceY} C${sourceX},${sourceY + 50} ${targetX},${targetY - 50} ${targetX},${targetY}`}
-                  fill="none"
-                  stroke="#888"
-                  strokeWidth="2"
-                  markerEnd="url(#arrowhead)"
-                />
-                <defs>
-                  <marker
-                    id="arrowhead"
-                    markerWidth="10"
-                    markerHeight="7"
-                    refX="9"
-                    refY="3.5"
-                    orient="auto"
-                  >
-                    <polygon points="0 0, 10 3.5, 0 7" fill="#888" />
-                  </marker>
-                </defs>
-              </g>
-            );
-          })}
-        </svg>
-      </div>
-    );
+  const onSaveFlow = () => {
+    console.log("Saving flow:", { nodes, edges });
+    // Here you would normally send the flow data to your backend
   };
 
   return (
@@ -388,7 +431,11 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
         <div className="flex justify-between items-center mb-4">
           <h3 className="font-medium">Flow Designer</h3>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => setIsNodeSelectorOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add Node
+            </Button>
+            <Button variant="outline" size="sm" onClick={onSaveFlow}>
               <Save className="h-4 w-4 mr-1" />
               Save Flow
             </Button>
@@ -398,10 +445,42 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
           </div>
         </div>
         
-        {visualizeFlow()}
+        <div ref={reactFlowWrapper} className="h-[600px] border rounded-lg overflow-hidden bg-gray-50">
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            nodeTypes={nodeTypes}
+            fitView
+            minZoom={0.5}
+            maxZoom={1.5}
+            defaultEdgeOptions={{
+              animated: true,
+              style: { strokeWidth: 2 }
+            }}
+          >
+            <Background variant="dots" gap={12} size={1} />
+            <Controls />
+            <MiniMap 
+              nodeStrokeColor={(n) => {
+                return n.type === 'table' ? '#0041d0' : '#ff0072';
+              }}
+              nodeColor={(n) => {
+                return n.type === 'table' ? '#e6f2ff' : '#ffe6f2';
+              }}
+            />
+          </ReactFlow>
+        </div>
+
+        <NodeSelector 
+          isOpen={isNodeSelectorOpen}
+          onClose={() => setIsNodeSelectorOpen(false)}
+          onAddNode={onAddGenericNode}
+        />
 
         <div className="mt-4 text-sm text-muted-foreground">
-          <p>This is a simplified flow visualization. In a production app, we would integrate with a proper flow visualization library like React Flow.</p>
           <p>The backend developer working on Apache NiFi can use the flow definition generated here to create the actual NiFi processors and connections.</p>
         </div>
       </div>
