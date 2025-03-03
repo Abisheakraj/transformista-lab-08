@@ -1,9 +1,10 @@
+
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Play, Save, Plus } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { toast } from "@/hooks/use-toast";
 import DataSourcesTab from "@/components/flow/DataSourcesTab";
 import FlowDesignerTab from "@/components/flow/FlowDesignerTab";
 
@@ -18,6 +19,8 @@ const ProjectDetail = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [activeTab, setActiveTab] = useState("datasources");
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -40,6 +43,43 @@ const ProjectDetail = () => {
 
     fetchProject();
   }, [projectId]);
+
+  const handleSave = () => {
+    setIsSaving(true);
+    
+    // Simulate API call
+    setTimeout(() => {
+      setIsSaving(false);
+      toast({
+        title: "Project saved",
+        description: "Your project has been saved successfully."
+      });
+    }, 1000);
+  };
+
+  const handleRunFlow = () => {
+    setIsRunning(true);
+    
+    // Simulate API call
+    setTimeout(() => {
+      const success = Math.random() > 0.2; // 80% success rate for demo
+      
+      if (success) {
+        toast({
+          title: "Flow started",
+          description: "Your ETL flow has been started successfully."
+        });
+      } else {
+        toast({
+          title: "Flow failed",
+          description: "There was an error starting your ETL flow.",
+          variant: "destructive"
+        });
+      }
+      
+      setIsRunning(false);
+    }, 2000);
+  };
 
   if (isLoading) {
     return (
@@ -71,7 +111,7 @@ const ProjectDetail = () => {
     <div>
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-2xl font-bold text-primary">DataGenieAI</div>
+          <div className="text-2xl font-bold text-primary">WrenAI</div>
           <Button variant="ghost" onClick={() => navigate("/dashboard")}>Dashboard</Button>
         </div>
       </header>
@@ -89,13 +129,31 @@ const ProjectDetail = () => {
             <p className="text-muted-foreground">{project.description}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline">
-              <Save className="h-4 w-4 mr-2" />
-              Save
+            <Button variant="outline" onClick={handleSave} disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin mr-2"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save
+                </>
+              )}
             </Button>
-            <Button>
-              <Play className="h-4 w-4 mr-2" />
-              Run Flow
+            <Button onClick={handleRunFlow} disabled={isRunning}>
+              {isRunning ? (
+                <>
+                  <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin mr-2"></div>
+                  Running...
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4 mr-2" />
+                  Run Flow
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -119,7 +177,95 @@ const ProjectDetail = () => {
             <div className="rounded-lg border p-6">
               <h2 className="text-xl font-semibold mb-4">Project Settings</h2>
               <p className="text-muted-foreground mb-4">Configure your project settings and preferences.</p>
-              <p className="text-sm text-muted-foreground">Project Settings coming soon...</p>
+              
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-medium mb-2">General Settings</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Project Name</label>
+                      <Input value={project.name} className="max-w-md" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Project Description</label>
+                      <Input value={project.description} className="max-w-md" />
+                    </div>
+                  </div>
+                </div>
+                
+                <Separator />
+                
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Execution Settings</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <input type="checkbox" id="schedule" />
+                      <label htmlFor="schedule" className="text-sm font-medium">Enable Scheduled Execution</label>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Frequency</label>
+                        <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                          <option>Hourly</option>
+                          <option>Daily</option>
+                          <option>Weekly</option>
+                          <option>Monthly</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Start Date</label>
+                        <Input type="date" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Start Time</label>
+                        <Input type="time" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <Separator />
+                
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Notifications</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <input type="checkbox" id="email-notifications" />
+                      <label htmlFor="email-notifications" className="text-sm font-medium">Email Notifications</label>
+                    </div>
+                    <div className="space-y-2 max-w-md">
+                      <label className="text-sm font-medium">Notification Email</label>
+                      <Input type="email" placeholder="email@example.com" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium block mb-2">Notify On</label>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input type="checkbox" id="notify-success" />
+                          <label htmlFor="notify-success" className="text-sm">Flow execution success</label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input type="checkbox" id="notify-failure" checked />
+                          <label htmlFor="notify-failure" className="text-sm">Flow execution failure</label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input type="checkbox" id="notify-warnings" />
+                          <label htmlFor="notify-warnings" className="text-sm">Flow execution warnings</label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex justify-end mt-6">
+                  <Button variant="outline" className="mr-2">
+                    Cancel
+                  </Button>
+                  <Button>
+                    Save Settings
+                  </Button>
+                </div>
+              </div>
             </div>
           </TabsContent>
         </Tabs>

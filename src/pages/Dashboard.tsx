@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,7 +67,7 @@ const Dashboard = () => {
     <div>
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-2xl font-bold text-primary">DataGenieAI</div>
+          <div className="text-2xl font-bold text-primary">WrenAI</div>
           <Button variant="ghost" onClick={() => navigate("/")}>Home</Button>
         </div>
       </header>
@@ -93,7 +94,7 @@ const Dashboard = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.map((project) => (
-              <Card key={project.id} className="hover-scale">
+              <Card key={project.id} className="hover:shadow-md transition-shadow">
                 <CardHeader>
                   <CardTitle>{project.name}</CardTitle>
                   <CardDescription>{project.description}</CardDescription>

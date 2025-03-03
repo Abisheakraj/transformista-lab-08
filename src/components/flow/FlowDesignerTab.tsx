@@ -1,12 +1,14 @@
-import { useState, useCallback, useRef } from "react";
+
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, Database, Filter, ArrowRight, ArrowDown, Plus, Save, Code, Settings, HardDrive, Cog, ArrowRightLeft } from "lucide-react";
+import { Search, Database, Filter, ArrowRight, ArrowDown, Plus, Save, Code, Settings, HardDrive, Cog, ArrowRightLeft, Trash2, Link } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "@/hooks/use-toast";
 import { FlowNode, FlowEdge } from "@/types/flow";
 import {
   ReactFlow,
@@ -24,6 +26,7 @@ import {
   Edge,
   Position,
   BackgroundVariant,
+  MarkerType,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
@@ -33,23 +36,65 @@ interface FlowDesignerTabProps {
 
 interface SchemaTable {
   name: string;
-  columns: { name: string; type: string }[];
+  columns: { name: string; type: string; isPrimaryKey?: boolean; isForeignKey?: boolean; references?: string }[];
 }
 
-const TableNode = ({ data }: { data: any }) => {
+interface RelationshipData {
+  sourceTable: string;
+  sourceColumn: string;
+  targetTable: string;
+  targetColumn: string;
+  id: string;
+}
+
+const TableNode = ({ data, id }: { data: any, id: string }) => {
   return (
-    <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-      <div className="font-semibold text-base mb-2">{data.label}</div>
+    <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200 w-[280px]">
+      <div className="font-semibold text-base mb-2 flex justify-between items-center">
+        <span>{data.label}</span>
+        {data.onDelete && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-6 w-6 p-0 rounded-full hover:bg-red-100"
+            onClick={() => data.onDelete(id)}
+          >
+            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+          </Button>
+        )}
+      </div>
       {data.source && <div className="text-xs text-muted-foreground mb-2">{data.source}</div>}
       {data.columns && (
-        <div className="max-h-40 overflow-auto">
-          {data.columns.map((col: { name: string; type: string }) => (
-            <div key={col.name} className="text-xs py-1 border-b border-gray-100 flex justify-between">
-              <span>{col.name}</span>
-              <span className="text-muted-foreground">{col.type}</span>
+        <div className="max-h-40 overflow-auto divide-y divide-gray-100">
+          {data.columns.map((col: { name: string; type: string; isPrimaryKey?: boolean; isForeignKey?: boolean; references?: string }) => (
+            <div key={col.name} className="text-xs py-1.5 flex justify-between items-center">
+              <div className="flex items-center">
+                {col.isPrimaryKey && <div className="w-2 h-2 bg-amber-500 rounded-full mr-1.5" title="Primary Key" />}
+                {col.isForeignKey && <div className="w-2 h-2 bg-blue-500 rounded-full mr-1.5" title="Foreign Key" />}
+                <span className={col.isPrimaryKey ? "font-semibold" : ""}>{col.name}</span>
+              </div>
+              <div className="flex items-center">
+                <span className="text-muted-foreground">{col.type}</span>
+                {col.isForeignKey && col.references && (
+                  <span className="ml-1.5 text-blue-500" title={`References ${col.references}`}>
+                    <Link className="h-3 w-3" />
+                  </span>
+                )}
+              </div>
             </div>
           ))}
         </div>
+      )}
+      {data.onAddColumn && (
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="w-full mt-2 text-xs h-6 border border-dashed border-gray-300"
+          onClick={() => data.onAddColumn(id)}
+        >
+          <Plus className="h-3 w-3 mr-1" />
+          Add Column
+        </Button>
       )}
     </div>
   );
@@ -57,8 +102,20 @@ const TableNode = ({ data }: { data: any }) => {
 
 const TransformationNode = ({ data }: { data: any }) => {
   return (
-    <div className="bg-blue-50 rounded-lg shadow-md p-4 border border-blue-100">
-      <div className="font-semibold text-base mb-2">{data.label}</div>
+    <div className="bg-blue-50 rounded-lg shadow-md p-4 border border-blue-100 w-[240px]">
+      <div className="font-semibold text-base mb-2 flex justify-between items-center">
+        <span>{data.label}</span>
+        {data.onDelete && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-6 w-6 p-0 rounded-full hover:bg-red-100"
+            onClick={() => data.onDelete(data.id)}
+          >
+            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+          </Button>
+        )}
+      </div>
       <div className="text-xs text-muted-foreground">{data.type} transformation</div>
       <div className="mt-2">
         <Button variant="outline" size="sm" className="w-full">
@@ -136,12 +193,451 @@ const NodeSelector = ({ isOpen, onClose, onAddNode }: { isOpen: boolean; onClose
   );
 };
 
+// Dialog for adding/editing table columns
+const ColumnDialog = ({ 
+  isOpen, 
+  onClose, 
+  onSave, 
+  tableId, 
+  existingColumns = [] 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onSave: (tableId: string, columns: any[]) => void; 
+  tableId: string;
+  existingColumns?: any[];
+}) => {
+  const [columns, setColumns] = useState(existingColumns);
+  const [newColumnName, setNewColumnName] = useState("");
+  const [newColumnType, setNewColumnType] = useState("varchar");
+  const [isPrimaryKey, setIsPrimaryKey] = useState(false);
+  const [isForeignKey, setIsForeignKey] = useState(false);
+  const [references, setReferences] = useState("");
+
+  useEffect(() => {
+    setColumns(existingColumns);
+  }, [existingColumns, isOpen]);
+
+  const handleAddColumn = () => {
+    if (!newColumnName) return;
+    
+    const newColumn = {
+      name: newColumnName,
+      type: newColumnType,
+      isPrimaryKey,
+      isForeignKey,
+      references: isForeignKey ? references : undefined
+    };
+    
+    setColumns([...columns, newColumn]);
+    setNewColumnName("");
+    setNewColumnType("varchar");
+    setIsPrimaryKey(false);
+    setIsForeignKey(false);
+    setReferences("");
+  };
+
+  const handleRemoveColumn = (index: number) => {
+    const updatedColumns = [...columns];
+    updatedColumns.splice(index, 1);
+    setColumns(updatedColumns);
+  };
+
+  const handleSave = () => {
+    onSave(tableId, columns);
+    onClose();
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Manage Table Columns</DialogTitle>
+          <DialogDescription>Add, edit or remove columns for this table</DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          <div className="border rounded-md">
+            <div className="grid grid-cols-12 gap-2 p-3 bg-muted font-medium text-sm">
+              <div className="col-span-4">Column Name</div>
+              <div className="col-span-3">Type</div>
+              <div className="col-span-2">Primary Key</div>
+              <div className="col-span-2">Foreign Key</div>
+              <div className="col-span-1"></div>
+            </div>
+            
+            <ScrollArea className="h-[200px]">
+              {columns.length === 0 ? (
+                <div className="p-4 text-center text-muted-foreground">
+                  No columns defined yet. Add columns below.
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {columns.map((column, index) => (
+                    <div key={index} className="grid grid-cols-12 gap-2 p-3 items-center">
+                      <div className="col-span-4">{column.name}</div>
+                      <div className="col-span-3">{column.type}</div>
+                      <div className="col-span-2">
+                        {column.isPrimaryKey ? (
+                          <div className="flex items-center">
+                            <div className="w-3 h-3 bg-amber-500 rounded-full mr-1.5" />
+                            <span>Yes</span>
+                          </div>
+                        ) : "No"}
+                      </div>
+                      <div className="col-span-2">
+                        {column.isForeignKey ? (
+                          <div className="flex items-center">
+                            <div className="w-3 h-3 bg-blue-500 rounded-full mr-1.5" />
+                            <span>Yes</span>
+                          </div>
+                        ) : "No"}
+                      </div>
+                      <div className="col-span-1 text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 w-6 p-0 rounded-full hover:bg-red-100"
+                          onClick={() => handleRemoveColumn(index)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </div>
+          
+          <div className="border rounded-md p-3">
+            <h4 className="font-medium mb-3">Add New Column</h4>
+            <div className="grid grid-cols-12 gap-3">
+              <div className="col-span-4">
+                <Label htmlFor="column-name" className="mb-1 block text-xs">Column Name</Label>
+                <Input 
+                  id="column-name" 
+                  value={newColumnName} 
+                  onChange={(e) => setNewColumnName(e.target.value)}
+                  placeholder="e.g., customer_id"
+                />
+              </div>
+              <div className="col-span-3">
+                <Label htmlFor="column-type" className="mb-1 block text-xs">Data Type</Label>
+                <select 
+                  id="column-type"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={newColumnType}
+                  onChange={(e) => setNewColumnType(e.target.value)}
+                >
+                  <option value="varchar">varchar</option>
+                  <option value="int">int</option>
+                  <option value="bigint">bigint</option>
+                  <option value="boolean">boolean</option>
+                  <option value="timestamp">timestamp</option>
+                  <option value="date">date</option>
+                  <option value="decimal">decimal</option>
+                  <option value="text">text</option>
+                  <option value="json">json</option>
+                </select>
+              </div>
+              <div className="col-span-2">
+                <div className="h-7"></div> {/* Spacer to align with inputs */}
+                <div className="flex items-center h-10">
+                  <input 
+                    type="checkbox" 
+                    id="is-primary" 
+                    checked={isPrimaryKey}
+                    onChange={() => setIsPrimaryKey(!isPrimaryKey)}
+                    className="mr-2"
+                  />
+                  <Label htmlFor="is-primary" className="text-sm cursor-pointer">Primary Key</Label>
+                </div>
+              </div>
+              <div className="col-span-2">
+                <div className="h-7"></div> {/* Spacer to align with inputs */}
+                <div className="flex items-center h-10">
+                  <input 
+                    type="checkbox" 
+                    id="is-foreign" 
+                    checked={isForeignKey}
+                    onChange={() => setIsForeignKey(!isForeignKey)}
+                    className="mr-2"
+                  />
+                  <Label htmlFor="is-foreign" className="text-sm cursor-pointer">Foreign Key</Label>
+                </div>
+              </div>
+              <div className="col-span-1">
+                <div className="h-7"></div> {/* Spacer to align with inputs */}
+                <Button 
+                  onClick={handleAddColumn} 
+                  disabled={!newColumnName} 
+                  className="h-10"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            
+            {isForeignKey && (
+              <div className="mt-3">
+                <Label htmlFor="references" className="mb-1 block text-xs">References Table.Column</Label>
+                <Input 
+                  id="references" 
+                  value={references} 
+                  onChange={(e) => setReferences(e.target.value)}
+                  placeholder="e.g., users.id"
+                  className="max-w-[300px]"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave}>
+            Save Columns
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// Dialog for managing relationships
+const RelationshipDialog = ({ 
+  isOpen, 
+  onClose, 
+  nodes,
+  onAddRelationship
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  nodes: Node[];
+  onAddRelationship: (relationship: RelationshipData) => void;
+}) => {
+  const [sourceTable, setSourceTable] = useState("");
+  const [sourceColumn, setSourceColumn] = useState("");
+  const [targetTable, setTargetTable] = useState("");
+  const [targetColumn, setTargetColumn] = useState("");
+  
+  const sourceTableNode = nodes.find(node => node.id === sourceTable);
+  const targetTableNode = nodes.find(node => node.id === targetTable);
+  
+  const sourceColumns = sourceTableNode?.data?.columns || [];
+  const targetColumns = targetTableNode?.data?.columns || [];
+  
+  const handleSubmit = () => {
+    if (!sourceTable || !sourceColumn || !targetTable || !targetColumn) {
+      toast({
+        title: "Missing information",
+        description: "Please select all required fields for the relationship",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    onAddRelationship({
+      sourceTable,
+      sourceColumn,
+      targetTable,
+      targetColumn,
+      id: `rel-${Date.now()}`
+    });
+    
+    // Reset form
+    setSourceTable("");
+    setSourceColumn("");
+    setTargetTable("");
+    setTargetColumn("");
+    onClose();
+  };
+  
+  const tableNodes = nodes.filter(node => node.type === 'table');
+  
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create Table Relationship</DialogTitle>
+          <DialogDescription>Define a relationship between two tables</DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="source-table">Source Table</Label>
+            <select 
+              id="source-table"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              value={sourceTable}
+              onChange={(e) => {
+                setSourceTable(e.target.value);
+                setSourceColumn("");
+              }}
+            >
+              <option value="">Select a table</option>
+              {tableNodes.map(node => (
+                <option key={node.id} value={node.id}>{node.data.label}</option>
+              ))}
+            </select>
+          </div>
+          
+          {sourceTable && (
+            <div className="space-y-2">
+              <Label htmlFor="source-column">Source Column</Label>
+              <select 
+                id="source-column"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                value={sourceColumn}
+                onChange={(e) => setSourceColumn(e.target.value)}
+              >
+                <option value="">Select a column</option>
+                {sourceColumns.map((col: any) => (
+                  <option key={col.name} value={col.name}>{col.name} ({col.type})</option>
+                ))}
+              </select>
+            </div>
+          )}
+          
+          <div className="flex justify-center">
+            <div className="bg-muted rounded-full p-2">
+              <ArrowDown className="h-5 w-5 text-muted-foreground" />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="target-table">Target Table</Label>
+            <select 
+              id="target-table"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              value={targetTable}
+              onChange={(e) => {
+                setTargetTable(e.target.value);
+                setTargetColumn("");
+              }}
+            >
+              <option value="">Select a table</option>
+              {tableNodes.map(node => (
+                <option key={node.id} value={node.id}>{node.data.label}</option>
+              ))}
+            </select>
+          </div>
+          
+          {targetTable && (
+            <div className="space-y-2">
+              <Label htmlFor="target-column">Target Column</Label>
+              <select 
+                id="target-column"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                value={targetColumn}
+                onChange={(e) => setTargetColumn(e.target.value)}
+              >
+                <option value="">Select a column</option>
+                {targetColumns.map((col: any) => (
+                  <option key={col.name} value={col.name}>{col.name} ({col.type})</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+        
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit}>
+            Create Relationship
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const PreviewDialog = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [previewData, setPreviewData] = useState<any[]>([]);
+  
+  useEffect(() => {
+    if (isOpen) {
+      setIsLoading(true);
+      // Simulate API call to fetch preview data
+      setTimeout(() => {
+        setPreviewData([
+          { id: 1, customer_name: "John Doe", order_total: 123.45, status: "completed" },
+          { id: 2, customer_name: "Jane Smith", order_total: 67.89, status: "processing" },
+          { id: 3, customer_name: "Bob Johnson", order_total: 246.80, status: "pending" },
+          { id: 4, customer_name: "Sarah Williams", order_total: 890.50, status: "completed" },
+          { id: 5, customer_name: "Michael Brown", order_total: 45.99, status: "processing" },
+        ]);
+        setIsLoading(false);
+      }, 1500);
+    }
+  }, [isOpen]);
+  
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl">
+        <DialogHeader>
+          <DialogTitle>Flow Preview</DialogTitle>
+          <DialogDescription>Preview of the data result from the current flow</DialogDescription>
+        </DialogHeader>
+        
+        {isLoading ? (
+          <div className="py-12 flex justify-center">
+            <div className="text-center">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Generating preview...</p>
+            </div>
+          </div>
+        ) : (
+          <div className="border rounded-md overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-muted">
+                  {Object.keys(previewData[0]).map((key) => (
+                    <th key={key} className="px-4 py-2 text-left font-medium text-sm">{key}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {previewData.map((row, i) => (
+                  <tr key={i} className="border-t">
+                    {Object.values(row).map((value: any, j) => (
+                      <td key={j} className="px-4 py-2 text-sm">
+                        {typeof value === 'object' ? JSON.stringify(value) : value}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        
+        <div className="flex justify-end mt-4">
+          <Button onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDatabase, setSelectedDatabase] = useState<string | null>(null);
   const [selectedTable, setSelectedTable] = useState<SchemaTable | null>(null);
   const [isTransformSheetOpen, setIsTransformSheetOpen] = useState(false);
   const [isNodeSelectorOpen, setIsNodeSelectorOpen] = useState(false);
+  const [isColumnDialogOpen, setIsColumnDialogOpen] = useState(false);
+  const [isRelationshipDialogOpen, setIsRelationshipDialogOpen] = useState(false);
+  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+  const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -155,7 +651,7 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
         {
           name: "customers",
           columns: [
-            { name: "id", type: "int" },
+            { name: "id", type: "int", isPrimaryKey: true },
             { name: "name", type: "varchar" },
             { name: "email", type: "varchar" },
             { name: "created_at", type: "timestamp" },
@@ -164,8 +660,8 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
         {
           name: "orders",
           columns: [
-            { name: "id", type: "int" },
-            { name: "customer_id", type: "int" },
+            { name: "id", type: "int", isPrimaryKey: true },
+            { name: "customer_id", type: "int", isForeignKey: true, references: "customers.id" },
             { name: "total", type: "decimal" },
             { name: "status", type: "varchar" },
             { name: "created_at", type: "timestamp" },
@@ -174,7 +670,7 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
         {
           name: "products",
           columns: [
-            { name: "id", type: "int" },
+            { name: "id", type: "int", isPrimaryKey: true },
             { name: "name", type: "varchar" },
             { name: "price", type: "decimal" },
             { name: "category", type: "varchar" },
@@ -189,7 +685,7 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
         {
           name: "users",
           columns: [
-            { name: "id", type: "serial" },
+            { name: "id", type: "serial", isPrimaryKey: true },
             { name: "username", type: "varchar" },
             { name: "email", type: "varchar" },
             { name: "active", type: "boolean" },
@@ -198,8 +694,8 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
         {
           name: "profiles",
           columns: [
-            { name: "id", type: "serial" },
-            { name: "user_id", type: "int" },
+            { name: "id", type: "serial", isPrimaryKey: true },
+            { name: "user_id", type: "int", isForeignKey: true, references: "users.id" },
             { name: "full_name", type: "varchar" },
             { name: "address", type: "varchar" },
             { name: "phone", type: "varchar" },
@@ -222,14 +718,70 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
     : [];
 
   const onConnect = useCallback((params: Connection) => {
-    const newEdge: Edge = {
-      ...params,
-      id: `edge-${params.source}-${params.target}`,
-      animated: true,
-      style: { stroke: '#555' },
-    };
-    setEdges((eds) => addEdge(newEdge, eds));
-  }, [setEdges]);
+    const sourceNode = nodes.find(node => node.id === params.source);
+    const targetNode = nodes.find(node => node.id === params.target);
+    
+    if (sourceNode && targetNode) {
+      const newEdge: Edge = {
+        ...params,
+        id: `edge-${params.source}-${params.target}`,
+        animated: true,
+        style: { stroke: '#555' },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          width: 15,
+          height: 15,
+        },
+        label: "connects to",
+        labelStyle: { fontSize: 10 },
+        labelShowBg: true,
+      };
+      setEdges((eds) => addEdge(newEdge, eds));
+      
+      // Update column data to reflect relationship
+      if (sourceNode.type === 'table' && targetNode.type === 'table') {
+        toast({
+          title: "Relationship created",
+          description: `Relationship between ${sourceNode.data.label} and ${targetNode.data.label} has been created`
+        });
+      }
+    }
+  }, [nodes, setEdges]);
+
+  const handleDeleteNode = (nodeId: string) => {
+    setNodes((nds) => nds.filter((node) => node.id !== nodeId));
+    setEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
+  };
+
+  const handleAddColumn = (tableId: string) => {
+    setSelectedTableId(tableId);
+    
+    // Find existing columns for the table
+    const tableNode = nodes.find(node => node.id === tableId);
+    const columns = tableNode?.data?.columns || [];
+    
+    setIsColumnDialogOpen(true);
+  };
+
+  const handleSaveColumns = (tableId: string, columns: any[]) => {
+    setNodes(nodes.map(node => {
+      if (node.id === tableId) {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            columns
+          }
+        };
+      }
+      return node;
+    }));
+    
+    toast({
+      title: "Columns updated",
+      description: `Table columns have been successfully updated.`
+    });
+  };
 
   const addNodeToFlow = (table: SchemaTable) => {
     const xPos = nodes.length * 300 + 50;
@@ -241,6 +793,8 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
         label: table.name,
         source: selectedDatabase ? mockSources.find(db => db.id === selectedDatabase)?.name : "",
         columns: table.columns,
+        onDelete: handleDeleteNode,
+        onAddColumn: handleAddColumn,
       },
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
@@ -248,6 +802,11 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
     
     setNodes((nds) => [...nds, newNode]);
     setSelectedTable(null);
+    
+    toast({
+      title: "Table added",
+      description: `${table.name} has been added to the flow.`
+    });
   };
 
   const addTransformationNode = (type: string, sourceNodeId: string) => {
@@ -262,6 +821,8 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
         label: `${type} Transformation`,
         type,
         sourceNodeId,
+        id: `transformation-${Date.now()}`,
+        onDelete: handleDeleteNode,
       },
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
@@ -272,11 +833,21 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
       source: sourceNodeId,
       target: newNode.id,
       animated: true,
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 15,
+        height: 15,
+      },
     };
     
     setNodes((nds) => [...nds, newNode]);
     setEdges((eds) => [...eds, newEdge]);
     setIsTransformSheetOpen(false);
+    
+    toast({
+      title: "Transformation added",
+      description: `${type} transformation node has been added to the flow.`
+    });
   };
 
   const onAddGenericNode = (nodeType: string) => {
@@ -312,6 +883,10 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
       data: {
         label: `${label} ${nodeCount + 1}`,
         type: type,
+        id: `${nodeType}-${Date.now()}`,
+        onDelete: handleDeleteNode,
+        onAddColumn: nodeType === "output" ? handleAddColumn : undefined,
+        columns: nodeType === "output" ? [] : undefined,
       },
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
@@ -319,11 +894,79 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
     
     setNodes((nds) => [...nds, newNode]);
     setIsNodeSelectorOpen(false);
+    
+    toast({
+      title: "Node added",
+      description: `${label} ${nodeCount + 1} has been added to the flow.`
+    });
+  };
+  
+  const handleAddRelationship = (relationship: RelationshipData) => {
+    const { sourceTable, sourceColumn, targetTable, targetColumn, id } = relationship;
+    
+    // Add edge
+    const newEdge: Edge = {
+      id: `edge-${id}`,
+      source: sourceTable,
+      target: targetTable,
+      sourceHandle: sourceColumn,
+      targetHandle: targetColumn,
+      animated: true,
+      style: { stroke: '#3b82f6', strokeWidth: 2 },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 15,
+        height: 15,
+        color: '#3b82f6',
+      },
+      label: `${sourceColumn} → ${targetColumn}`,
+      labelStyle: { fontSize: 10, fill: '#3b82f6' },
+      labelShowBg: true,
+    };
+    
+    setEdges((eds) => [...eds, newEdge]);
+    
+    // Update node data to reflect relationship
+    setNodes(nodes.map(node => {
+      if (node.id === targetTable) {
+        // Find the column and mark it as a foreign key
+        const columns = node.data.columns.map((col: any) => {
+          if (col.name === targetColumn) {
+            return {
+              ...col,
+              isForeignKey: true,
+              references: `${nodes.find(n => n.id === sourceTable)?.data.label}.${sourceColumn}`
+            };
+          }
+          return col;
+        });
+        
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            columns
+          }
+        };
+      }
+      return node;
+    }));
+    
+    toast({
+      title: "Relationship created",
+      description: `Relationship from ${nodes.find(n => n.id === sourceTable)?.data.label}.${sourceColumn} to ${nodes.find(n => n.id === targetTable)?.data.label}.${targetColumn} has been created.`
+    });
   };
 
   const onSaveFlow = () => {
-    console.log("Saving flow:", { nodes, edges });
-    // Here you would normally send the flow data to your backend
+    toast({
+      title: "Flow saved",
+      description: "Your flow has been saved successfully."
+    });
+  };
+
+  const onPreviewFlow = () => {
+    setIsPreviewDialogOpen(true);
   };
 
   return (
@@ -413,7 +1056,11 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
                 <div className="space-y-1">
                   {selectedTable.columns.map((column) => (
                     <div key={column.name} className="text-sm grid grid-cols-2 py-1 border-b border-gray-100">
-                      <div>{column.name}</div>
+                      <div className="flex items-center">
+                        {column.isPrimaryKey && <div className="w-2 h-2 bg-amber-500 rounded-full mr-1.5" title="Primary Key" />}
+                        {column.isForeignKey && <div className="w-2 h-2 bg-blue-500 rounded-full mr-1.5" title="Foreign Key" />}
+                        {column.name}
+                      </div>
                       <div className="text-muted-foreground text-xs text-right">{column.type}</div>
                     </div>
                   ))}
@@ -432,11 +1079,15 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
               <Plus className="h-4 w-4 mr-1" />
               Add Node
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setIsRelationshipDialogOpen(true)}>
+              <Link className="h-4 w-4 mr-1" />
+              Add Relationship
+            </Button>
             <Button variant="outline" size="sm" onClick={onSaveFlow}>
               <Save className="h-4 w-4 mr-1" />
               Save Flow
             </Button>
-            <Button size="sm">
+            <Button size="sm" onClick={onPreviewFlow}>
               Preview
             </Button>
           </div>
@@ -457,6 +1108,7 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
               animated: true,
               style: { strokeWidth: 2 }
             }}
+            attributionPosition="bottom-right"
           >
             <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
             <Controls />
@@ -468,6 +1120,26 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
           isOpen={isNodeSelectorOpen}
           onClose={() => setIsNodeSelectorOpen(false)}
           onAddNode={onAddGenericNode}
+        />
+        
+        <ColumnDialog
+          isOpen={isColumnDialogOpen}
+          onClose={() => setIsColumnDialogOpen(false)}
+          onSave={handleSaveColumns}
+          tableId={selectedTableId || ""}
+          existingColumns={nodes.find(node => node.id === selectedTableId)?.data?.columns || []}
+        />
+        
+        <RelationshipDialog
+          isOpen={isRelationshipDialogOpen}
+          onClose={() => setIsRelationshipDialogOpen(false)}
+          nodes={nodes}
+          onAddRelationship={handleAddRelationship}
+        />
+        
+        <PreviewDialog
+          isOpen={isPreviewDialogOpen}
+          onClose={() => setIsPreviewDialogOpen(false)}
         />
 
         <div className="mt-4 text-sm text-muted-foreground">
