@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -193,7 +192,6 @@ const NodeSelector = ({ isOpen, onClose, onAddNode }: { isOpen: boolean; onClose
   );
 };
 
-// Dialog for adding/editing table columns
 const ColumnDialog = ({ 
   isOpen, 
   onClose, 
@@ -407,7 +405,6 @@ const ColumnDialog = ({
   );
 };
 
-// Dialog for managing relationships
 const RelationshipDialog = ({ 
   isOpen, 
   onClose, 
@@ -479,7 +476,7 @@ const RelationshipDialog = ({
               }}
             >
               <option value="">Select a table</option>
-              {tableNodes.map(node => (
+              {tableNodes.map((node) => (
                 <option key={node.id} value={node.id}>{node.data.label}</option>
               ))}
             </select>
@@ -495,7 +492,7 @@ const RelationshipDialog = ({
                 onChange={(e) => setSourceColumn(e.target.value)}
               >
                 <option value="">Select a column</option>
-                {sourceColumns.map((col: any) => (
+                {sourceColumns.map((col: { name: string; type: string }) => (
                   <option key={col.name} value={col.name}>{col.name} ({col.type})</option>
                 ))}
               </select>
@@ -520,7 +517,7 @@ const RelationshipDialog = ({
               }}
             >
               <option value="">Select a table</option>
-              {tableNodes.map(node => (
+              {tableNodes.map((node) => (
                 <option key={node.id} value={node.id}>{node.data.label}</option>
               ))}
             </select>
@@ -536,7 +533,7 @@ const RelationshipDialog = ({
                 onChange={(e) => setTargetColumn(e.target.value)}
               >
                 <option value="">Select a column</option>
-                {targetColumns.map((col: any) => (
+                {targetColumns.map((col: { name: string; type: string }) => (
                   <option key={col.name} value={col.name}>{col.name} ({col.type})</option>
                 ))}
               </select>
