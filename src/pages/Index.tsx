@@ -1,6 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import AuthSheet from "@/components/auth/AuthSheet";
 
 export default function Index() {
@@ -20,7 +21,7 @@ export default function Index() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <header className="container mx-auto py-6 flex justify-between items-center">
-        <div className="text-2xl font-bold text-blue-600">DataFlow</div>
+        <div className="text-2xl font-bold text-blue-600">DataGenieAI</div>
         <div className="flex gap-4">
           <Button variant="outline" onClick={openLogin}>Log in</Button>
           <Button onClick={openSignup}>Sign up</Button>

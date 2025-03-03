@@ -5,6 +5,7 @@ import LoginForm from "./LoginForm";
 import SignupForm from "./SignupForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/App";
 
 interface AuthSheetProps {
   open: boolean;
@@ -15,8 +16,10 @@ interface AuthSheetProps {
 const AuthSheet = ({ open, onOpenChange, defaultTab = "login" }: AuthSheetProps) => {
   const [activeTab, setActiveTab] = useState<string>(defaultTab);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleAuthSuccess = () => {
+    login(); // Set authenticated state
     onOpenChange(false);
     navigate("/dashboard");
   };
@@ -25,7 +28,7 @@ const AuthSheet = ({ open, onOpenChange, defaultTab = "login" }: AuthSheetProps)
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
         <SheetHeader className="mb-6">
-          <SheetTitle>Welcome</SheetTitle>
+          <SheetTitle>Welcome to DataGenieAI</SheetTitle>
           <SheetDescription>
             Sign in to your account or create a new one to get started.
           </SheetDescription>

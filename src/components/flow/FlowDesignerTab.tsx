@@ -510,8 +510,13 @@ const RelationshipDialog = ({
   const targetTableNode = nodes.find(node => node.id === targetTable);
   
   // Explicitly type and provide default empty arrays
-  const sourceColumns: ColumnType[] = sourceTableNode?.data?.columns || [];
-  const targetColumns: ColumnType[] = targetTableNode?.data?.columns || [];
+  const sourceColumns: ColumnType[] = sourceTableNode?.data?.columns ? 
+    Array.isArray(sourceTableNode.data.columns) ? sourceTableNode.data.columns : [] 
+    : [];
+  
+  const targetColumns: ColumnType[] = targetTableNode?.data?.columns ? 
+    Array.isArray(targetTableNode.data.columns) ? targetTableNode.data.columns : []
+    : [];
   
   const handleSubmit = () => {
     if (!sourceTable || !sourceColumn || !targetTable || !targetColumn) {
@@ -564,7 +569,7 @@ const RelationshipDialog = ({
               <option value="">Select a table</option>
               {tableNodes.map((node) => (
                 <option key={node.id} value={node.id}>
-                  {node.data?.label || "Unnamed Table"}
+                  {node.data?.label ? String(node.data.label) : "Unnamed Table"}
                 </option>
               ))}
             </select>
@@ -609,7 +614,7 @@ const RelationshipDialog = ({
               <option value="">Select a table</option>
               {tableNodes.map((node) => (
                 <option key={node.id} value={node.id}>
-                  {node.data?.label || "Unnamed Table"}
+                  {node.data?.label ? String(node.data.label) : "Unnamed Table"}
                 </option>
               ))}
             </select>
@@ -1020,7 +1025,7 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
       type: 'relationship',
       style: { 
         stroke: '#3b82f6', 
-        strokeWidth: 2,
+        strokeWidth: 3, // Make lines thicker
       },
       markerEnd: {
         type: MarkerType.ArrowClosed,
@@ -1030,13 +1035,13 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
       },
       data: {
         label: `${sourceColumn} → ${targetColumn}`,
-        sourceTable: sourceNode.data.label,
-        targetTable: targetNode.data.label,
+        sourceTable: sourceNode.data?.label,
+        targetTable: targetNode.data?.label,
         sourceColumn: sourceColumn,
         targetColumn: targetColumn,
         relationship: {
           type: 'One-to-Many',
-          description: `Foreign key relationship from ${sourceNode.data.label}.${sourceColumn} to ${targetNode.data.label}.${targetColumn}`
+          description: `Foreign key relationship from ${sourceNode.data?.label}.${sourceColumn} to ${targetNode.data?.label}.${targetColumn}`
         }
       }
     };
@@ -1045,16 +1050,16 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
     
     setNodes(nodes.map(node => {
       if (node.id === targetTable) {
-        const columns = node.data.columns.map((col: ColumnType) => {
+        const columns = node.data?.columns?.map((col: ColumnType) => {
           if (col.name === targetColumn) {
             return {
               ...col,
               isForeignKey: true,
-              references: `${sourceNode.data.label}.${sourceColumn}`
+              references: `${sourceNode.data?.label}.${sourceColumn}`
             };
           }
           return col;
-        });
+        }) || [];
         
         return {
           ...node,
@@ -1069,7 +1074,7 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
     
     toast({
       title: "Relationship created",
-      description: `Relationship from ${sourceNode.data.label}.${sourceColumn} to ${targetNode.data.label}.${targetColumn} has been created.`
+      description: `Relationship from ${sourceNode.data?.label}.${sourceColumn} to ${targetNode.data?.label}.${targetColumn} has been created.`
     });
   };
 
