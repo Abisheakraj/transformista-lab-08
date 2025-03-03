@@ -7,12 +7,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
 
 interface AuthSheetProps {
-  isOpen: boolean;
+  open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultTab?: "login" | "signup";
 }
 
-const AuthSheet = ({ isOpen, onOpenChange }: AuthSheetProps) => {
-  const [activeTab, setActiveTab] = useState<string>("login");
+const AuthSheet = ({ open, onOpenChange, defaultTab = "login" }: AuthSheetProps) => {
+  const [activeTab, setActiveTab] = useState<string>(defaultTab);
   const navigate = useNavigate();
 
   const handleAuthSuccess = () => {
@@ -21,7 +22,7 @@ const AuthSheet = ({ isOpen, onOpenChange }: AuthSheetProps) => {
   };
 
   return (
-    <Sheet open={isOpen} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
         <SheetHeader className="mb-6">
           <SheetTitle>Welcome</SheetTitle>
@@ -30,7 +31,7 @@ const AuthSheet = ({ isOpen, onOpenChange }: AuthSheetProps) => {
           </SheetDescription>
         </SheetHeader>
         <Tabs
-          defaultValue="login"
+          defaultValue={defaultTab}
           value={activeTab}
           onValueChange={setActiveTab}
           className="w-full"

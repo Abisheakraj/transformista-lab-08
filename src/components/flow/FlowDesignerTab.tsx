@@ -509,7 +509,7 @@ const RelationshipDialog = ({
   const sourceTableNode = nodes.find(node => node.id === sourceTable);
   const targetTableNode = nodes.find(node => node.id === targetTable);
   
-  // Fix TypeScript errors by providing explicit types
+  // Explicitly type and provide default empty arrays
   const sourceColumns: ColumnType[] = sourceTableNode?.data?.columns || [];
   const targetColumns: ColumnType[] = targetTableNode?.data?.columns || [];
   
@@ -564,7 +564,7 @@ const RelationshipDialog = ({
               <option value="">Select a table</option>
               {tableNodes.map((node) => (
                 <option key={node.id} value={node.id}>
-                  {node.data.label}
+                  {node.data?.label || "Unnamed Table"}
                 </option>
               ))}
             </select>
@@ -609,7 +609,7 @@ const RelationshipDialog = ({
               <option value="">Select a table</option>
               {tableNodes.map((node) => (
                 <option key={node.id} value={node.id}>
-                  {node.data.label}
+                  {node.data?.label || "Unnamed Table"}
                 </option>
               ))}
             </select>
