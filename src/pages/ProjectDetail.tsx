@@ -5,6 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Play, Save, Plus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input"; // Add this import
+import { Separator } from "@/components/ui/separator"; // Add this import
 import DataSourcesTab from "@/components/flow/DataSourcesTab";
 import FlowDesignerTab from "@/components/flow/FlowDesignerTab";
 

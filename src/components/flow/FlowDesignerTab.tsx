@@ -559,7 +559,7 @@ const RelationshipDialog = ({
 
 const PreviewDialog = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const [isLoading, setIsLoading] = useState(true);
-  const [previewData, setPreviewData] = useState<any[]>([]);
+  const [previewData, setPreviewData] = useState<Array<Record<string, any>>>([]);
   
   useEffect(() => {
     if (isOpen) {
@@ -608,7 +608,7 @@ const PreviewDialog = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
                   <tr key={i} className="border-t">
                     {Object.values(row).map((value: any, j) => (
                       <td key={j} className="px-4 py-2 text-sm">
-                        {typeof value === 'object' ? JSON.stringify(value) : value}
+                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
                       </td>
                     ))}
                   </tr>
