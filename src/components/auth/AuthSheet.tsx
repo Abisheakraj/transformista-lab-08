@@ -8,12 +8,12 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/App";
 
 interface AuthSheetProps {
-  open: boolean;
+  isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   defaultTab?: "login" | "signup";
 }
 
-const AuthSheet = ({ open, onOpenChange, defaultTab = "login" }: AuthSheetProps) => {
+const AuthSheet = ({ isOpen, onOpenChange, defaultTab = "login" }: AuthSheetProps) => {
   const [activeTab, setActiveTab] = useState<string>(defaultTab);
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -25,7 +25,7 @@ const AuthSheet = ({ open, onOpenChange, defaultTab = "login" }: AuthSheetProps)
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={isOpen} onOpenChange={onOpenChange}>
       <SheetContent>
         <SheetHeader className="mb-6">
           <SheetTitle>Welcome to DataGenieAI</SheetTitle>
