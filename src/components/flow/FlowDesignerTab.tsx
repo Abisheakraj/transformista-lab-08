@@ -27,6 +27,7 @@ import {
   BackgroundVariant,
   MarkerType,
   EdgeTypes,
+  EdgeLabelRenderer,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
@@ -135,9 +136,84 @@ const TransformationNode = ({ data }: { data: any }) => {
   );
 };
 
+// Custom edge with hover tooltip
+const RelationshipEdge = ({ id, source, target, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, style = {}, markerEnd }: any) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  const edgePath = `M ${sourceX} ${sourceY} C ${sourceX + 50} ${sourceY} ${targetX - 50} ${targetY} ${targetX} ${targetY}`;
+
+  return (
+    <>
+      <path
+        id={id}
+        className="react-flow__edge-path"
+        d={edgePath}
+        markerEnd={markerEnd}
+        style={{
+          ...style,
+          strokeWidth: 2,
+          stroke: '#3b82f6',
+        }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      />
+      {data?.label && (
+        <EdgeLabelRenderer>
+          <div
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${(sourceX + targetX) / 2}px, ${(sourceY + targetY) / 2}px)`,
+              background: '#ffffff',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '12px',
+              fontWeight: 500,
+              border: '1px solid #e5e7eb',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+              pointerEvents: 'all',
+            }}
+          >
+            {data.label}
+          </div>
+        </EdgeLabelRenderer>
+      )}
+      {isHovered && data?.relationship && (
+        <EdgeLabelRenderer>
+          <div
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${(sourceX + targetX) / 2}px, ${(sourceY + targetY) / 2 - 40}px)`,
+              background: '#ffffff',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              border: '1px solid #e5e7eb',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              zIndex: 1000,
+              pointerEvents: 'none',
+              minWidth: '200px',
+            }}
+          >
+            <div className="font-medium text-sm mb-1">Relationship Details</div>
+            <div className="text-xs text-muted-foreground mb-1">Type: {data.relationship.type || 'One-to-Many'}</div>
+            <div className="text-xs">
+              <span className="font-medium">{data.sourceTable}</span>
+              .{data.sourceColumn} → <span className="font-medium">{data.targetTable}</span>.{data.targetColumn}
+            </div>
+          </div>
+        </EdgeLabelRenderer>
+      )}
+    </>
+  );
+};
+
 const nodeTypes = {
   table: TableNode,
   transformation: TransformationNode,
+};
+
+const edgeTypes = {
+  relationship: RelationshipEdge
 };
 
 type NodeSelectorType = {
@@ -433,6 +509,7 @@ const RelationshipDialog = ({
   const sourceTableNode = nodes.find(node => node.id === sourceTable);
   const targetTableNode = nodes.find(node => node.id === targetTable);
   
+  // Fix TypeScript errors by providing explicit types
   const sourceColumns: ColumnType[] = sourceTableNode?.data?.columns || [];
   const targetColumns: ColumnType[] = targetTableNode?.data?.columns || [];
   
@@ -486,7 +563,9 @@ const RelationshipDialog = ({
             >
               <option value="">Select a table</option>
               {tableNodes.map((node) => (
-                <option key={node.id} value={node.id}>{node.data.label}</option>
+                <option key={node.id} value={node.id}>
+                  {node.data.label}
+                </option>
               ))}
             </select>
           </div>
@@ -502,7 +581,9 @@ const RelationshipDialog = ({
               >
                 <option value="">Select a column</option>
                 {sourceColumns.map((col) => (
-                  <option key={col.name} value={col.name}>{col.name} ({col.type})</option>
+                  <option key={col.name} value={col.name}>
+                    {col.name} ({col.type})
+                  </option>
                 ))}
               </select>
             </div>
@@ -527,7 +608,9 @@ const RelationshipDialog = ({
             >
               <option value="">Select a table</option>
               {tableNodes.map((node) => (
-                <option key={node.id} value={node.id}>{node.data.label}</option>
+                <option key={node.id} value={node.id}>
+                  {node.data.label}
+                </option>
               ))}
             </select>
           </div>
@@ -543,7 +626,9 @@ const RelationshipDialog = ({
               >
                 <option value="">Select a column</option>
                 {targetColumns.map((col) => (
-                  <option key={col.name} value={col.name}>{col.name} ({col.type})</option>
+                  <option key={col.name} value={col.name}>
+                    {col.name} ({col.type})
+                  </option>
                 ))}
               </select>
             </div>
@@ -728,10 +813,11 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
     const targetNode = nodes.find(node => node.id === params.target);
     
     if (sourceNode && targetNode) {
+      // Improved edge styling with relationship data
       const newEdge: Edge = {
         ...params,
         id: `edge-${params.source}-${params.target}`,
-        type: 'smoothstep',
+        type: 'relationship',
         animated: true,
         style: { 
           stroke: '#3b82f6', 
@@ -739,16 +825,18 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          width: 15,
-          height: 15,
+          width: 20,
+          height: 20,
           color: '#3b82f6',
         },
-        label: `${sourceNode.data.label} → ${targetNode.data.label}`,
-        labelBgPadding: [8, 4],
-        labelBgBorderRadius: 4,
-        labelStyle: { fill: '#3b82f6', fontWeight: 500 },
-        labelShowBg: true,
-        labelBgStyle: { fill: '#ffffff', fillOpacity: 0.8 },
+        data: {
+          label: `${sourceNode.data.label} → ${targetNode.data.label}`,
+          sourceTable: sourceNode.data.label,
+          targetTable: targetNode.data.label,
+          relationship: {
+            type: 'One-to-Many'
+          }
+        }
       };
       setEdges((eds) => addEdge(newEdge, eds));
       
@@ -923,28 +1011,34 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
     
     if (!sourceNode || !targetNode) return;
     
+    // Enhanced edge with relationship data for hover details
     const newEdge: Edge = {
       id: `edge-${id}`,
       source: sourceTable,
       target: targetTable,
       animated: true,
-      type: 'smoothstep',
+      type: 'relationship',
       style: { 
         stroke: '#3b82f6', 
         strokeWidth: 2,
       },
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        width: 15,
-        height: 15,
+        width: 20,
+        height: 20,
         color: '#3b82f6',
       },
-      label: `${sourceColumn} → ${targetColumn}`,
-      labelBgPadding: [8, 4],
-      labelBgBorderRadius: 4,
-      labelStyle: { fill: '#3b82f6', fontWeight: 500 },
-      labelShowBg: true,
-      labelBgStyle: { fill: '#ffffff', fillOpacity: 0.8 },
+      data: {
+        label: `${sourceColumn} → ${targetColumn}`,
+        sourceTable: sourceNode.data.label,
+        targetTable: targetNode.data.label,
+        sourceColumn: sourceColumn,
+        targetColumn: targetColumn,
+        relationship: {
+          type: 'One-to-Many',
+          description: `Foreign key relationship from ${sourceNode.data.label}.${sourceColumn} to ${targetNode.data.label}.${targetColumn}`
+        }
+      }
     };
     
     setEdges((eds) => [...eds, newEdge]);
@@ -1122,12 +1216,13 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             fitView
             minZoom={0.5}
             maxZoom={1.5}
             defaultEdgeOptions={{
               animated: true,
-              type: 'smoothstep',
+              type: 'relationship',
               style: { 
                 strokeWidth: 2,
                 stroke: '#3b82f6',
