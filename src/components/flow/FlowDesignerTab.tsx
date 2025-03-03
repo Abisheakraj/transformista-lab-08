@@ -26,6 +26,7 @@ import {
   Position,
   BackgroundVariant,
   MarkerType,
+  EdgeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
@@ -35,7 +36,7 @@ interface FlowDesignerTabProps {
 
 interface SchemaTable {
   name: string;
-  columns: { name: string; type: string; isPrimaryKey?: boolean; isForeignKey?: boolean; references?: string }[];
+  columns: ColumnType[];
 }
 
 interface RelationshipData {
@@ -500,7 +501,7 @@ const RelationshipDialog = ({
                 onChange={(e) => setSourceColumn(e.target.value)}
               >
                 <option value="">Select a column</option>
-                {sourceColumns.map((col: ColumnType) => (
+                {sourceColumns.map((col) => (
                   <option key={col.name} value={col.name}>{col.name} ({col.type})</option>
                 ))}
               </select>
@@ -541,7 +542,7 @@ const RelationshipDialog = ({
                 onChange={(e) => setTargetColumn(e.target.value)}
               >
                 <option value="">Select a column</option>
-                {targetColumns.map((col: ColumnType) => (
+                {targetColumns.map((col) => (
                   <option key={col.name} value={col.name}>{col.name} ({col.type})</option>
                 ))}
               </select>
@@ -730,16 +731,24 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
       const newEdge: Edge = {
         ...params,
         id: `edge-${params.source}-${params.target}`,
+        type: 'smoothstep',
         animated: true,
-        style: { stroke: '#555' },
+        style: { 
+          stroke: '#3b82f6', 
+          strokeWidth: 2 
+        },
         markerEnd: {
           type: MarkerType.ArrowClosed,
           width: 15,
           height: 15,
+          color: '#3b82f6',
         },
-        label: "connects to",
-        labelStyle: { fontSize: 10 },
+        label: `${sourceNode.data.label} → ${targetNode.data.label}`,
+        labelBgPadding: [8, 4],
+        labelBgBorderRadius: 4,
+        labelStyle: { fill: '#3b82f6', fontWeight: 500 },
         labelShowBg: true,
+        labelBgStyle: { fill: '#ffffff', fillOpacity: 0.8 },
       };
       setEdges((eds) => addEdge(newEdge, eds));
       
@@ -909,15 +918,21 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
   const handleAddRelationship = (relationship: RelationshipData) => {
     const { sourceTable, sourceColumn, targetTable, targetColumn, id } = relationship;
     
-    // Add edge
+    const sourceNode = nodes.find(node => node.id === sourceTable);
+    const targetNode = nodes.find(node => node.id === targetTable);
+    
+    if (!sourceNode || !targetNode) return;
+    
     const newEdge: Edge = {
       id: `edge-${id}`,
       source: sourceTable,
       target: targetTable,
-      sourceHandle: sourceColumn,
-      targetHandle: targetColumn,
       animated: true,
-      style: { stroke: '#3b82f6', strokeWidth: 2 },
+      type: 'smoothstep',
+      style: { 
+        stroke: '#3b82f6', 
+        strokeWidth: 2,
+      },
       markerEnd: {
         type: MarkerType.ArrowClosed,
         width: 15,
@@ -925,22 +940,23 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
         color: '#3b82f6',
       },
       label: `${sourceColumn} → ${targetColumn}`,
-      labelStyle: { fontSize: 10, fill: '#3b82f6' },
+      labelBgPadding: [8, 4],
+      labelBgBorderRadius: 4,
+      labelStyle: { fill: '#3b82f6', fontWeight: 500 },
       labelShowBg: true,
+      labelBgStyle: { fill: '#ffffff', fillOpacity: 0.8 },
     };
     
     setEdges((eds) => [...eds, newEdge]);
     
-    // Update node data to reflect relationship
     setNodes(nodes.map(node => {
       if (node.id === targetTable) {
-        // Find the column and mark it as a foreign key
-        const columns = node.data.columns.map((col: any) => {
+        const columns = node.data.columns.map((col: ColumnType) => {
           if (col.name === targetColumn) {
             return {
               ...col,
               isForeignKey: true,
-              references: `${nodes.find(n => n.id === sourceTable)?.data.label}.${sourceColumn}`
+              references: `${sourceNode.data.label}.${sourceColumn}`
             };
           }
           return col;
@@ -959,7 +975,7 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
     
     toast({
       title: "Relationship created",
-      description: `Relationship from ${nodes.find(n => n.id === sourceTable)?.data.label}.${sourceColumn} to ${nodes.find(n => n.id === targetTable)?.data.label}.${targetColumn} has been created.`
+      description: `Relationship from ${sourceNode.data.label}.${sourceColumn} to ${targetNode.data.label}.${targetColumn} has been created.`
     });
   };
 
@@ -1111,7 +1127,15 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
             maxZoom={1.5}
             defaultEdgeOptions={{
               animated: true,
-              style: { strokeWidth: 2 }
+              type: 'smoothstep',
+              style: { 
+                strokeWidth: 2,
+                stroke: '#3b82f6',
+              },
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                color: '#3b82f6',
+              },
             }}
             attributionPosition="bottom-right"
           >
