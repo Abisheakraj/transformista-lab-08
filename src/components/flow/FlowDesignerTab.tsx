@@ -46,6 +46,14 @@ interface RelationshipData {
   id: string;
 }
 
+interface ColumnType {
+  name: string;
+  type: string;
+  isPrimaryKey?: boolean;
+  isForeignKey?: boolean;
+  references?: string;
+}
+
 const TableNode = ({ data, id }: { data: any, id: string }) => {
   return (
     <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200 w-[280px]">
@@ -201,9 +209,9 @@ const ColumnDialog = ({
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
-  onSave: (tableId: string, columns: any[]) => void; 
+  onSave: (tableId: string, columns: ColumnType[]) => void; 
   tableId: string;
-  existingColumns?: any[];
+  existingColumns?: ColumnType[];
 }) => {
   const [columns, setColumns] = useState(existingColumns);
   const [newColumnName, setNewColumnName] = useState("");
@@ -424,8 +432,8 @@ const RelationshipDialog = ({
   const sourceTableNode = nodes.find(node => node.id === sourceTable);
   const targetTableNode = nodes.find(node => node.id === targetTable);
   
-  const sourceColumns = sourceTableNode?.data?.columns || [];
-  const targetColumns = targetTableNode?.data?.columns || [];
+  const sourceColumns: ColumnType[] = sourceTableNode?.data?.columns || [];
+  const targetColumns: ColumnType[] = targetTableNode?.data?.columns || [];
   
   const handleSubmit = () => {
     if (!sourceTable || !sourceColumn || !targetTable || !targetColumn) {
@@ -492,7 +500,7 @@ const RelationshipDialog = ({
                 onChange={(e) => setSourceColumn(e.target.value)}
               >
                 <option value="">Select a column</option>
-                {sourceColumns.map((col: { name: string; type: string }) => (
+                {sourceColumns.map((col: ColumnType) => (
                   <option key={col.name} value={col.name}>{col.name} ({col.type})</option>
                 ))}
               </select>
@@ -533,7 +541,7 @@ const RelationshipDialog = ({
                 onChange={(e) => setTargetColumn(e.target.value)}
               >
                 <option value="">Select a column</option>
-                {targetColumns.map((col: { name: string; type: string }) => (
+                {targetColumns.map((col: ColumnType) => (
                   <option key={col.name} value={col.name}>{col.name} ({col.type})</option>
                 ))}
               </select>
