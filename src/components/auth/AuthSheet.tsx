@@ -5,7 +5,7 @@ import LoginForm from "./LoginForm";
 import SignupForm from "./SignupForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/App";
 
 interface AuthSheetProps {
   isOpen: boolean;
@@ -18,13 +18,10 @@ const AuthSheet = ({ isOpen, onOpenChange, defaultTab = "login" }: AuthSheetProp
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const handleAuthSuccess = async () => {
-    // Pass required parameters to login
-    const success = await login("demo@example.com", "password");
-    if (success) {
-      onOpenChange(false);
-      navigate("/dashboard");
-    }
+  const handleAuthSuccess = () => {
+    login(); // Set authenticated state
+    onOpenChange(false);
+    navigate("/dashboard");
   };
 
   return (

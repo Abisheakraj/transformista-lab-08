@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,8 +42,8 @@ const SignupForm = ({ onSuccess }: SignupFormProps) => {
       console.error("Signup error:", error);
       toast({
         title: "Registration failed",
-        description: "Please check your information and try again.",
-        type: "destructive",
+        description: "There was an error creating your account. Please try again.",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);

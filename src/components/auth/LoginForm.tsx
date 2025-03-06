@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,7 +40,7 @@ const LoginForm = ({ onSuccess }: LoginFormProps) => {
       toast({
         title: "Login failed",
         description: "Please check your credentials and try again.",
-        type: "destructive",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);

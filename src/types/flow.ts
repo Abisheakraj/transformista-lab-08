@@ -1,49 +1,42 @@
 
-import { Node as ReactFlowNode, Edge as ReactFlowEdge, MarkerType } from "@xyflow/react";
+import { Position } from '@xyflow/react';
 
-// Extended base types from ReactFlow
-export interface FlowNode extends ReactFlowNode {
+export interface FlowNode {
   id: string;
-  type: string;
+  type: 'table' | 'transformation' | 'output';
   position: {
     x: number;
     y: number;
   };
-  data: any;
+  data: {
+    label: string;
+    source?: string;
+    columns?: { name: string; type: string }[];
+    type?: string;
+    sourceNodeId?: string;
+  };
+  // Add these properties for React Flow
+  selected?: boolean;
+  dragging?: boolean;
+  targetPosition?: Position;
+  sourcePosition?: Position;
 }
 
-export interface FlowEdge extends ReactFlowEdge {
+export interface FlowEdge {
   id: string;
   source: string;
   target: string;
-  type?: string;
+  // Add these properties for React Flow
   animated?: boolean;
   style?: React.CSSProperties;
-  markerEnd?: {
-    type: MarkerType;
-    width?: number;
-    height?: number;
-  };
-  data?: any;
+  type?: string;
+  markerEnd?: string;
 }
 
-export interface SchemaTable {
-  name: string;
-  columns: ColumnType[];
-}
-
-export interface ColumnType {
-  name: string;
-  type: string;
-  isPrimaryKey?: boolean;
-  isForeignKey?: boolean;
-  references?: string;
-}
-
-export interface RelationshipData {
-  sourceTable: string;
-  sourceColumn: string;
-  targetTable: string;
-  targetColumn: string;
+export interface DataFlow {
   id: string;
+  name: string;
+  description: string;
+  nodes: FlowNode[];
+  edges: FlowEdge[];
 }

@@ -1,22 +1,3 @@
-import {
-  ReactFlow,
-  MiniMap,
-  Controls,
-  Background,
-  useNodesState,
-  useEdgesState,
-  useReactFlow,
-  NodeTypes,
-  addEdge,
-  Connection,
-  BackgroundVariant,
-  MarkerType,
-  EdgeTypes,
-  EdgeLabelRenderer,
-  Node as ReactFlowNode,
-  Edge as ReactFlowEdge,
-} from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -29,6 +10,27 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { FlowNode, FlowEdge } from "@/types/flow";
+import {
+  ReactFlow,
+  MiniMap,
+  Controls,
+  Background,
+  useNodesState,
+  useEdgesState,
+  useReactFlow,
+  NodeTypes,
+  addEdge,
+  Connection,
+  Panel,
+  Node,
+  Edge,
+  Position,
+  BackgroundVariant,
+  MarkerType,
+  EdgeTypes,
+  EdgeLabelRenderer,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 
 interface FlowDesignerTabProps {
   projectId: string;
@@ -135,6 +137,7 @@ const TransformationNode = ({ data }: { data: any }) => {
   );
 };
 
+// Custom edge with hover tooltip
 const RelationshipEdge = ({ id, source, target, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, style = {}, markerEnd }: any) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -496,7 +499,7 @@ const RelationshipDialog = ({
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
-  nodes: FlowNode[];
+  nodes: Node[];
   onAddRelationship: (relationship: RelationshipData) => void;
 }) => {
   const [sourceTable, setSourceTable] = useState("");
@@ -507,6 +510,7 @@ const RelationshipDialog = ({
   const sourceTableNode = nodes.find(node => node.id === sourceTable);
   const targetTableNode = nodes.find(node => node.id === targetTable);
   
+  // Explicitly type and provide default empty arrays
   const sourceColumns: ColumnType[] = sourceTableNode?.data?.columns ? 
     Array.isArray(sourceTableNode.data.columns) ? sourceTableNode.data.columns : [] 
     : [];
@@ -520,7 +524,7 @@ const RelationshipDialog = ({
       toast({
         title: "Missing information",
         description: "Please select all required fields for the relationship",
-        type: "destructive"
+        variant: "destructive"
       });
       return;
     }
@@ -533,6 +537,7 @@ const RelationshipDialog = ({
       id: `rel-${Date.now()}`
     });
     
+    // Reset form
     setSourceTable("");
     setSourceColumn("");
     setTargetTable("");
@@ -656,6 +661,7 @@ const PreviewDialog = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
   useEffect(() => {
     if (isOpen) {
       setIsLoading(true);
+      // Simulate API call to fetch preview data
       setTimeout(() => {
         setPreviewData([
           { id: 1, customer_name: "John Doe", order_total: 123.45, status: "completed" },
@@ -731,8 +737,8 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   
-  const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<FlowEdge>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   
   const mockSources = [
     {
@@ -813,7 +819,8 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
     const targetNode = nodes.find(node => node.id === params.target);
     
     if (sourceNode && targetNode) {
-      const newEdge: FlowEdge = {
+      // Improved edge styling with relationship data
+      const newEdge: Edge = {
         ...params,
         id: `edge-${params.source}-${params.target}`,
         type: 'relationship',
@@ -825,17 +832,450 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
         markerEnd: {
           type: MarkerType.ArrowClosed,
           width: 20,
-          height: 20
+          height: 20,
+          color: '#3b82f6',
+        },
+        data: {
+          label: `${sourceNode.data.label} → ${targetNode.data.label}`,
+          sourceTable: sourceNode.data.label,
+          targetTable: targetNode.data.label,
+          relationship: {
+            type: 'One-to-Many'
+          }
         }
       };
+      setEdges((eds) => addEdge(newEdge, eds));
       
-      return setEdges(eds => addEdge(newEdge, eds));
+      // Update column data to reflect relationship
+      if (sourceNode.type === 'table' && targetNode.type === 'table') {
+        toast({
+          title: "Relationship created",
+          description: `Relationship between ${sourceNode.data.label} and ${targetNode.data.label} has been created`
+        });
+      }
     }
   }, [nodes, setEdges]);
 
+  const handleDeleteNode = (nodeId: string) => {
+    setNodes((nds) => nds.filter((node) => node.id !== nodeId));
+    setEdges((eds) => eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
+  };
+
+  const handleAddColumn = (tableId: string) => {
+    setSelectedTableId(tableId);
+    
+    // Find existing columns for the table
+    const tableNode = nodes.find(node => node.id === tableId);
+    const columns = tableNode?.data?.columns || [];
+    
+    setIsColumnDialogOpen(true);
+  };
+
+  const handleSaveColumns = (tableId: string, columns: any[]) => {
+    setNodes(nodes.map(node => {
+      if (node.id === tableId) {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            columns
+          }
+        };
+      }
+      return node;
+    }));
+    
+    toast({
+      title: "Columns updated",
+      description: `Table columns have been successfully updated.`
+    });
+  };
+
+  const addNodeToFlow = (table: SchemaTable) => {
+    const xPos = nodes.length * 300 + 50;
+    const newNode: Node = {
+      id: `table-${Date.now()}`,
+      type: 'table',
+      position: { x: xPos, y: 100 },
+      data: {
+        label: table.name,
+        source: selectedDatabase ? mockSources.find(db => db.id === selectedDatabase)?.name : "",
+        columns: table.columns,
+        onDelete: handleDeleteNode,
+        onAddColumn: handleAddColumn,
+      },
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
+    };
+    
+    setNodes((nds) => [...nds, newNode]);
+    setSelectedTable(null);
+    
+    toast({
+      title: "Table added",
+      description: `${table.name} has been added to the flow.`
+    });
+  };
+
+  const addTransformationNode = (type: string, sourceNodeId: string) => {
+    const sourceNode = nodes.find(node => node.id === sourceNodeId);
+    if (!sourceNode) return;
+    
+    const newNode: Node = {
+      id: `transformation-${Date.now()}`,
+      type: 'transformation',
+      position: { x: sourceNode.position.x + 300, y: sourceNode.position.y },
+      data: {
+        label: `${type} Transformation`,
+        type,
+        sourceNodeId,
+        id: `transformation-${Date.now()}`,
+        onDelete: handleDeleteNode,
+      },
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
+    };
+    
+    const newEdge: Edge = {
+      id: `edge-${sourceNodeId}-${newNode.id}`,
+      source: sourceNodeId,
+      target: newNode.id,
+      animated: true,
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 15,
+        height: 15,
+      },
+    };
+    
+    setNodes((nds) => [...nds, newNode]);
+    setEdges((eds) => [...eds, newEdge]);
+    setIsTransformSheetOpen(false);
+    
+    toast({
+      title: "Transformation added",
+      description: `${type} transformation node has been added to the flow.`
+    });
+  };
+
+  const onAddGenericNode = (nodeType: string) => {
+    const nodeCount = nodes.filter(n => n.type === nodeType).length;
+    let label = "";
+    let type = "";
+    
+    switch (nodeType) {
+      case "filter":
+        label = "Filter Transformation";
+        type = "filter";
+        break;
+      case "join":
+        label = "Join Transformation";
+        type = "join";
+        break;
+      case "output":
+        label = "Output Destination";
+        type = "output";
+        break;
+      default:
+        label = "New Node";
+        type = nodeType;
+    }
+    
+    const newNode: Node = {
+      id: `${nodeType}-${Date.now()}`,
+      type: nodeType === "output" ? "table" : "transformation",
+      position: { 
+        x: Math.random() * 300 + 200, 
+        y: Math.random() * 200 + 100 
+      },
+      data: {
+        label: `${label} ${nodeCount + 1}`,
+        type: type,
+        id: `${nodeType}-${Date.now()}`,
+        onDelete: handleDeleteNode,
+        onAddColumn: nodeType === "output" ? handleAddColumn : undefined,
+        columns: nodeType === "output" ? [] : undefined,
+      },
+      sourcePosition: Position.Right,
+      targetPosition: Position.Left,
+    };
+    
+    setNodes((nds) => [...nds, newNode]);
+    setIsNodeSelectorOpen(false);
+    
+    toast({
+      title: "Node added",
+      description: `${label} ${nodeCount + 1} has been added to the flow.`
+    });
+  };
+  
+  const handleAddRelationship = (relationship: RelationshipData) => {
+    const { sourceTable, sourceColumn, targetTable, targetColumn, id } = relationship;
+    
+    const sourceNode = nodes.find(node => node.id === sourceTable);
+    const targetNode = nodes.find(node => node.id === targetTable);
+    
+    if (!sourceNode || !targetNode) return;
+    
+    // Enhanced edge with relationship data for hover details
+    const newEdge: Edge = {
+      id: `edge-${id}`,
+      source: sourceTable,
+      target: targetTable,
+      animated: true,
+      type: 'relationship',
+      style: { 
+        stroke: '#3b82f6', 
+        strokeWidth: 3, // Make lines thicker
+      },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 20,
+        height: 20,
+        color: '#3b82f6',
+      },
+      data: {
+        label: `${sourceColumn} → ${targetColumn}`,
+        sourceTable: sourceNode.data?.label,
+        targetTable: targetNode.data?.label,
+        sourceColumn: sourceColumn,
+        targetColumn: targetColumn,
+        relationship: {
+          type: 'One-to-Many',
+          description: `Foreign key relationship from ${sourceNode.data?.label}.${sourceColumn} to ${targetNode.data?.label}.${targetColumn}`
+        }
+      }
+    };
+    
+    setEdges((eds) => [...eds, newEdge]);
+    
+    setNodes(nodes.map(node => {
+      if (node.id === targetTable) {
+        const columns = node.data?.columns?.map((col: ColumnType) => {
+          if (col.name === targetColumn) {
+            return {
+              ...col,
+              isForeignKey: true,
+              references: `${sourceNode.data?.label}.${sourceColumn}`
+            };
+          }
+          return col;
+        }) || [];
+        
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            columns
+          }
+        };
+      }
+      return node;
+    }));
+    
+    toast({
+      title: "Relationship created",
+      description: `Relationship from ${sourceNode.data?.label}.${sourceColumn} to ${targetNode.data?.label}.${targetColumn} has been created.`
+    });
+  };
+
+  const onSaveFlow = () => {
+    toast({
+      title: "Flow saved",
+      description: "Your flow has been saved successfully."
+    });
+  };
+
+  const onPreviewFlow = () => {
+    setIsPreviewDialogOpen(true);
+  };
+
   return (
-    <div>
-      {/* ... implementation of FlowDesignerTab UI */}
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="md:col-span-1">
+        <div className="rounded-lg border h-[600px] flex flex-col">
+          <div className="p-4 border-b">
+            <div className="flex items-center gap-2 mb-4">
+              <Database className="h-5 w-5 text-muted-foreground" />
+              <h3 className="font-medium">Data Sources</h3>
+            </div>
+            <Input
+              placeholder="Search tables..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="mb-2"
+            />
+          </div>
+          
+          <ScrollArea className="flex-1">
+            <div className="p-4">
+              {!selectedDatabase ? (
+                <div className="space-y-4">
+                  <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Select Database
+                  </Label>
+                  {filteredDatabases.map((database) => (
+                    <div
+                      key={database.id}
+                      className="group p-3 rounded-md hover:bg-gray-100 cursor-pointer"
+                      onClick={() => setSelectedDatabase(database.id)}
+                    >
+                      <div className="font-medium group-hover:text-primary">{database.name}</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {database.tables.length} tables available
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Tables
+                    </Label>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedDatabase(null);
+                        setSelectedTable(null);
+                      }}
+                    >
+                      Back
+                    </Button>
+                  </div>
+                  
+                  {filteredTables?.map((table) => (
+                    <div
+                      key={table.name}
+                      className={`group p-3 rounded-md hover:bg-gray-100 cursor-pointer ${
+                        selectedTable?.name === table.name ? 'bg-gray-100' : ''
+                      }`}
+                      onClick={() => setSelectedTable(table)}
+                    >
+                      <div className="font-medium group-hover:text-primary">{table.name}</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {table.columns.length} columns
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+          
+          {selectedTable && (
+            <div className="p-4 border-t">
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="font-medium">{selectedTable.name}</h4>
+                <Button size="sm" onClick={() => addNodeToFlow(selectedTable)}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add to Flow
+                </Button>
+              </div>
+              <ScrollArea className="h-40">
+                <div className="space-y-1">
+                  {selectedTable.columns.map((column) => (
+                    <div key={column.name} className="text-sm grid grid-cols-2 py-1 border-b border-gray-100">
+                      <div className="flex items-center">
+                        {column.isPrimaryKey && <div className="w-2 h-2 bg-amber-500 rounded-full mr-1.5" title="Primary Key" />}
+                        {column.isForeignKey && <div className="w-2 h-2 bg-blue-500 rounded-full mr-1.5" title="Foreign Key" />}
+                        {column.name}
+                      </div>
+                      <div className="text-muted-foreground text-xs text-right">{column.type}</div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      <div className="md:col-span-3">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-medium">Flow Designer</h3>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsNodeSelectorOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add Node
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setIsRelationshipDialogOpen(true)}>
+              <Link className="h-4 w-4 mr-1" />
+              Add Relationship
+            </Button>
+            <Button variant="outline" size="sm" onClick={onSaveFlow}>
+              <Save className="h-4 w-4 mr-1" />
+              Save Flow
+            </Button>
+            <Button size="sm" onClick={onPreviewFlow}>
+              Preview
+            </Button>
+          </div>
+        </div>
+        
+        <div className="border rounded-lg h-[600px] overflow-hidden" ref={reactFlowWrapper}>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            fitView
+            minZoom={0.5}
+            maxZoom={1.5}
+            defaultEdgeOptions={{
+              animated: true,
+              type: 'relationship',
+              style: { 
+                strokeWidth: 2,
+                stroke: '#3b82f6',
+              },
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                color: '#3b82f6',
+              },
+            }}
+            attributionPosition="bottom-right"
+          >
+            <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+            <Controls />
+            <MiniMap />
+          </ReactFlow>
+        </div>
+
+        <NodeSelector 
+          isOpen={isNodeSelectorOpen}
+          onClose={() => setIsNodeSelectorOpen(false)}
+          onAddNode={onAddGenericNode}
+        />
+        
+        <ColumnDialog
+          isOpen={isColumnDialogOpen}
+          onClose={() => setIsColumnDialogOpen(false)}
+          onSave={handleSaveColumns}
+          tableId={selectedTableId || ""}
+          existingColumns={nodes.find(node => node.id === selectedTableId)?.data?.columns || []}
+        />
+        
+        <RelationshipDialog
+          isOpen={isRelationshipDialogOpen}
+          onClose={() => setIsRelationshipDialogOpen(false)}
+          nodes={nodes}
+          onAddRelationship={handleAddRelationship}
+        />
+        
+        <PreviewDialog
+          isOpen={isPreviewDialogOpen}
+          onClose={() => setIsPreviewDialogOpen(false)}
+        />
+
+        <div className="mt-4 text-sm text-muted-foreground">
+          <p>The backend developer working on Apache NiFi can use the flow definition generated here to create the actual NiFi processors and connections.</p>
+        </div>
+      </div>
     </div>
   );
 };

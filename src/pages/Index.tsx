@@ -1,8 +1,9 @@
+
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import AuthSheet from "@/components/auth/AuthSheet";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/App";
 
 export default function Index() {
   const [isAuthSheetOpen, setIsAuthSheetOpen] = useState(false);

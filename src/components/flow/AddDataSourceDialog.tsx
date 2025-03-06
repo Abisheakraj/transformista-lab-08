@@ -1,242 +1,185 @@
+
 import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Database, FileType, Table, Server } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useForm, Controller } from "react-hook-form";
 
 interface AddDataSourceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  projectId: string;
+  onSubmit: (dataSource: {
+    name: string;
+    type: "source" | "target";
+    connectionType: string;
+    host: string;
+    port: string;
+    database: string;
+    username: string;
+    password: string;
+  }) => void;
+  type: "source" | "target";
 }
 
-const AddDataSourceDialog = ({ open, onOpenChange, projectId }: AddDataSourceDialogProps) => {
-  const [sourceType, setSourceType] = useState("");
-  const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({
-    name: "",
-    host: "",
-    port: "",
-    username: "",
-    password: "",
-    database: "",
-    filePath: "",
-  });
+interface FormData {
+  name: string;
+  connectionType: string;
+  host: string;
+  port: string;
+  database: string;
+  username: string;
+  password: string;
+}
 
-  const handleTypeSelect = (type: string) => {
-    setSourceType(type);
-    setStep(2);
-  };
+const connectionTypes = {
+  source: ["MySQL", "PostgreSQL", "SQLite", "MongoDB", "Oracle"],
+  target: ["MySQL", "PostgreSQL", "BigQuery", "Snowflake", "Redshift"]
+};
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSourceDialogProps) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const { register, handleSubmit, reset, control, formState: { errors } } = useForm<FormData>();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // In a real app, this would send the data to your backend
-    console.log("Adding data source to project", projectId, {
-      type: sourceType,
-      ...formData
-    });
-    
-    toast({
-      title: "Data source added",
-      description: `${formData.name} has been added successfully.`
-    });
-    
-    // Reset form and close dialog
-    setSourceType("");
-    setStep(1);
-    setFormData({
-      name: "",
-      host: "",
-      port: "",
-      username: "",
-      password: "",
-      database: "",
-      filePath: "",
-    });
-    onOpenChange(false);
-  };
-
-  const goBack = () => {
-    if (step > 1) {
-      setStep(step - 1);
-    } else {
-      onOpenChange(false);
+  const handleFormSubmit = async (data: FormData) => {
+    try {
+      setIsLoading(true);
+      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API call
+      onSubmit({
+        ...data,
+        type,
+      });
+      reset();
+    } catch (error) {
+      console.error("Error adding data source:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      reset();
+    }
+    onOpenChange(open);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogClose}>
       <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Add Data Source</DialogTitle>
-          <DialogDescription>
-            {step === 1 
-              ? "Choose a type of data source to add to your project."
-              : `Configure your ${sourceType} connection details.`}
-          </DialogDescription>
-        </DialogHeader>
-        
-        {step === 1 ? (
-          <div className="grid grid-cols-2 gap-4 py-4">
-            <Button
-              variant="outline"
-              className="flex flex-col items-center justify-center h-36 p-6 hover:bg-muted"
-              onClick={() => handleTypeSelect("mysql")}
-            >
-              <Database className="h-10 w-10 mb-2 text-primary" />
-              <span className="font-medium">MySQL</span>
-              <span className="text-xs text-muted-foreground mt-1">Connect to MySQL database</span>
-            </Button>
-            
-            <Button
-              variant="outline"
-              className="flex flex-col items-center justify-center h-36 p-6 hover:bg-muted"
-              onClick={() => handleTypeSelect("postgresql")}
-            >
-              <Database className="h-10 w-10 mb-2 text-primary" />
-              <span className="font-medium">PostgreSQL</span>
-              <span className="text-xs text-muted-foreground mt-1">Connect to PostgreSQL database</span>
-            </Button>
-            
-            <Button
-              variant="outline"
-              className="flex flex-col items-center justify-center h-36 p-6 hover:bg-muted"
-              onClick={() => handleTypeSelect("file")}
-            >
-              <FileType className="h-10 w-10 mb-2 text-primary" />
-              <span className="font-medium">CSV/Excel</span>
-              <span className="text-xs text-muted-foreground mt-1">Upload file data sources</span>
-            </Button>
-            
-            <Button
-              variant="outline"
-              className="flex flex-col items-center justify-center h-36 p-6 hover:bg-muted"
-              onClick={() => handleTypeSelect("api")}
-            >
-              <Server className="h-10 w-10 mb-2 text-primary" />
-              <span className="font-medium">REST API</span>
-              <span className="text-xs text-muted-foreground mt-1">Connect to REST endpoints</span>
-            </Button>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Data Source Name</Label>
-                <Input 
-                  id="name" 
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="e.g., Sales Database" 
-                  required 
-                />
-              </div>
-              
-              {sourceType !== "file" ? (
-                <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="host">Host</Label>
-                      <Input 
-                        id="host" 
-                        name="host"
-                        value={formData.host}
-                        onChange={handleInputChange}
-                        placeholder="e.g., localhost" 
-                        required 
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="port">Port</Label>
-                      <Input 
-                        id="port" 
-                        name="port"
-                        value={formData.port}
-                        onChange={handleInputChange}
-                        placeholder={sourceType === "mysql" ? "3306" : "5432"} 
-                        required 
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="database">Database Name</Label>
-                    <Input 
-                      id="database" 
-                      name="database"
-                      value={formData.database}
-                      onChange={handleInputChange}
-                      placeholder="e.g., salesdb" 
-                      required 
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="username">Username</Label>
-                      <Input 
-                        id="username" 
-                        name="username"
-                        value={formData.username}
-                        onChange={handleInputChange}
-                        placeholder="e.g., admin" 
-                        required 
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="password">Password</Label>
-                      <Input 
-                        id="password" 
-                        name="password"
-                        value={formData.password}
-                        onChange={handleInputChange}
-                        type="password" 
-                        required 
-                      />
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="space-y-2">
-                  <Label htmlFor="filePath">File Path</Label>
-                  <div className="flex gap-2">
-                    <Input 
-                      id="filePath" 
-                      name="filePath"
-                      value={formData.filePath}
-                      onChange={handleInputChange}
-                      placeholder="Select a file or enter URL" 
-                      className="flex-1"
-                      required 
-                    />
-                    <Button type="button" variant="outline">Browse</Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Supported formats: CSV, Excel, JSON
-                  </p>
-                </div>
+        <form onSubmit={handleSubmit(handleFormSubmit)}>
+          <DialogHeader>
+            <DialogTitle>Add {type === "source" ? "Source" : "Target"} Database</DialogTitle>
+            <DialogDescription>
+              Configure your {type === "source" ? "source" : "target"} database connection details.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Connection Name</Label>
+              <Input
+                id="name"
+                placeholder="e.g., Production MySQL Database"
+                {...register("name", { required: "Connection name is required" })}
+              />
+              {errors.name && (
+                <p className="text-sm text-destructive">{errors.name.message}</p>
               )}
             </div>
             
-            <DialogFooter className="mt-6 flex justify-between">
-              <Button type="button" variant="outline" onClick={goBack}>
-                Back
-              </Button>
-              <Button type="submit">
-                Add Data Source
-              </Button>
-            </DialogFooter>
-          </form>
-        )}
+            <div className="grid gap-2">
+              <Label htmlFor="connectionType">Database Type</Label>
+              <Controller
+                name="connectionType"
+                control={control}
+                rules={{ required: "Database type is required" }}
+                render={({ field }) => (
+                  <Select 
+                    onValueChange={field.onChange} 
+                    defaultValue={field.value}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select database type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {connectionTypes[type].map((dbType) => (
+                        <SelectItem key={dbType} value={dbType}>
+                          {dbType}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.connectionType && (
+                <p className="text-sm text-destructive">{errors.connectionType.message}</p>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="host">Host / Endpoint</Label>
+                <Input
+                  id="host"
+                  placeholder="e.g., localhost or db.example.com"
+                  {...register("host", { required: "Host is required" })}
+                />
+                {errors.host && (
+                  <p className="text-sm text-destructive">{errors.host.message}</p>
+                )}
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="port">Port</Label>
+                <Input
+                  id="port"
+                  placeholder="e.g., 3306"
+                  {...register("port")}
+                />
+              </div>
+            </div>
+            
+            <div className="grid gap-2">
+              <Label htmlFor="database">Database Name</Label>
+              <Input
+                id="database"
+                placeholder="e.g., my_database"
+                {...register("database", { required: "Database name is required" })}
+              />
+              {errors.database && (
+                <p className="text-sm text-destructive">{errors.database.message}</p>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  placeholder="e.g., db_user"
+                  {...register("username")}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  {...register("password")}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Adding..." : "Add Connection"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
