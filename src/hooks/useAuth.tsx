@@ -11,9 +11,8 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Mock login functionality
     if (email && password) {
-      // In a real app, this would call an API
+      // Mock login functionality
       setUser({
         id: '1',
         email,
@@ -25,9 +24,8 @@ export function useAuth() {
   };
 
   const signup = async (email: string, password: string, name: string): Promise<boolean> => {
-    // Mock signup functionality
-    if (email && password) {
-      // In a real app, this would call an API
+    if (email && password && name) {
+      // Mock signup functionality
       setUser({
         id: '1',
         email,
