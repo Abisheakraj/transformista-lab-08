@@ -9,14 +9,12 @@ import {
   NodeTypes,
   addEdge,
   Connection,
-  Panel,
-  Node as FlowNode,
-  Edge as FlowEdge,
-  Position,
   BackgroundVariant,
   MarkerType,
   EdgeTypes,
   EdgeLabelRenderer,
+  Node as ReactFlowNode,
+  Edge as ReactFlowEdge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
@@ -498,7 +496,7 @@ const RelationshipDialog = ({
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
-  nodes: Node[];
+  nodes: FlowNode[];
   onAddRelationship: (relationship: RelationshipData) => void;
 }) => {
   const [sourceTable, setSourceTable] = useState("");
@@ -514,8 +512,7 @@ const RelationshipDialog = ({
     : [];
   
   const targetColumns: ColumnType[] = targetTableNode?.data?.columns ? 
-    Array.isArray(targetTableNode.data.columns) ? targetTableNode.data.columns : []
-    : [];
+    Array.isArray(targetTableNode.data.columns) ? targetTableNode.data.columns : [];
   
   const handleSubmit = () => {
     if (!sourceTable || !sourceColumn || !targetTable || !targetColumn) {
@@ -733,8 +730,8 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<FlowEdge>([]);
   
   const mockSources = [
     {
@@ -815,7 +812,7 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
     const targetNode = nodes.find(node => node.id === params.target);
     
     if (sourceNode && targetNode) {
-      const newEdge: Edge = {
+      const newEdge: FlowEdge = {
         ...params,
         id: `edge-${params.source}-${params.target}`,
         type: 'relationship',
@@ -833,272 +830,4 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
       
       return setEdges(eds => addEdge(newEdge, eds));
     }
-  }, [nodes, setEdges]);
-
-  const handleAddTableNode = useCallback((tableData: SchemaTable) => {
-    const position = {
-      x: Math.random() * 300,
-      y: Math.random() * 300
-    };
-    
-    const newNode: FlowNode = {
-      id: `table-${Date.now()}`,
-      type: 'table',
-      position,
-      data: {
-        label: tableData.name,
-        columns: tableData.columns,
-        source: selectedDatabase ? mockSources.find(db => db.id === selectedDatabase)?.name : undefined,
-        onDelete: handleDeleteNode,
-        onAddColumn: handleAddColumn
-      }
-    };
-    
-    setNodes(prevNodes => [...prevNodes, newNode]);
-    setSelectedTable(null);
-  }, [selectedDatabase, mockSources, setNodes]);
-  
-  const handleAddNode = useCallback((type: string) => {
-    const position = {
-      x: Math.random() * 300 + 50,
-      y: Math.random() * 300 + 50
-    };
-    
-    let newNode: FlowNode;
-    
-    if (type === 'table') {
-      newNode = {
-        id: `${type}-${Date.now()}`,
-        type,
-        position,
-        data: {
-          label: 'New Table',
-          columns: [],
-          onDelete: handleDeleteNode,
-          onAddColumn: handleAddColumn
-        }
-      };
-    } else {
-      newNode = {
-        id: `${type}-${Date.now()}`,
-        type: 'transformation',
-        position,
-        data: {
-          label: `${type.charAt(0).toUpperCase() + type.slice(1)} Node`,
-          type,
-          onDelete: handleDeleteNode
-        }
-      };
-    }
-    
-    setNodes(prevNodes => [...prevNodes, newNode]);
-    setIsNodeSelectorOpen(false);
-  }, [setNodes]);
-  
-  const handleDeleteNode = useCallback((id: string) => {
-    setNodes(prevNodes => prevNodes.filter(node => node.id !== id));
-    setEdges(prevEdges => prevEdges.filter(edge => edge.source !== id && edge.target !== id));
-  }, [setNodes, setEdges]);
-  
-  const handleAddColumn = useCallback((tableId: string) => {
-    setSelectedTableId(tableId);
-    setIsColumnDialogOpen(true);
-  }, []);
-  
-  const handleSaveColumns = useCallback((tableId: string, columns: ColumnType[]) => {
-    setNodes(prevNodes => 
-      prevNodes.map(node => 
-        node.id === tableId 
-          ? { ...node, data: { ...node.data, columns } } 
-          : node
-      )
-    );
-  }, [setNodes]);
-  
-  const handleAddRelationship = useCallback((relationship: RelationshipData) => {
-    const { sourceTable, sourceColumn, targetTable, targetColumn, id } = relationship;
-    
-    const edge: FlowEdge = {
-      id,
-      source: sourceTable,
-      target: targetTable,
-      type: 'relationship',
-      animated: true,
-      style: { stroke: '#3b82f6', strokeWidth: 2 },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-      },
-      data: {
-        sourceTable: nodes.find(node => node.id === sourceTable)?.data?.label,
-        targetTable: nodes.find(node => node.id === targetTable)?.data?.label,
-        sourceColumn,
-        targetColumn,
-        label: `${sourceColumn} → ${targetColumn}`,
-        relationship: {
-          type: 'One-to-Many'
-        }
-      }
-    };
-    
-    setEdges(prevEdges => [...prevEdges, edge]);
-  }, [nodes, setEdges]);
-  
-  const handleSaveFlow = () => {
-    console.log("Saving flow:", { nodes, edges });
-    
-    toast({
-      title: "Flow saved successfully",
-      variant: "success"
-    });
-  };
-  
-  return (
-    <div className="flex flex-col h-[calc(100vh-180px)]">
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center space-x-2">
-          <Button
-            size="sm"
-            onClick={() => setIsNodeSelectorOpen(true)}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Add Node
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setIsRelationshipDialogOpen(true)}
-          >
-            <ArrowRight className="h-4 w-4 mr-1" />
-            Add Relationship
-          </Button>
-          <Button
-            size="sm" 
-            variant="outline"
-            onClick={() => setIsPreviewDialogOpen(true)}
-          >
-            <Code className="h-4 w-4 mr-1" />
-            Preview Results
-          </Button>
-        </div>
-        <Button 
-          size="sm"
-          onClick={handleSaveFlow}
-        >
-          <Save className="h-4 w-4 mr-1" />
-          Save Flow
-        </Button>
-      </div>
-      
-      <div className="flex-1 flex">
-        <div className="w-72 bg-white border-r overflow-hidden flex flex-col">
-          <div className="p-4 border-b">
-            <h3 className="font-medium text-sm mb-2">Data Sources</h3>
-            <div className="relative">
-              <Search className="h-4 w-4 absolute left-2.5 top-2.5 text-muted-foreground" />
-              <Input
-                placeholder="Search tables..."
-                className="pl-8"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          </div>
-          
-          <div className="flex-1 overflow-auto">
-            <div className="p-2">
-              <h4 className="text-xs font-medium text-muted-foreground px-2 py-1.5">DATABASES</h4>
-              <div className="space-y-1 mt-1">
-                {filteredDatabases.map((db) => (
-                  <button
-                    key={db.id}
-                    className={`w-full text-left text-sm px-2 py-1.5 rounded ${
-                      selectedDatabase === db.id ? 'bg-muted font-medium' : 'hover:bg-muted/50'
-                    }`}
-                    onClick={() => setSelectedDatabase(db.id)}
-                  >
-                    <div className="flex items-center">
-                      <Database className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                      <span>{db.name}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            {selectedDatabase && filteredTables && filteredTables.length > 0 && (
-              <div className="p-2 border-t">
-                <h4 className="text-xs font-medium text-muted-foreground px-2 py-1.5">TABLES</h4>
-                <div className="space-y-1 mt-1">
-                  {filteredTables.map((table) => (
-                    <button
-                      key={table.name}
-                      className={`w-full text-left text-sm px-2 py-1.5 rounded hover:bg-muted/50`}
-                      onClick={() => handleAddTableNode(table)}
-                    >
-                      <span>{table.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-        
-        <div className="flex-1 relative" ref={reactFlowWrapper}>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            fitView
-            minZoom={0.1}
-            className="bg-gray-50"
-          >
-            <Controls />
-            <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
-            <MiniMap
-              nodeStrokeWidth={3}
-              zoomable
-              pannable
-            />
-          </ReactFlow>
-        </div>
-      </div>
-      
-      <NodeSelector 
-        isOpen={isNodeSelectorOpen} 
-        onClose={() => setIsNodeSelectorOpen(false)} 
-        onAddNode={handleAddNode} 
-      />
-      
-      <ColumnDialog 
-        isOpen={isColumnDialogOpen}
-        onClose={() => setIsColumnDialogOpen(false)}
-        onSave={handleSaveColumns}
-        tableId={selectedTableId || ""}
-        existingColumns={
-          selectedTableId 
-            ? nodes.find(node => node.id === selectedTableId)?.data?.columns || []
-            : []
-        }
-      />
-      
-      <RelationshipDialog
-        isOpen={isRelationshipDialogOpen}
-        onClose={() => setIsRelationshipDialogOpen(false)}
-        nodes={nodes}
-        onAddRelationship={handleAddRelationship}
-      />
-      
-      <PreviewDialog
-        isOpen={isPreviewDialogOpen}
-        onClose={() => setIsPreviewDialogOpen(false)}
-      />
-    </div>
-  );
-};
-
-export default FlowDesignerTab;
+  }, [nodes

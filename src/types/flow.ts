@@ -1,6 +1,8 @@
-import { MarkerType } from "@xyflow/react";
 
-export interface FlowNode {
+import { Node as ReactFlowNode, Edge as ReactFlowEdge, MarkerType } from "@xyflow/react";
+
+// Extended base types from ReactFlow
+export interface FlowNode extends ReactFlowNode {
   id: string;
   type: string;
   position: {
@@ -10,7 +12,7 @@ export interface FlowNode {
   data: any;
 }
 
-export interface FlowEdge {
+export interface FlowEdge extends ReactFlowEdge {
   id: string;
   source: string;
   target: string;
