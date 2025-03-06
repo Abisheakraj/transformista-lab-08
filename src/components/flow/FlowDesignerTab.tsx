@@ -512,7 +512,8 @@ const RelationshipDialog = ({
     : [];
   
   const targetColumns: ColumnType[] = targetTableNode?.data?.columns ? 
-    Array.isArray(targetTableNode.data.columns) ? targetTableNode.data.columns : [];
+    Array.isArray(targetTableNode.data.columns) ? targetTableNode.data.columns : []
+    : [];
   
   const handleSubmit = () => {
     if (!sourceTable || !sourceColumn || !targetTable || !targetColumn) {
@@ -830,4 +831,13 @@ const FlowDesignerTab = ({ projectId }: FlowDesignerTabProps) => {
       
       return setEdges(eds => addEdge(newEdge, eds));
     }
-  }, [nodes
+  }, [nodes, setEdges]);
+
+  return (
+    <div>
+      {/* ... implementation of FlowDesignerTab UI */}
+    </div>
+  );
+};
+
+export default FlowDesignerTab;
