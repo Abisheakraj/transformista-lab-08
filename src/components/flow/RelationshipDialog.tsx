@@ -1,15 +1,17 @@
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { ArrowDown } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { v4 as uuidv4 } from 'uuid';
-import { Node } from "@xyflow/react";
-import { ColumnType, RelationshipData } from "@/types/flow";
+import { Node as FlowNode } from "@xyflow/react";
+import type { ColumnType, RelationshipData } from "@/types/flow";
 
 interface RelationshipDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  nodes: Node[];
+  nodes: FlowNode[];
   onAddRelationship: (relationship: RelationshipData) => void;
 }
 

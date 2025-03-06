@@ -20,8 +20,10 @@ import { ResetPassword } from './pages/ResetPassword';
 import { DataTransformationPreview } from './pages/DataTransformationPreview';
 import { useAuth } from './hooks/useAuth';
 
-// Re-export useAuth for components that import from @/App
-export { useAuth };
+function PrivateRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? <>{children}</> : <Navigate to="/signin" />;
+}
 
 function App() {
   return (
@@ -30,21 +32,126 @@ function App() {
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/transform" element={<DataTransformationUpload />} />
-        <Route path="/database-connection" element={<DatabaseConnection />} />
-        <Route path="/database-list" element={<DatabaseList />} />
-        <Route path="/file-upload" element={<FileUpload />} />
-        <Route path="/pipeline" element={<Pipeline />} />
-        <Route path="/pipeline/mapping" element={<PipelineMapping />} />
-        <Route path="/discover" element={<Discover />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/schemas/school" element={<SchoolSchema />} />
-        <Route path="/schemas/hr" element={<HRSchema />} />
-        <Route path="/schemas/hospital" element={<HospitalSchema />} />
-        <Route path="/schemas/inventory" element={<InventorySchema />} />
-        <Route path="/schemas/payroll" element={<PayrollSchema />} />
-        <Route path="/data-preview" element={<DataTransformationPreview />} />
+        <Route
+          path="/dashboard"
+          element={
+            <PrivateRoute>
+              <Dashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/transform"
+          element={
+            <PrivateRoute>
+              <DataTransformationUpload />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/database-connection"
+          element={
+            <PrivateRoute>
+              <DatabaseConnection />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/database-list"
+          element={
+            <PrivateRoute>
+              <DatabaseList />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/file-upload"
+          element={
+            <PrivateRoute>
+              <FileUpload />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/pipeline"
+          element={
+            <PrivateRoute>
+              <Pipeline />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/pipeline/mapping"
+          element={
+            <PrivateRoute>
+              <PipelineMapping />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/discover"
+          element={
+            <PrivateRoute>
+              <Discover />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <PrivateRoute>
+              <Settings />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/schemas/school"
+          element={
+            <PrivateRoute>
+              <SchoolSchema />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/schemas/hr"
+          element={
+            <PrivateRoute>
+              <HRSchema />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/schemas/hospital"
+          element={
+            <PrivateRoute>
+              <HospitalSchema />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/schemas/inventory"
+          element={
+            <PrivateRoute>
+              <InventorySchema />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/schemas/payroll"
+          element={
+            <PrivateRoute>
+              <PayrollSchema />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/data-preview"
+          element={
+            <PrivateRoute>
+              <DataTransformationPreview />
+            </PrivateRoute>
+          }
+        />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
