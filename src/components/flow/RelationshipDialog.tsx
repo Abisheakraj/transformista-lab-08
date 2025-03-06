@@ -1,45 +1,49 @@
-
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { ArrowDown } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SchemaTable, ColumnType, RelationshipData } from "@/types/flow";
+import { v4 as uuidv4 } from 'uuid';
 import { toast } from "@/hooks/use-toast";
-import { RelationshipData, ColumnType } from "@/types/flow";
-import { Node } from "@xyflow/react";
 
-interface RelationshipDialogProps { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  nodes: Node[];
-  onAddRelationship: (relationship: RelationshipData) => void;
+interface RelationshipDialogProps {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  tables: SchemaTable[];
+  onRelationshipAdd: (relationship: RelationshipData) => void;
 }
 
-const RelationshipDialog = ({ 
-  isOpen, 
-  onClose, 
-  nodes,
-  onAddRelationship
-}: RelationshipDialogProps) => {
-  const [sourceTable, setSourceTable] = useState("");
-  const [sourceColumn, setSourceColumn] = useState("");
-  const [targetTable, setTargetTable] = useState("");
-  const [targetColumn, setTargetColumn] = useState("");
-  
-  const sourceTableNode = nodes.find(node => node.id === sourceTable);
-  const targetTableNode = nodes.find(node => node.id === targetTable);
-  
-  // Provide default empty arrays
-  const sourceColumns: ColumnType[] = sourceTableNode?.data?.columns ? 
-    Array.isArray(sourceTableNode.data.columns) ? sourceTableNode.data.columns : [] 
-    : [];
-  
-  const targetColumns: ColumnType[] = targetTableNode?.data?.columns ? 
-    Array.isArray(targetTableNode.data.columns) ? targetTableNode.data.columns : []
-    : [];
-  
-  const handleSubmit = () => {
-    if (!sourceTable || !sourceColumn || !targetTable || !targetColumn) {
+export function RelationshipDialog({ open, setOpen, tables, onRelationshipAdd }: RelationshipDialogProps) {
+  const [sourceTable, setSourceTable] = useState<string | undefined>(undefined);
+  const [targetTable, setTargetTable] = useState<string | undefined>(undefined);
+  const [sourceColumn, setSourceColumn] = useState<string | undefined>(undefined);
+  const [targetColumn, setTargetColumn] = useState<string | undefined>(undefined);
+  const [relationshipId, setRelationshipId] = useState<string>(uuidv4());
+
+  useEffect(() => {
+    if (open) {
+      setSourceTable(undefined);
+      setTargetTable(undefined);
+      setSourceColumn(undefined);
+      setTargetColumn(undefined);
+      setRelationshipId(uuidv4());
+    }
+  }, [open]);
+
+  const handleAddRelationship = () => {
+    if (!sourceTable || !targetTable || !sourceColumn || !targetColumn) {
       toast({
         title: "Missing information",
         description: "Please select all required fields for the relationship",
@@ -47,130 +51,120 @@ const RelationshipDialog = ({
       });
       return;
     }
-    
-    onAddRelationship({
+
+    if (sourceTable === targetTable && sourceColumn === targetColumn) {
+       toast({
+        title: "Invalid information",
+        description: "Source and target cannot be the same",
+        type: "destructive"
+      });
+      return;
+    }
+
+    const newRelationship: RelationshipData = {
       sourceTable,
       sourceColumn,
       targetTable,
       targetColumn,
-      id: `rel-${Date.now()}`
-    });
-    
-    // Reset form
-    setSourceTable("");
-    setSourceColumn("");
-    setTargetTable("");
-    setTargetColumn("");
-    onClose();
-  };
-  
-  const tableNodes = nodes.filter(node => node.type === 'table');
-  
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create Table Relationship</DialogTitle>
-          <DialogDescription>Define a relationship between two tables</DialogDescription>
-        </DialogHeader>
-        
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="source-table">Source Table</Label>
-            <select 
-              id="source-table"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              value={sourceTable}
-              onChange={(e) => {
-                setSourceTable(e.target.value);
-                setSourceColumn("");
-              }}
-            >
-              <option value="">Select a table</option>
-              {tableNodes.map((node) => (
-                <option key={node.id} value={node.id}>
-                  {node.data?.label ? String(node.data.label) : "Unnamed Table"}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          {sourceTable && (
-            <div className="space-y-2">
-              <Label htmlFor="source-column">Source Column</Label>
-              <select 
-                id="source-column"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={sourceColumn}
-                onChange={(e) => setSourceColumn(e.target.value)}
-              >
-                <option value="">Select a column</option>
-                {sourceColumns.map((col) => (
-                  <option key={col.name} value={col.name}>
-                    {col.name} ({col.type})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          
-          <div className="flex justify-center">
-            <div className="bg-muted rounded-full p-2">
-              <ArrowDown className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="target-table">Target Table</Label>
-            <select 
-              id="target-table"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              value={targetTable}
-              onChange={(e) => {
-                setTargetTable(e.target.value);
-                setTargetColumn("");
-              }}
-            >
-              <option value="">Select a table</option>
-              {tableNodes.map((node) => (
-                <option key={node.id} value={node.id}>
-                  {node.data?.label ? String(node.data.label) : "Unnamed Table"}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          {targetTable && (
-            <div className="space-y-2">
-              <Label htmlFor="target-column">Target Column</Label>
-              <select 
-                id="target-column"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={targetColumn}
-                onChange={(e) => setTargetColumn(e.target.value)}
-              >
-                <option value="">Select a column</option>
-                {targetColumns.map((col) => (
-                  <option key={col.name} value={col.name}>
-                    {col.name} ({col.type})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-        </div>
-        
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit}>
-            Create Relationship
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-};
+      id: relationshipId,
+    };
 
-export default RelationshipDialog;
+    onRelationshipAdd(newRelationship);
+    setOpen(false);
+  };
+
+  const getColumnsForTable = (tableName: string | undefined): ColumnType[] => {
+    const table = tables.find((table) => table.name === tableName);
+    return table ? table.columns : [];
+  };
+
+  const sourceColumns = getColumnsForTable(sourceTable);
+  const targetColumns = getColumnsForTable(targetTable);
+
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Add New Relationship</AlertDialogTitle>
+          <AlertDialogDescription>
+            Define a relationship between two tables in your schema.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="source-table" className="text-right">
+              Source Table
+            </Label>
+            <Select onValueChange={setSourceTable} defaultValue={sourceTable} value={sourceTable}>
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                {tables.map((table) => (
+                  <SelectItem key={table.name} value={table.name}>
+                    {table.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="source-column" className="text-right">
+              Source Column
+            </Label>
+            <Select onValueChange={setSourceColumn} defaultValue={sourceColumn} value={sourceColumn} disabled={!sourceTable}>
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                {sourceColumns.map((column) => (
+                  <SelectItem key={column.name} value={column.name}>
+                    {column.name} ({column.type})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="target-table" className="text-right">
+              Target Table
+            </Label>
+            <Select onValueChange={setTargetTable} defaultValue={targetTable} value={targetTable}>
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                {tables.map((table) => (
+                  <SelectItem key={table.name} value={table.name}>
+                    {table.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="target-column" className="text-right">
+              Target Column
+            </Label>
+            <Select onValueChange={setTargetColumn} defaultValue={targetColumn} value={targetColumn} disabled={!targetTable}>
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                {targetColumns.map((column) => (
+                  <SelectItem key={column.name} value={column.name}>
+                    {column.name} ({column.type})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleAddRelationship}>Add Relationship</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}

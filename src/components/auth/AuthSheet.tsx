@@ -1,11 +1,10 @@
-
 import { useState } from "react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import LoginForm from "./LoginForm";
 import SignupForm from "./SignupForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/App";
+import { useAuth } from "@/hooks/useAuth";
 
 interface AuthSheetProps {
   isOpen: boolean;
