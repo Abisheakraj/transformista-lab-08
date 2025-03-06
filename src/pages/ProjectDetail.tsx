@@ -5,8 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Play, Save, Plus } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { Input } from "@/components/ui/input"; // Add this import
-import { Separator } from "@/components/ui/separator"; // Add this import
+import { Input } from "@/components/ui/input"; 
+import { Separator } from "@/components/ui/separator"; 
 import DataSourcesTab from "@/components/flow/DataSourcesTab";
 import FlowDesignerTab from "@/components/flow/FlowDesignerTab";
 
@@ -113,7 +113,7 @@ const ProjectDetail = () => {
     <div>
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-2xl font-bold text-primary">DataGeniAI</div>
+          <div className="text-2xl font-bold text-primary">DataGenieAI</div>
           <Button variant="ghost" onClick={() => navigate("/dashboard")}>Dashboard</Button>
         </div>
       </header>
@@ -126,9 +126,9 @@ const ProjectDetail = () => {
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 Back
               </Button>
-              <h1 className="text-2xl font-bold">{project.name}</h1>
+              <h1 className="text-2xl font-bold">{project?.name}</h1>
             </div>
-            <p className="text-muted-foreground">{project.description}</p>
+            <p className="text-muted-foreground">{project?.description}</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleSave} disabled={isSaving}>
@@ -168,11 +168,11 @@ const ProjectDetail = () => {
           </TabsList>
           
           <TabsContent value="datasources">
-            <DataSourcesTab projectId={project.id} />
+            <DataSourcesTab projectId={project?.id || ""} />
           </TabsContent>
           
           <TabsContent value="flow">
-            <FlowDesignerTab projectId={project.id} />
+            <FlowDesignerTab projectId={project?.id || ""} />
           </TabsContent>
           
           <TabsContent value="settings">
@@ -186,11 +186,11 @@ const ProjectDetail = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Project Name</label>
-                      <Input value={project.name} className="max-w-md" />
+                      <Input value={project?.name} className="max-w-md" />
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Project Description</label>
-                      <Input value={project.description} className="max-w-md" />
+                      <Input value={project?.description} className="max-w-md" />
                     </div>
                   </div>
                 </div>
