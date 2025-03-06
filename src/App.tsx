@@ -1,76 +1,50 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import Dashboard from "./pages/Dashboard";
-import ProjectDetail from "./pages/ProjectDetail";
-import { useState, createContext, useContext, ReactNode } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { SignIn } from './pages/SignIn';
+import { SignUp } from './pages/SignUp';
+import { Dashboard } from './pages/Dashboard';
+import  { DataTransformationUpload } from './pages/DataTransformation';
+import { DatabaseConnection } from './pages/DatabaseConnection';
+import { DatabaseList } from './pages/DatabaseList';
+import { FileUpload } from './pages/FileUpload';
+import { Pipeline } from './pages/Pipeline';
+import { PipelineMapping } from './pages/PipelineMapping';
+import { Discover } from './pages/Discover';
+import { Settings } from './pages/Settings';
+import { SchoolSchema } from './pages/schemas/SchoolSchema';
+import { HRSchema } from './pages/schemas/HRSchema';
+import { HospitalSchema } from './pages/schemas/HospitalSchema';
+import { InventorySchema } from './pages/schemas/InventorySchema';
+import { PayrollSchema } from './pages/schemas/PayrollSchema';
+import { ResetPassword } from './pages/ResetPassword';
+import { DataTransformationPreview } from './pages/DataTransformationPreview';
 
-// Create a simple auth context to simulate authentication
-interface AuthContextType {
-  isAuthenticated: boolean;
-  login: () => void;
-  logout: () => void;
-}
-
-const AuthContext = createContext<AuthContextType>({
-  isAuthenticated: false,
-  login: () => {},
-  logout: () => {},
-});
-
-export const useAuth = () => useContext(AuthContext);
-
-// Protected route component
-const ProtectedRoute = ({ children }: { children: ReactNode }) => {
-  const { isAuthenticated } = useAuth();
-
-  if (!isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
-
-  return <>{children}</>;
-};
-
-const queryClient = new QueryClient();
-
-const App = () => {
-  // Simple auth state for demonstration
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  const login = () => setIsAuthenticated(true);
-  const logout = () => setIsAuthenticated(false);
-
+function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/projects/:projectId" element={
-                <ProtectedRoute>
-                  <ProjectDetail />
-                </ProtectedRoute>
-              } />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthContext.Provider>
-    </QueryClientProvider>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/signin" element={<SignIn />} />
+        <Route path="/signup" element={<SignUp />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/transform" element={<DataTransformationUpload />} />
+        <Route path="/database-connection" element={<DatabaseConnection />} />
+        <Route path="/database-list" element={<DatabaseList />} />
+        <Route path="/file-upload" element={<FileUpload />} />
+        <Route path="/pipeline" element={<Pipeline />} />
+        <Route path="/pipeline/mapping" element={<PipelineMapping />} />
+        <Route path="/discover" element={<Discover />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/schemas/school" element={<SchoolSchema />} />
+        <Route path="/schemas/hr" element={<HRSchema />} />
+        <Route path="/schemas/hospital" element={<HospitalSchema />} />
+        <Route path="/schemas/inventory" element={<InventorySchema />} />
+        <Route path="/schemas/payroll" element={<PayrollSchema />} />
+        <Route path="/data-preview" element={<DataTransformationPreview />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
-};
+}
 
 export default App;

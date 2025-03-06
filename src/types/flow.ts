@@ -1,42 +1,41 @@
 
-import { Position } from '@xyflow/react';
-
 export interface FlowNode {
   id: string;
-  type: 'table' | 'transformation' | 'output';
+  type: string;
   position: {
     x: number;
     y: number;
   };
-  data: {
-    label: string;
-    source?: string;
-    columns?: { name: string; type: string }[];
-    type?: string;
-    sourceNodeId?: string;
-  };
-  // Add these properties for React Flow
-  selected?: boolean;
-  dragging?: boolean;
-  targetPosition?: Position;
-  sourcePosition?: Position;
+  data: Record<string, any>;
 }
 
 export interface FlowEdge {
   id: string;
   source: string;
   target: string;
-  // Add these properties for React Flow
-  animated?: boolean;
-  style?: React.CSSProperties;
   type?: string;
-  markerEnd?: string;
+  animated?: boolean;
+  style?: Record<string, any>;
+  data?: Record<string, any>;
 }
 
-export interface DataFlow {
-  id: string;
+export interface SchemaTable {
   name: string;
-  description: string;
-  nodes: FlowNode[];
-  edges: FlowEdge[];
+  columns: ColumnType[];
+}
+
+export interface ColumnType {
+  name: string;
+  type: string;
+  isPrimaryKey?: boolean;
+  isForeignKey?: boolean;
+  references?: string;
+}
+
+export interface RelationshipData {
+  sourceTable: string;
+  sourceColumn: string;
+  targetTable: string;
+  targetColumn: string;
+  id: string;
 }
