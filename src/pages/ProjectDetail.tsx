@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -75,7 +74,7 @@ const ProjectDetail = () => {
         toast({
           title: "Flow failed",
           description: "There was an error starting your ETL flow.",
-          variant: "destructive"
+          type: "destructive"
         });
       }
       

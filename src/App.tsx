@@ -18,6 +18,10 @@ import { InventorySchema } from './pages/schemas/InventorySchema';
 import { PayrollSchema } from './pages/schemas/PayrollSchema';
 import { ResetPassword } from './pages/ResetPassword';
 import { DataTransformationPreview } from './pages/DataTransformationPreview';
+import { useAuth } from './hooks/useAuth';
+
+// Re-export useAuth for components that import from @/App
+export { useAuth };
 
 function App() {
   return (

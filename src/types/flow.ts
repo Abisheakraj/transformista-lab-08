@@ -1,3 +1,4 @@
+import { MarkerType } from "@xyflow/react";
 
 export interface FlowNode {
   id: string;
@@ -6,7 +7,7 @@ export interface FlowNode {
     x: number;
     y: number;
   };
-  data: Record<string, any>;
+  data: any;
 }
 
 export interface FlowEdge {
@@ -15,13 +16,13 @@ export interface FlowEdge {
   target: string;
   type?: string;
   animated?: boolean;
-  style?: Record<string, any>;
-  data?: Record<string, any>;
+  style?: React.CSSProperties;
   markerEnd?: {
-    type: string;
+    type: MarkerType;
     width?: number;
     height?: number;
   };
+  data?: any;
 }
 
 export interface SchemaTable {

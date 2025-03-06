@@ -9,27 +9,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
 import { FlowNode, FlowEdge } from "@/types/flow";
-import {
-  ReactFlow,
-  MiniMap,
-  Controls,
-  Background,
-  useNodesState,
-  useEdgesState,
-  useReactFlow,
-  NodeTypes,
-  addEdge,
-  Connection,
-  Panel,
-  Node,
-  Edge,
-  Position,
-  BackgroundVariant,
-  MarkerType,
-  EdgeTypes,
-  EdgeLabelRenderer,
-} from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
 
 interface FlowDesignerTabProps {
   projectId: string;
@@ -521,7 +500,7 @@ const RelationshipDialog = ({
       toast({
         title: "Missing information",
         description: "Please select all required fields for the relationship",
-        variant: "destructive"
+        type: "destructive"
       });
       return;
     }

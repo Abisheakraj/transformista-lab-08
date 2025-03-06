@@ -43,7 +43,7 @@ const RelationshipDialog = ({
       toast({
         title: "Missing information",
         description: "Please select all required fields for the relationship",
-        variant: "destructive"
+        type: "destructive"
       });
       return;
     }

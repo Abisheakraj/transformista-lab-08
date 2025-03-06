@@ -12,5 +12,13 @@ export function useToast() {
     console.log('Toast:', options);
   };
 
-  return { toast };
+  return { 
+    toast,
+    toasts: [] // Add empty toasts array to match expected interface
+  };
 }
+
+// Export a standalone toast function for direct imports
+export const toast = (options: ToastOptions) => {
+  console.log('Toast:', options);
+};
