@@ -2,9 +2,9 @@
 // This is a simplified toast hook - in a real app you would use a toast library
 // or implement a more robust toast system
 
-type ToastType = 'default' | 'success' | 'error' | 'warning' | 'info';
+export type ToastType = 'default' | 'success' | 'error' | 'warning' | 'info' | 'destructive';
 
-interface ToastOptions {
+export interface ToastOptions {
   title: string;
   description?: string;
   variant?: ToastType;
@@ -25,4 +25,9 @@ export const toast = (options: ToastOptions) => {
   
   // For now, we'll use browser alerts for demonstration purposes
   alert(`${title}${description ? '\n' + description : ''}`);
+};
+
+// Adding the missing useToast hook
+export const useToast = () => {
+  return { toast };
 };

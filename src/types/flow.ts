@@ -17,6 +17,11 @@ export interface FlowEdge {
   animated?: boolean;
   style?: Record<string, any>;
   data?: Record<string, any>;
+  markerEnd?: {
+    type: string;
+    width?: number;
+    height?: number;
+  };
 }
 
 export interface SchemaTable {

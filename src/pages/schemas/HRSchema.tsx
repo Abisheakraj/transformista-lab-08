@@ -1,0 +1,11 @@
+
+import React from "react";
+
+export function HRSchema() {
+  return (
+    <div className="container mx-auto mt-10">
+      <h1 className="text-2xl font-bold mb-4">HR Schema</h1>
+      <p>Manage your HR data schema here.</p>
+    </div>
+  );
+}
