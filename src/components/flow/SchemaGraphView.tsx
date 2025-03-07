@@ -183,8 +183,7 @@ const initialNodes = [
   },
 ];
 
-// Fix the Edge typing issues by ensuring labelBgPadding is a tuple [number, number]
-const initialEdges: Edge[] = [
+const initialEdges = [
   {
     id: 'db-to-customers',
     source: 'db-source',
@@ -213,7 +212,7 @@ const initialEdges: Edge[] = [
     target: 'orders-table',
     style: { stroke: '#10B981' },
     label: 'has many',
-    labelBgPadding: [8, 4], // Fixed: Now it's a tuple with 2 elements
+    labelBgPadding: [8, 4],
     labelBgBorderRadius: 4,
     labelBgStyle: { fill: '#ECFDF5', color: '#10B981', fillOpacity: 0.7 },
     markerEnd: {
