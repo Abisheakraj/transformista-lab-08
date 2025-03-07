@@ -1,9 +1,10 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { testDatabaseConnection } from "@/lib/database-client";
 import { 
   Database, 
   RefreshCcw, 
@@ -12,7 +13,8 @@ import {
   CheckCircle, 
   XCircle, 
   Clock, 
-  Layers 
+  Layers,
+  Loader2 
 } from "lucide-react";
 
 interface ConnectionListProps {
@@ -35,6 +37,7 @@ interface Connection {
 const ConnectionList = ({ type }: ConnectionListProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState<Record<string, boolean>>({});
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   
   // Mock data for demonstration
   const [connections, setConnections] = useState<Connection[]>([
@@ -87,42 +90,78 @@ const ConnectionList = ({ type }: ConnectionListProps) => {
     }
   ]);
 
+  // Simulating fetch of connections on component mount
+  useEffect(() => {
+    // Simulate loading
+    const timer = setTimeout(() => {
+      setIsInitialLoading(false);
+    }, 800);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
   // Filter connections by type
   const filteredConnections = connections.filter(conn => conn.type === type);
 
-  const handleTestConnection = (connectionId: string) => {
+  const handleTestConnection = async (connectionId: string) => {
+    const connection = connections.find(conn => conn.id === connectionId);
+    if (!connection) return;
+    
     setIsLoading(prev => ({ ...prev, [connectionId]: true }));
     
-    // Simulate testing the connection
-    setTimeout(() => {
-      const success = Math.random() > 0.3; // 70% success rate for demo
+    try {
+      const result = await testDatabaseConnection({
+        host: connection.host,
+        port: connection.port || "",
+        database: connection.database,
+        username: connection.username || "",
+        password: "********", // Password would be securely retrieved or managed in a real app
+        connectionType: connection.connectionType
+      });
       
       setConnections(prev => prev.map(conn => {
         if (conn.id === connectionId) {
           return {
             ...conn,
-            status: success ? "connected" : "failed",
+            status: result.success ? "connected" : "failed",
             lastTested: new Date().toISOString()
           };
         }
         return conn;
       }));
       
-      if (success) {
+      if (result.success) {
         toast({
           title: "Connection successful",
-          description: "The database connection was tested successfully."
+          description: result.message
         });
       } else {
         toast({
           title: "Connection failed",
-          description: "Unable to connect to the database. Please check your credentials.",
+          description: result.message,
           variant: "destructive"
         });
       }
+    } catch (error) {
+      toast({
+        title: "Connection error",
+        description: "An unexpected error occurred while testing the connection.",
+        variant: "destructive"
+      });
       
+      setConnections(prev => prev.map(conn => {
+        if (conn.id === connectionId) {
+          return {
+            ...conn,
+            status: "failed",
+            lastTested: new Date().toISOString()
+          };
+        }
+        return conn;
+      }));
+    } finally {
       setIsLoading(prev => ({ ...prev, [connectionId]: false }));
-    }, 1500);
+    }
   };
 
   const handleDeleteConnection = (connectionId: string) => {
@@ -131,6 +170,14 @@ const ConnectionList = ({ type }: ConnectionListProps) => {
     toast({
       title: "Connection removed",
       description: "The connection has been removed from your list."
+    });
+  };
+
+  const handleEditConnection = (connectionId: string) => {
+    // In a real application, this would open a dialog to edit the connection
+    toast({
+      title: "Edit Connection",
+      description: "This would open a dialog to edit the connection details."
     });
   };
 
@@ -174,6 +221,17 @@ const ConnectionList = ({ type }: ConnectionListProps) => {
     }).format(date);
   };
 
+  if (isInitialLoading) {
+    return (
+      <div className="flex justify-center items-center p-8">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="mt-2 text-muted-foreground">Loading connections...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (filteredConnections.length === 0) {
     return (
       <Card className="border-dashed">
@@ -191,7 +249,7 @@ const ConnectionList = ({ type }: ConnectionListProps) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {filteredConnections.map(connection => (
-        <Card key={connection.id}>
+        <Card key={connection.id} className="transition-all hover:shadow-md">
           <CardHeader className="pb-2">
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-2">
@@ -228,7 +286,7 @@ const ConnectionList = ({ type }: ConnectionListProps) => {
             >
               {isLoading[connection.id] ? (
                 <>
-                  <div className="w-3 h-3 rounded-full border-2 border-primary border-t-transparent animate-spin mr-1"></div>
+                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
                   Testing...
                 </>
               ) : (
@@ -241,6 +299,7 @@ const ConnectionList = ({ type }: ConnectionListProps) => {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => handleEditConnection(connection.id)}
             >
               <Edit2 className="h-3.5 w-3.5 mr-1" />
               Edit

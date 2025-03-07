@@ -7,7 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm, Controller } from "react-hook-form";
 import { Link } from "react-router-dom";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Loader2, Database } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { testDatabaseConnection } from "@/lib/database-client";
 
 interface AddDataSourceDialogProps {
   open: boolean;
@@ -42,7 +44,8 @@ const connectionTypes = {
 
 const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSourceDialogProps) => {
   const [isLoading, setIsLoading] = useState(false);
-  const { register, handleSubmit, reset, control, formState: { errors } } = useForm<FormData>();
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const { register, handleSubmit, reset, control, getValues, formState: { errors } } = useForm<FormData>();
 
   // Reset form when dialog opens/closes
   useEffect(() => {
@@ -59,11 +62,67 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
         ...data,
         type,
       });
+      toast({
+        title: `${type === "source" ? "Source" : "Target"} connection added`,
+        description: `Successfully added ${data.name} connection.`
+      });
       reset();
     } catch (error) {
       console.error("Error adding data source:", error);
+      toast({
+        title: "Error adding connection",
+        description: "There was a problem adding your connection. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    const values = getValues();
+    
+    if (!values.host || !values.database) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide at least host and database name to test the connection.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsTestingConnection(true);
+    
+    try {
+      const result = await testDatabaseConnection({
+        host: values.host,
+        port: values.port,
+        database: values.database,
+        username: values.username,
+        password: values.password,
+        connectionType: values.connectionType.toLowerCase()
+      });
+      
+      if (result.success) {
+        toast({
+          title: "Connection Successful",
+          description: result.message
+        });
+      } else {
+        toast({
+          title: "Connection Failed",
+          description: result.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Connection Error",
+        description: "An unexpected error occurred while testing the connection.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsTestingConnection(false);
     }
   };
 
@@ -114,7 +173,10 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
                     <SelectContent>
                       {connectionTypes[type].map((dbType) => (
                         <SelectItem key={dbType} value={dbType}>
-                          {dbType}
+                          <div className="flex items-center">
+                            <Database className="w-4 h-4 mr-2 text-muted-foreground" />
+                            {dbType}
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -192,11 +254,30 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleTestConnection}
+              disabled={isTestingConnection}
+            >
+              {isTestingConnection ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Testing Connection
+                </>
+              ) : (
+                "Test Connection"
+              )}
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Adding..." : "Add Connection"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                "Add Connection"
+              )}
             </Button>
           </DialogFooter>
         </form>

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/App";
+import { ChevronLeft } from "lucide-react";
 
 const AgentSelectionPage = () => {
   const navigate = useNavigate();
@@ -22,10 +23,23 @@ const AgentSelectionPage = () => {
     }
   };
 
+  const handleBack = () => {
+    navigate("/");
+  };
+
   return (
     <div className="min-h-screen bg-white">
       <header className="container mx-auto py-6 flex justify-between items-center">
         <div className="flex items-center">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleBack} 
+            className="mr-4"
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Back
+          </Button>
           <svg width="30" height="30" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="2" />
             <circle cx="20" cy="20" r="8" fill="currentColor" />
@@ -56,6 +70,7 @@ const AgentSelectionPage = () => {
               </svg>
             </div>
             <h3 className="text-xl font-semibold mb-2">Data Transformation Agent</h3>
+            <p className="text-sm text-gray-500">Connect databases, transform data, and create pipelines effortlessly</p>
           </Card>
           
           <Card className="p-8 cursor-pointer transition-all hover:border-gray-300">
@@ -67,6 +82,7 @@ const AgentSelectionPage = () => {
               </svg>
             </div>
             <h3 className="text-xl font-semibold mb-2">Code Migration Agent</h3>
+            <p className="text-sm text-gray-500">Migrate legacy SQL code to modern databases or frameworks</p>
           </Card>
           
           <Card className="p-8 cursor-pointer transition-all hover:border-gray-300">
@@ -78,6 +94,7 @@ const AgentSelectionPage = () => {
               </svg>
             </div>
             <h3 className="text-xl font-semibold mb-2">UI Creation Agent</h3>
+            <p className="text-sm text-gray-500">Generate dynamic UIs from database schemas and business rules</p>
           </Card>
         </div>
       </main>

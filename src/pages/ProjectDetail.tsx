@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Play, Save, Upload, Database } from "lucide-react";
+import { ArrowLeft, Play, Save, Upload, Database, ChevronLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input"; 
 import { Separator } from "@/components/ui/separator"; 
@@ -11,6 +11,7 @@ import DataSourcesTab from "@/components/flow/DataSourcesTab";
 import FlowDesignerTab from "@/components/flow/FlowDesignerTab";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import AddDataSourceDialog from "@/components/flow/AddDataSourceDialog";
+import SchemaGraphView from "@/components/flow/SchemaGraphView";
 
 interface Project {
   id: string;
@@ -86,6 +87,10 @@ const ProjectDetail = () => {
     setActiveTab("createPipeline");
   };
 
+  const handleBackToDashboard = () => {
+    navigate("/dashboard");
+  };
+
   if (isLoading) {
     return (
       <SidebarLayout>
@@ -106,7 +111,7 @@ const ProjectDetail = () => {
           <div className="text-center py-16">
             <h2 className="text-2xl font-semibold mb-2">Project Not Found</h2>
             <p className="text-muted-foreground mb-6">The project you're looking for doesn't exist or you don't have access to it.</p>
-            <Button onClick={() => navigate("/dashboard")}>
+            <Button onClick={handleBackToDashboard}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Dashboard
             </Button>
@@ -231,15 +236,19 @@ const ProjectDetail = () => {
           <div className="p-6 bg-white rounded-lg border border-gray-200">
             <h2 className="text-xl font-semibold mb-4">Table Mapping</h2>
             <p className="text-gray-500 mb-6">Define relationships between source and target tables</p>
-            <div className="text-center py-10">
-              <Database className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-              <p className="text-gray-500 mb-2">Configure your source and target connections first</p>
+            
+            <div className="mb-6">
+              <SchemaGraphView />
+            </div>
+            
+            <div className="text-center py-4">
+              <p className="text-gray-500 mb-2">Configure your source and target connections to see more mapping options</p>
               <div className="flex justify-center gap-3">
                 <Button variant="outline" onClick={() => setActiveTab("source")}>
-                  Add Source
+                  Manage Source
                 </Button>
                 <Button variant="outline" onClick={() => setActiveTab("destination")}>
-                  Add Target
+                  Manage Target
                 </Button>
               </div>
             </div>
@@ -314,28 +323,51 @@ const ProjectDetail = () => {
   return (
     <SidebarLayout workspaceId={projectId}>
       <div className="flex flex-col h-full">
+        <div className="bg-white border-b p-4 flex items-center">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleBackToDashboard} 
+            className="mr-4"
+          >
+            <ChevronLeft className="h-4 w-4 mr-1" />
+            Back to Dashboard
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold">{project.name}</h1>
+            <p className="text-sm text-muted-foreground">{project.description}</p>
+          </div>
+        </div>
+        
         <div className="flex flex-col md:flex-row md:gap-6 bg-white border-b p-6">
           <div className="w-full md:w-64 flex-shrink-0 mb-6 md:mb-0">
             <div className="space-y-1">
-              <div className="flex items-center gap-2 bg-gray-100 rounded-md px-3 py-2 cursor-pointer">
+              <div className={`flex items-center gap-2 ${activeTab === 'source' ? 'bg-primary/10 text-primary' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                onClick={() => setActiveTab('source')}>
                 <div className="w-full text-sm font-medium">Source</div>
               </div>
-              <div className="flex items-center gap-2 hover:bg-gray-100 rounded-md px-3 py-2 cursor-pointer">
+              <div className={`flex items-center gap-2 ${activeTab === 'destination' ? 'bg-primary/10 text-primary' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                onClick={() => setActiveTab('destination')}>
                 <div className="w-full text-sm font-medium">Destination</div>
               </div>
-              <div className="flex items-center gap-2 hover:bg-gray-100 rounded-md px-3 py-2 cursor-pointer">
+              <div className={`flex items-center gap-2 ${activeTab === 'tableMapping' ? 'bg-primary/10 text-primary' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                onClick={() => setActiveTab('tableMapping')}>
                 <div className="w-full text-sm font-medium">Table Mapping</div>
               </div>
-              <div className="flex items-center gap-2 hover:bg-gray-100 rounded-md px-3 py-2 cursor-pointer">
+              <div className={`flex items-center gap-2 ${activeTab === 'trainingData' ? 'bg-primary/10 text-primary' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                onClick={() => setActiveTab('trainingData')}>
                 <div className="w-full text-sm font-medium">Training Data</div>
               </div>
-              <div className="flex items-center gap-2 hover:bg-gray-100 rounded-md px-3 py-2 cursor-pointer">
+              <div className={`flex items-center gap-2 ${activeTab === 'createPipeline' ? 'bg-primary/10 text-primary' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                onClick={() => setActiveTab('createPipeline')}>
                 <div className="w-full text-sm font-medium">Create Pipeline</div>
               </div>
-              <div className="flex items-center gap-2 hover:bg-gray-100 rounded-md px-3 py-2 cursor-pointer">
+              <div className={`flex items-center gap-2 ${activeTab === 'validate' ? 'bg-primary/10 text-primary' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                onClick={() => setActiveTab('validate')}>
                 <div className="w-full text-sm font-medium">Validate</div>
               </div>
-              <div className="flex items-center gap-2 hover:bg-gray-100 rounded-md px-3 py-2 cursor-pointer">
+              <div className={`flex items-center gap-2 ${activeTab === 'savePipeline' ? 'bg-primary/10 text-primary' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                onClick={() => setActiveTab('savePipeline')}>
                 <div className="w-full text-sm font-medium">Save Pipeline</div>
               </div>
             </div>
@@ -345,7 +377,7 @@ const ProjectDetail = () => {
             <ul className="flex flex-wrap -mb-px text-sm font-medium text-center border-b border-gray-200">
               <li className="mr-2">
                 <a 
-                  className={`inline-block p-4 rounded-t-lg ${activeTab === 'source' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
+                  className={`inline-block p-4 rounded-t-lg cursor-pointer ${activeTab === 'source' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
                   onClick={() => setActiveTab('source')}
                 >
                   Source
@@ -353,7 +385,7 @@ const ProjectDetail = () => {
               </li>
               <li className="mr-2">
                 <a 
-                  className={`inline-block p-4 rounded-t-lg ${activeTab === 'destination' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
+                  className={`inline-block p-4 rounded-t-lg cursor-pointer ${activeTab === 'destination' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
                   onClick={() => setActiveTab('destination')}
                 >
                   Destination
@@ -361,7 +393,7 @@ const ProjectDetail = () => {
               </li>
               <li className="mr-2">
                 <a 
-                  className={`inline-block p-4 rounded-t-lg ${activeTab === 'tableMapping' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
+                  className={`inline-block p-4 rounded-t-lg cursor-pointer ${activeTab === 'tableMapping' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
                   onClick={() => setActiveTab('tableMapping')}
                 >
                   Table Mapping
@@ -369,7 +401,7 @@ const ProjectDetail = () => {
               </li>
               <li className="mr-2">
                 <a 
-                  className={`inline-block p-4 rounded-t-lg ${activeTab === 'trainingData' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
+                  className={`inline-block p-4 rounded-t-lg cursor-pointer ${activeTab === 'trainingData' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
                   onClick={() => setActiveTab('trainingData')}
                 >
                   Training Data
@@ -377,7 +409,7 @@ const ProjectDetail = () => {
               </li>
               <li className="mr-2">
                 <a 
-                  className={`inline-block p-4 rounded-t-lg ${activeTab === 'createPipeline' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
+                  className={`inline-block p-4 rounded-t-lg cursor-pointer ${activeTab === 'createPipeline' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
                   onClick={handleCreatePipeline}
                 >
                   Create Pipeline
@@ -385,7 +417,7 @@ const ProjectDetail = () => {
               </li>
               <li className="mr-2">
                 <a 
-                  className={`inline-block p-4 rounded-t-lg ${activeTab === 'validate' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
+                  className={`inline-block p-4 rounded-t-lg cursor-pointer ${activeTab === 'validate' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
                   onClick={() => setActiveTab('validate')}
                 >
                   Validate
@@ -393,7 +425,7 @@ const ProjectDetail = () => {
               </li>
               <li>
                 <a 
-                  className={`inline-block p-4 rounded-t-lg ${activeTab === 'savePipeline' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
+                  className={`inline-block p-4 rounded-t-lg cursor-pointer ${activeTab === 'savePipeline' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
                   onClick={() => setActiveTab('savePipeline')}
                 >
                   Save Pipeline

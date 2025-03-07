@@ -6,16 +6,34 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 import ConnectionForm from "@/components/connections/ConnectionForm";
 import ConnectionList from "@/components/connections/ConnectionList";
-import { Database, HardDrive } from "lucide-react";
+import { Database, HardDrive, ChevronLeft } from "lucide-react";
 
 const ConnectionsPage = () => {
   const [activeTab, setActiveTab] = useState<string>("sources");
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  const handleBack = () => {
+    navigate("/dashboard");
+  };
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-4">
+      <div className="flex items-center mb-4">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={handleBack} 
+          className="mr-4"
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" />
+          Back to Dashboard
+        </Button>
+      </div>
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Data Connections</h1>

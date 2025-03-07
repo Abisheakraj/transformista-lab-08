@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Database } from "lucide-react";
+import { testDatabaseConnection } from "@/lib/database-client";
 
 interface ConnectionFormProps {
   type: "source" | "target";
@@ -58,25 +59,37 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
 
     setIsTestingConnection(true);
     
-    // Simulate API call for testing connection
-    setTimeout(() => {
-      const success = Math.random() > 0.3; // 70% success rate for demo
+    try {
+      const result = await testDatabaseConnection({
+        host: formData.host,
+        port: formData.port,
+        database: formData.database,
+        username: formData.username,
+        password: formData.password,
+        connectionType: formData.connectionType.toLowerCase()
+      });
       
-      if (success) {
+      if (result.success) {
         toast({
           title: "Connection Successful",
-          description: "Successfully connected to the database."
+          description: result.message
         });
       } else {
         toast({
           title: "Connection Failed",
-          description: "Could not connect to the database. Please check your credentials.",
+          description: result.message,
           variant: "destructive"
         });
       }
-      
+    } catch (error) {
+      toast({
+        title: "Connection Error",
+        description: "An unexpected error occurred while testing the connection.",
+        variant: "destructive"
+      });
+    } finally {
       setIsTestingConnection(false);
-    }, 1500);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -94,9 +107,10 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
     setIsLoading(true);
     
     // Simulate API call for adding the connection
-    setTimeout(() => {
-      // In a real application, this would be an API call to save the connection
-      setIsLoading(false);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Success
       onSuccess();
       
       // Reset form
@@ -109,7 +123,20 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
         username: "",
         password: ""
       });
-    }, 800);
+      
+      toast({
+        title: `${type === "source" ? "Source" : "Target"} connection added`,
+        description: `Successfully added ${formData.name} connection.`
+      });
+    } catch (error) {
+      toast({
+        title: "Error adding connection",
+        description: "There was a problem adding your connection. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const connectionTypes = type === "source" 
@@ -143,7 +170,10 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
             <SelectContent>
               {connectionTypes.map((dbType) => (
                 <SelectItem key={dbType} value={dbType.toLowerCase()}>
-                  {dbType}
+                  <div className="flex items-center">
+                    <Database className="w-4 h-4 mr-2 text-muted-foreground" />
+                    {dbType}
+                  </div>
                 </SelectItem>
               ))}
             </SelectContent>
