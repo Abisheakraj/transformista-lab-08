@@ -8,17 +8,25 @@ import { toast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input"; 
 import { Separator } from "@/components/ui/separator"; 
 import { Progress } from "@/components/ui/progress";
-import DataSourcesTab from "@/components/flow/DataSourcesTab";
 import FlowDesignerTab from "@/components/flow/FlowDesignerTab";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import AddDataSourceDialog from "@/components/flow/AddDataSourceDialog";
 import SchemaGraphView from "@/components/flow/SchemaGraphView";
-import { testDatabaseConnection, fetchDatabaseSchemas } from "@/lib/database-client";
+import { testDatabaseConnection, fetchDatabaseSchemas, processUploadedFile, FileUpload } from "@/lib/database-client";
+import { Node, Edge } from "@xyflow/react";
 
 interface Project {
   id: string;
   name: string;
   description: string;
+}
+
+interface PipelineData {
+  sourceData?: any;
+  targetData?: any;
+  fileData?: FileUpload | null;
+  schemaNodes?: Node[];
+  schemaEdges?: Edge[];
 }
 
 const ProjectDetail = () => {
@@ -35,6 +43,11 @@ const ProjectDetail = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadFileName, setUploadFileName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pipelineData, setPipelineData] = useState<PipelineData>({
+    fileData: null,
+    schemaNodes: [],
+    schemaEdges: []
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -74,10 +87,18 @@ const ProjectDetail = () => {
   const handleSourceSubmit = (data: any) => {
     console.log("Source data:", data);
     setSourceDialogOpen(false);
+    
+    // Update pipelineData with the source connection
+    setPipelineData(prev => ({
+      ...prev,
+      sourceData: data
+    }));
+    
     toast({
       title: "Source Added",
       description: `Source "${data.name}" has been added successfully.`
     });
+    
     // After adding source, automatically move to next step
     setActiveWorkflowStep("destination");
   };
@@ -85,10 +106,18 @@ const ProjectDetail = () => {
   const handleTargetSubmit = (data: any) => {
     console.log("Target data:", data);
     setTargetDialogOpen(false);
+    
+    // Update pipelineData with the target connection
+    setPipelineData(prev => ({
+      ...prev,
+      targetData: data
+    }));
+    
     toast({
       title: "Target Added",
       description: `Target "${data.name}" has been added successfully.`
     });
+    
     // After adding target, automatically move to next step
     setActiveWorkflowStep("mapping");
   };
@@ -97,7 +126,7 @@ const ProjectDetail = () => {
     navigate("/dashboard");
   };
 
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setUploadFileName(file.name);
@@ -111,15 +140,31 @@ const ProjectDetail = () => {
         
         if (progress >= 100) {
           clearInterval(interval);
-          setTimeout(() => {
+          
+          // Process the uploaded file
+          processUploadedFile(file).then((fileData) => {
+            setPipelineData(prev => ({
+              ...prev,
+              fileData
+            }));
+            
             setIsUploadingFile(false);
             toast({
               title: "File Uploaded",
               description: `${file.name} has been successfully uploaded and processed.`
             });
+            
             // Move to mapping step automatically after upload
             setActiveWorkflowStep("mapping");
-          }, 500);
+          }).catch(err => {
+            console.error("Error processing file:", err);
+            setIsUploadingFile(false);
+            toast({
+              title: "Upload Error",
+              description: "There was an error processing your file.",
+              variant: "destructive"
+            });
+          });
         }
       }, 100);
     }
@@ -133,6 +178,14 @@ const ProjectDetail = () => {
     setIsUploadingFile(false);
     setUploadProgress(0);
     setUploadFileName("");
+  };
+
+  const handleSchemaChange = (nodes: Node[], edges: Edge[]) => {
+    setPipelineData(prev => ({
+      ...prev,
+      schemaNodes: nodes,
+      schemaEdges: edges
+    }));
   };
 
   const handleNextStep = () => {
@@ -280,6 +333,18 @@ const ProjectDetail = () => {
                     Upload File
                   </Button>
                 )}
+                
+                {pipelineData.fileData && (
+                  <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded text-sm">
+                    <div className="flex items-center text-green-700 font-medium mb-1">
+                      <Check className="h-4 w-4 mr-1" />
+                      File uploaded successfully
+                    </div>
+                    <p className="text-gray-600">
+                      Detected {pipelineData.fileData.columns?.length} columns and sample data
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
             
@@ -362,8 +427,50 @@ const ProjectDetail = () => {
             <p className="text-gray-500 mb-6">Define relationships between source and target tables. Connect nodes by dragging from one handle to another.</p>
             
             <div className="mb-6">
-              <SchemaGraphView editable={true} />
+              <SchemaGraphView 
+                editable={true} 
+                pipelineData={pipelineData}
+                onSchemaChange={handleSchemaChange}
+                height="500px"
+              />
             </div>
+            
+            {/* Data Preview Section */}
+            {pipelineData.fileData && (
+              <div className="mb-6 border border-gray-200 rounded-lg p-4">
+                <h3 className="text-lg font-medium mb-2">Source Data Preview</h3>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        {pipelineData.fileData.columns?.map((column, idx) => (
+                          <th 
+                            key={idx}
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                          >
+                            {column}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {pipelineData.fileData.sampleData?.map((row, rowIdx) => (
+                        <tr key={rowIdx}>
+                          {Object.values(row).map((cell, cellIdx) => (
+                            <td 
+                              key={cellIdx}
+                              className="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
+                            >
+                              {String(cell)}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
             
             <div className="flex justify-between mt-6">
               <Button variant="outline" onClick={handlePreviousStep}>
@@ -380,7 +487,87 @@ const ProjectDetail = () => {
         return (
           <div className="p-6 bg-white rounded-lg border border-gray-200">
             <h2 className="text-xl font-semibold mb-4">Create Pipeline</h2>
-            <FlowDesignerTab projectId={project.id} />
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+              <div className="lg:col-span-2">
+                <div className="h-[400px] border border-gray-200 rounded-lg">
+                  <FlowDesignerTab projectId={project.id} />
+                </div>
+              </div>
+              
+              <div className="lg:col-span-1">
+                <div className="border border-gray-200 rounded-lg h-full p-4">
+                  <h3 className="text-md font-medium mb-4">Pipeline Overview</h3>
+                  
+                  <div className="space-y-6">
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Source</h4>
+                      <div className="p-3 bg-gray-50 rounded border border-gray-200 text-sm">
+                        {pipelineData.sourceData ? (
+                          <div>
+                            <p className="font-medium">{pipelineData.sourceData.name}</p>
+                            <p className="text-gray-500 text-xs mt-1">
+                              {pipelineData.sourceData.connectionType} • {pipelineData.sourceData.host}
+                            </p>
+                          </div>
+                        ) : pipelineData.fileData ? (
+                          <div>
+                            <p className="font-medium">{pipelineData.fileData.fileName}</p>
+                            <p className="text-gray-500 text-xs mt-1">
+                              {pipelineData.fileData.fileType.toUpperCase()} • {(pipelineData.fileData.size / 1024).toFixed(2)} KB
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-gray-500">No source configured</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Tables/Mapping</h4>
+                      <div className="p-3 bg-gray-50 rounded border border-gray-200 text-sm">
+                        {pipelineData.schemaNodes && pipelineData.schemaNodes.length > 0 ? (
+                          <div>
+                            <p>{pipelineData.schemaNodes.filter(node => !['db-source', 'db-target'].includes(node.id)).length} tables configured</p>
+                            <p className="text-gray-500 text-xs mt-1">
+                              {pipelineData.schemaEdges?.length || 0} relationships defined
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-gray-500">No tables mapped</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Target</h4>
+                      <div className="p-3 bg-gray-50 rounded border border-gray-200 text-sm">
+                        {pipelineData.targetData ? (
+                          <div>
+                            <p className="font-medium">{pipelineData.targetData.name}</p>
+                            <p className="text-gray-500 text-xs mt-1">
+                              {pipelineData.targetData.connectionType} • {pipelineData.targetData.host}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-gray-500">No target configured</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Integrated Schema Mapping Section */}
+            <div className="mb-6">
+              <h3 className="text-lg font-medium mb-4">Table Relationships</h3>
+              <SchemaGraphView 
+                pipelineData={pipelineData}
+                height="300px"
+                showSourceTarget={false}
+              />
+            </div>
             
             <div className="flex justify-between mt-6">
               <Button variant="outline" onClick={handlePreviousStep}>
@@ -528,15 +715,29 @@ const ProjectDetail = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="font-medium">Source</p>
-                  <p className="text-gray-500">PostgreSQL Database (sales)</p>
+                  <p className="text-gray-500">
+                    {pipelineData.sourceData 
+                      ? `${pipelineData.sourceData.connectionType} (${pipelineData.sourceData.database})` 
+                      : pipelineData.fileData 
+                        ? `${pipelineData.fileData.fileName} (${pipelineData.fileData.fileType})` 
+                        : "Not configured"}
+                  </p>
                 </div>
                 <div>
                   <p className="font-medium">Destination</p>
-                  <p className="text-gray-500">Snowflake Database (analytics)</p>
+                  <p className="text-gray-500">
+                    {pipelineData.targetData 
+                      ? `${pipelineData.targetData.connectionType} (${pipelineData.targetData.database})` 
+                      : "Not configured"}
+                  </p>
                 </div>
                 <div>
                   <p className="font-medium">Tables</p>
-                  <p className="text-gray-500">3 source tables, 2 target tables</p>
+                  <p className="text-gray-500">
+                    {pipelineData.schemaNodes 
+                      ? `${pipelineData.schemaNodes.filter(node => !['db-source', 'db-target'].includes(node.id)).length} tables, ${pipelineData.schemaEdges?.length || 0} relationships` 
+                      : "No tables configured"}
+                  </p>
                 </div>
                 <div>
                   <p className="font-medium">Transformations</p>

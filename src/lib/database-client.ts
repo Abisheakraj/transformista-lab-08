@@ -36,6 +36,15 @@ export interface DatabaseColumn {
   };
 }
 
+// Interface for file upload
+export interface FileUpload {
+  fileName: string;
+  fileType: string;
+  size: number;
+  columns?: string[];
+  sampleData?: any[];
+}
+
 // Function to test database connection
 export const testDatabaseConnection = async (credentials: DatabaseCredentials): Promise<{ success: boolean; message: string }> => {
   // In a real application, this would make an API call to test the connection
@@ -215,4 +224,64 @@ export const executeQuery = async (credentials: DatabaseCredentials, query: stri
   }
   
   return [];
+};
+
+// Function to process uploaded files and extract schema
+export const processUploadedFile = async (file: File): Promise<FileUpload> => {
+  console.log("Processing uploaded file:", file.name);
+  
+  // Simulate processing delay
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  // Mock schema extraction based on file type
+  const fileExt = file.name.split('.').pop()?.toLowerCase();
+  let columns: string[] = [];
+  let sampleData: any[] = [];
+  
+  if (fileExt === 'csv' || fileExt === 'xlsx') {
+    columns = ['id', 'name', 'email', 'created_at'];
+    sampleData = [
+      { id: 1, name: "John Doe", email: "john@example.com", created_at: "2023-01-15" },
+      { id: 2, name: "Jane Smith", email: "jane@example.com", created_at: "2023-02-20" }
+    ];
+  } else if (fileExt === 'json') {
+    columns = ['order_id', 'customer_id', 'product', 'quantity', 'price'];
+    sampleData = [
+      { order_id: 101, customer_id: 1, product: "Laptop", quantity: 1, price: 1299.99 },
+      { order_id: 102, customer_id: 1, product: "Mouse", quantity: 2, price: 25.99 }
+    ];
+  }
+  
+  return {
+    fileName: file.name,
+    fileType: fileExt || 'unknown',
+    size: file.size,
+    columns,
+    sampleData
+  };
+};
+
+// Function to export schema mapping
+export const exportSchemaMapping = (nodes: any[], edges: any[]): string => {
+  const mapping = {
+    nodes,
+    edges,
+    createdAt: new Date().toISOString(),
+    version: '1.0'
+  };
+  
+  return JSON.stringify(mapping, null, 2);
+};
+
+// Function to save pipeline configuration
+export const savePipelineConfig = async (config: any): Promise<{ success: boolean; message: string }> => {
+  console.log("Saving pipeline config:", config);
+  
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  return {
+    success: true,
+    message: "Pipeline configuration saved successfully"
+  };
 };

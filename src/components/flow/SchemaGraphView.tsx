@@ -1,5 +1,5 @@
 
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, FileDown, ZoomIn, ZoomOut, Database, Table, FilePlus, Trash2, Link2 } from 'lucide-react';
 import { toast } from "@/hooks/use-toast";
+import { exportSchemaMapping } from '@/lib/database-client';
 
 // Initial mock data for database tables and relationships
 const initialNodes = [
@@ -188,7 +189,7 @@ const initialNodes = [
   },
 ];
 
-// Fix the Edge typing issues by ensuring labelBgPadding is a tuple [number, number]
+// Fixed the Edge typing issues by ensuring labelBgPadding is a tuple [number, number]
 const initialEdges: Edge[] = [
   {
     id: 'db-to-customers',
@@ -218,7 +219,7 @@ const initialEdges: Edge[] = [
     target: 'orders-table',
     style: { stroke: '#10B981' },
     label: 'has many',
-    labelBgPadding: [8, 4], // Fixed: Now it's a tuple with 2 elements
+    labelBgPadding: [8, 4] as [number, number], // Fixed: Now it's a tuple with 2 elements
     labelBgBorderRadius: 4,
     labelBgStyle: { fill: '#ECFDF5', color: '#10B981', fillOpacity: 0.7 },
     markerEnd: {
@@ -252,9 +253,23 @@ const initialEdges: Edge[] = [
 
 interface SchemaGraphViewProps {
   editable?: boolean;
+  pipelineData?: {
+    sourceData?: any;
+    targetData?: any;
+    fileData?: any;
+  };
+  onSchemaChange?: (nodes: Node[], edges: Edge[]) => void;
+  showSourceTarget?: boolean;
+  height?: string;
 }
 
-const SchemaGraphView = ({ editable = false }: SchemaGraphViewProps) => {
+const SchemaGraphView = ({ 
+  editable = false, 
+  pipelineData, 
+  onSchemaChange, 
+  showSourceTarget = true,
+  height = '600px'
+}: SchemaGraphViewProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
@@ -267,6 +282,23 @@ const SchemaGraphView = ({ editable = false }: SchemaGraphViewProps) => {
     name: "",
     columns: [{ name: "id", type: "integer", isPK: true, isFK: false, reference: "" }]
   });
+
+  // Update parent component when schema changes
+  useEffect(() => {
+    if (onSchemaChange) {
+      onSchemaChange(nodes, edges);
+    }
+  }, [nodes, edges, onSchemaChange]);
+  
+  // Process pipelineData if it's provided
+  useEffect(() => {
+    if (pipelineData) {
+      if (pipelineData.sourceData || pipelineData.targetData) {
+        // Here we would process the source/target data to update the schema
+        console.log("Processing pipeline data:", pipelineData);
+      }
+    }
+  }, [pipelineData]);
   
   const onConnect = useCallback(
     (params: Connection) => {
@@ -274,7 +306,7 @@ const SchemaGraphView = ({ editable = false }: SchemaGraphViewProps) => {
       setRelationshipSource(params.source || "");
       setRelationshipTarget(params.target || "");
     },
-    [setEdges]
+    []
   );
   
   const handleAddTable = () => {
@@ -282,13 +314,10 @@ const SchemaGraphView = ({ editable = false }: SchemaGraphViewProps) => {
   };
   
   const handleExportSchema = () => {
-    const schemaData = {
-      nodes,
-      edges
-    };
+    const schemaData = exportSchemaMapping(nodes, edges);
     
     // Create a download link for the schema
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(schemaData, null, 2));
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(schemaData);
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
     downloadAnchorNode.setAttribute("download", "schema-mapping.json");
@@ -472,11 +501,23 @@ const SchemaGraphView = ({ editable = false }: SchemaGraphViewProps) => {
     });
   };
 
+  // Filter nodes if showSourceTarget is false
+  const displayNodes = showSourceTarget 
+    ? nodes 
+    : nodes.filter(node => !['db-source', 'db-target'].includes(node.id));
+
+  // Filter edges if showSourceTarget is false
+  const displayEdges = showSourceTarget 
+    ? edges 
+    : edges.filter(edge => 
+        !['db-source', 'db-target'].includes(edge.source) && 
+        !['db-source', 'db-target'].includes(edge.target));
+
   return (
-    <div className="h-[600px] border border-gray-200 rounded-lg overflow-hidden">
+    <div className={`border border-gray-200 rounded-lg overflow-hidden`} style={{ height }}>
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
+        nodes={displayNodes}
+        edges={displayEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={editable ? onConnect : undefined}
