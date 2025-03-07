@@ -8,6 +8,8 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
 import ProjectDetail from "./pages/ProjectDetail";
+import WorkspacePage from "./pages/WorkspacePage";
+import ConnectionsPage from "./pages/ConnectionsPage";
 import { useState, createContext, useContext, ReactNode } from "react";
 
 // Create a simple auth context to simulate authentication
@@ -62,6 +64,16 @@ const App = () => {
               <Route path="/projects/:projectId" element={
                 <ProtectedRoute>
                   <ProjectDetail />
+                </ProtectedRoute>
+              } />
+              <Route path="/workspace" element={
+                <ProtectedRoute>
+                  <WorkspacePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/connections" element={
+                <ProtectedRoute>
+                  <ConnectionsPage />
                 </ProtectedRoute>
               } />
               <Route path="*" element={<NotFound />} />

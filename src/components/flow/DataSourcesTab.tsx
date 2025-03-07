@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { Database, Plus, Edit, Trash2, RefreshCcw } from "lucide-react";
+import { Database, Plus, Trash2, RefreshCcw, Link, ExternalLink } from "lucide-react";
 import AddDataSourceDialog from "./AddDataSourceDialog";
 import { Separator } from "@/components/ui/separator";
+import { Link as RouterLink } from "react-router-dom";
 
 interface DataSource {
   id: string;
@@ -125,6 +126,16 @@ const DataSourcesTab = ({ projectId }: DataSourcesTabProps) => {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" asChild>
+          <RouterLink to="/connections" className="flex items-center">
+            <Database className="h-4 w-4 mr-1.5" />
+            Manage All Connections
+            <ExternalLink className="h-3.5 w-3.5 ml-1.5" />
+          </RouterLink>
+        </Button>
+      </div>
+      
       <div className="flex flex-col md:flex-row gap-6">
         <div className="md:w-1/2">
           <div className="flex justify-between items-center mb-4">

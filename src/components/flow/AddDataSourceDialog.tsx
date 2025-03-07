@@ -1,11 +1,13 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm, Controller } from "react-hook-form";
+import { Link } from "react-router-dom";
+import { ExternalLink } from "lucide-react";
 
 interface AddDataSourceDialogProps {
   open: boolean;
@@ -34,13 +36,20 @@ interface FormData {
 }
 
 const connectionTypes = {
-  source: ["MySQL", "PostgreSQL", "SQLite", "MongoDB", "Oracle"],
+  source: ["MySQL", "PostgreSQL", "SQLite", "MongoDB", "Oracle", "MSSQL", "Sybase"],
   target: ["MySQL", "PostgreSQL", "BigQuery", "Snowflake", "Redshift"]
 };
 
 const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSourceDialogProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const { register, handleSubmit, reset, control, formState: { errors } } = useForm<FormData>();
+
+  // Reset form when dialog opens/closes
+  useEffect(() => {
+    if (!open) {
+      reset();
+    }
+  }, [open, reset]);
 
   const handleFormSubmit = async (data: FormData) => {
     try {
@@ -169,6 +178,17 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
                   {...register("password")}
                 />
               </div>
+            </div>
+
+            <div className="text-xs text-muted-foreground mt-2">
+              <p>Need to manage more connections? Go to 
+                <Button variant="link" className="h-auto p-0 ml-1" asChild>
+                  <Link to="/connections" className="inline-flex items-center">
+                    Connections Page
+                    <ExternalLink className="h-3 w-3 ml-1" />
+                  </Link>
+                </Button>
+              </p>
             </div>
           </div>
           <DialogFooter>

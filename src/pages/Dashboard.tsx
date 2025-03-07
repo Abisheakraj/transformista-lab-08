@@ -1,126 +1,119 @@
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, ArrowRight } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import CreateProjectDialog from "@/components/projects/CreateProjectDialog";
-
-interface Project {
-  id: string;
-  name: string;
-  description: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { useAuth } from "@/App";
+import { Link } from "react-router-dom";
+import { 
+  Database, 
+  FolderOpen, 
+  TableProperties, 
+  Settings, 
+  LogOut, 
+  ChevronRight,
+  LayoutDashboard
+} from "lucide-react";
 
 const Dashboard = () => {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [projects, setProjects] = useState<Project[]>([
-    {
-      id: "1",
-      name: "Sales Data Integration",
-      description: "ETL flow to integrate sales data from multiple sources",
-      createdAt: "2023-06-15T10:00:00Z",
-      updatedAt: "2023-06-20T14:30:00Z",
-    },
-    {
-      id: "2",
-      name: "Customer Analytics Pipeline",
-      description: "Transform and analyze customer data for insights",
-      createdAt: "2023-07-05T09:15:00Z",
-      updatedAt: "2023-07-18T11:45:00Z",
-    },
-    {
-      id: "3",
-      name: "Inventory Sync",
-      description: "Synchronize inventory data between warehouse and e-commerce",
-      createdAt: "2023-08-12T13:20:00Z",
-      updatedAt: "2023-08-25T16:10:00Z",
-    },
-  ]);
-  const navigate = useNavigate();
-
-  const handleCreateProject = (project: Omit<Project, "id" | "createdAt" | "updatedAt">) => {
-    const newProject: Project = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: project.name,
-      description: project.description,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    
-    setProjects([...projects, newProject]);
-    setIsDialogOpen(false);
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
+  const { logout } = useAuth();
 
   return (
-    <div>
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="text-2xl font-bold text-primary">DataGenieAI</div>
-          <Button variant="ghost" onClick={() => navigate("/")}>Home</Button>
+    <div className="container mx-auto py-8">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
+            Welcome to your Data Transformation Platform
+          </p>
         </div>
-      </header>
-      
-      <div className="container mx-auto px-4 py-10">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">My Projects</h1>
-          <Button onClick={() => setIsDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Project
-          </Button>
-        </div>
+        <Button onClick={logout} variant="outline">
+          <LogOut className="mr-2 h-4 w-4" />
+          Logout
+        </Button>
+      </div>
 
-        {projects.length === 0 ? (
-          <Card className="text-center py-16">
-            <CardContent>
-              <p className="text-muted-foreground mb-4">You don't have any projects yet.</p>
-              <Button onClick={() => setIsDialogOpen(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create Your First Project
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project) => (
-              <Card key={project.id} className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <CardTitle>{project.name}</CardTitle>
-                  <CardDescription>{project.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-sm text-muted-foreground">
-                    <p>Created: {formatDate(project.createdAt)}</p>
-                    <p>Last updated: {formatDate(project.updatedAt)}</p>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-end">
-                  <Button onClick={() => navigate(`/projects/${project.id}`)} variant="outline">
-                    Open Project
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-        )}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <FolderOpen className="h-5 w-5 mr-2 text-blue-600" />
+              Workspaces
+            </CardTitle>
+            <CardDescription>Manage your data projects</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm">
+              Create and manage workspaces to organize your data transformation projects. 
+              Each workspace can contain multiple pipelines and connections.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild className="w-full">
+              <Link to="/workspace">
+                <span>Go to Workspaces</span>
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
 
-        <CreateProjectDialog 
-          open={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
-          onSubmit={handleCreateProject}
-        />
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Database className="h-5 w-5 mr-2 text-emerald-600" />
+              Connections
+            </CardTitle>
+            <CardDescription>Manage database connections</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm">
+              Set up and manage connections to your source and target databases.
+              Configure credentials, test connections, and organize your data sources.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild className="w-full">
+              <Link to="/connections">
+                <span>Manage Connections</span>
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <TableProperties className="h-5 w-5 mr-2 text-purple-600" />
+              Pipelines
+            </CardTitle>
+            <CardDescription>Create data transformation flows</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm">
+              Design and execute data transformation pipelines using an intuitive visual interface.
+              Transform, cleanse, and migrate your data between systems.
+            </p>
+          </CardContent>
+          <CardFooter>
+            <Button asChild className="w-full">
+              <Link to="/projects/1">
+                <span>View Pipelines</span>
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+
+      <div className="mt-12">
+        <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center text-muted-foreground py-4">
+              <p>Your recent activities will appear here.</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
