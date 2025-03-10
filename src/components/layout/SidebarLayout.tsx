@@ -22,7 +22,7 @@ const SidebarLayout = ({ children, title, workspaceId }: SidebarLayoutProps) => 
   };
 
   const isActive = (path: string) => {
-    return location.pathname === path;
+    return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
   return (
@@ -30,7 +30,7 @@ const SidebarLayout = ({ children, title, workspaceId }: SidebarLayoutProps) => 
       {/* Sidebar */}
       <div className={`bg-gray-50 border-r border-gray-200 flex flex-col ${isSidebarCollapsed ? 'w-16' : 'w-64'} transition-all duration-300`}>
         <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center">
+          <Link to="/dashboard" className="flex items-center">
             <svg width={isSidebarCollapsed ? "28" : "24"} height={isSidebarCollapsed ? "28" : "24"} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="2" />
               <circle cx="20" cy="20" r="8" fill="currentColor" />
@@ -39,7 +39,7 @@ const SidebarLayout = ({ children, title, workspaceId }: SidebarLayoutProps) => 
             {!isSidebarCollapsed && (
               <span className="ml-2 text-xl font-bold">Quantum</span>
             )}
-          </div>
+          </Link>
         </div>
         
         <div className="flex-1 py-6 overflow-y-auto">
@@ -123,9 +123,6 @@ const SidebarLayout = ({ children, title, workspaceId }: SidebarLayoutProps) => 
                 </div>
               )}
               <div className="flex items-center">
-                <Button variant="ghost" size="sm" onClick={() => navigate("/agent-selection")}>
-                  Switch Agent
-                </Button>
                 <Button variant="outline" size="sm" className="ml-2" onClick={logout}>
                   Logout
                 </Button>

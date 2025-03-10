@@ -83,12 +83,7 @@ const ProjectDetail = () => {
   };
 
   const handleCreatePipeline = () => {
-    navigate("/projects/1?tab=pipeline");
     setActiveTab("createPipeline");
-  };
-
-  const handleBackToDashboard = () => {
-    navigate("/dashboard");
   };
 
   if (isLoading) {
@@ -111,7 +106,7 @@ const ProjectDetail = () => {
           <div className="text-center py-16">
             <h2 className="text-2xl font-semibold mb-2">Project Not Found</h2>
             <p className="text-muted-foreground mb-6">The project you're looking for doesn't exist or you don't have access to it.</p>
-            <Button onClick={handleBackToDashboard}>
+            <Button onClick={() => navigate("/dashboard")}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Dashboard
             </Button>
@@ -129,16 +124,25 @@ const ProjectDetail = () => {
             <h2 className="text-xl font-semibold mb-4">Source Connection</h2>
             
             <div className="mb-6 p-6 border border-gray-200 rounded-lg bg-gray-50">
-              <Input placeholder="Type or Select an Task to get started" className="mb-4" />
+              <Input placeholder="Type or Select a Task to get started" className="mb-4" />
               
               <div className="flex items-center gap-2 mb-2">
                 <p className="text-sm text-gray-500">Where do you want to get connected?</p>
               </div>
               
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setSourceDialogOpen(true)}>Oracle</Button>
-                <Button variant="outline" onClick={() => setSourceDialogOpen(true)}>Sybase</Button>
-                <Button variant="outline">Upload Excel</Button>
+                <Button variant="outline" onClick={() => setSourceDialogOpen(true)} className="flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  Oracle
+                </Button>
+                <Button variant="outline" onClick={() => setSourceDialogOpen(true)} className="flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  Sybase
+                </Button>
+                <Button variant="outline" className="flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  Upload Excel
+                </Button>
               </div>
             </div>
             
@@ -186,16 +190,25 @@ const ProjectDetail = () => {
             <h2 className="text-xl font-semibold mb-4">Target Connection</h2>
             
             <div className="mb-6 p-6 border border-gray-200 rounded-lg bg-gray-50">
-              <Input placeholder="Type or Select an Task to get started" className="mb-4" />
+              <Input placeholder="Type or Select a Task to get started" className="mb-4" />
               
               <div className="flex items-center gap-2 mb-2">
                 <p className="text-sm text-gray-500">Where do you want to get connected?</p>
               </div>
               
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setTargetDialogOpen(true)}>Oracle</Button>
-                <Button variant="outline" onClick={() => setTargetDialogOpen(true)}>Postgres</Button>
-                <Button variant="outline">Upload Excel</Button>
+                <Button variant="outline" onClick={() => setTargetDialogOpen(true)} className="flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  Oracle
+                </Button>
+                <Button variant="outline" onClick={() => setTargetDialogOpen(true)} className="flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  Postgres
+                </Button>
+                <Button variant="outline" className="flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  Upload Excel
+                </Button>
               </div>
             </div>
             
@@ -237,20 +250,18 @@ const ProjectDetail = () => {
             <h2 className="text-xl font-semibold mb-4">Table Mapping</h2>
             <p className="text-gray-500 mb-6">Define relationships between source and target tables</p>
             
-            <div className="mb-6">
+            <div className="mb-6 h-96">
               <SchemaGraphView />
             </div>
             
-            <div className="text-center py-4">
-              <p className="text-gray-500 mb-2">Configure your source and target connections to see more mapping options</p>
-              <div className="flex justify-center gap-3">
-                <Button variant="outline" onClick={() => setActiveTab("source")}>
-                  Manage Source
-                </Button>
-                <Button variant="outline" onClick={() => setActiveTab("destination")}>
-                  Manage Target
-                </Button>
-              </div>
+            <div className="flex justify-between py-4">
+              <Button variant="outline" onClick={() => setActiveTab("source")}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Source
+              </Button>
+              <Button variant="outline" onClick={() => setActiveTab("destination")}>
+                Back to Target
+              </Button>
             </div>
           </div>
         );
@@ -260,12 +271,36 @@ const ProjectDetail = () => {
           <div className="p-6 bg-white rounded-lg border border-gray-200">
             <h2 className="text-xl font-semibold mb-4">Training Data</h2>
             <p className="text-gray-500 mb-6">Upload or configure training datasets for transformation learning</p>
-            <div className="text-center py-10">
+            
+            <div className="mb-6 p-6 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 text-center">
               <Upload className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-              <p className="text-gray-500 mb-2">No training data added yet</p>
-              <Button variant="outline">
-                Upload Training Data
-              </Button>
+              <p className="text-gray-500 mb-2">Drag and drop files here, or click to select files</p>
+              <input type="file" id="file-upload" className="hidden" multiple />
+              <label htmlFor="file-upload">
+                <Button variant="outline" className="mx-auto">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Files
+                </Button>
+              </label>
+              <p className="text-xs text-gray-400 mt-2">Supported formats: .csv, .xlsx, .json</p>
+            </div>
+            
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <h3 className="font-medium mb-2">File Processing</h3>
+              <p className="text-sm text-gray-500 mb-4">Upload your training data files and the system will automatically process them to learn data transformation patterns.</p>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span>customers.csv</span>
+                  <span className="text-green-500">Processed</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span>sales_2023.xlsx</span>
+                  <div className="w-24 bg-gray-200 rounded-full h-2.5">
+                    <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: '75%' }}></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         );
@@ -274,7 +309,53 @@ const ProjectDetail = () => {
         return (
           <div className="p-6 bg-white rounded-lg border border-gray-200">
             <h2 className="text-xl font-semibold mb-4">Create Pipeline</h2>
-            <FlowDesignerTab projectId={project.id} />
+            
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+              <div className="md:col-span-2 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h3 className="font-medium mb-3">Connection Info</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Source:</span>
+                    <span className="font-medium">Oracle Database</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Target:</span>
+                    <span className="font-medium">PostgreSQL</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Tables:</span>
+                    <span className="font-medium">4 mapped</span>
+                  </div>
+                </div>
+                
+                <Separator className="my-4" />
+                
+                <h3 className="font-medium mb-3">Table Mapping</h3>
+                <div className="mb-3">
+                  <SchemaGraphView />
+                </div>
+                <Button variant="outline" size="sm" className="w-full" onClick={() => setActiveTab("tableMapping")}>
+                  Edit Mappings
+                </Button>
+              </div>
+              
+              <div className="md:col-span-3">
+                <FlowDesignerTab projectId={project.id} />
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2 mt-6">
+              <Button variant="outline" onClick={() => setActiveTab("tableMapping")}>
+                Back to Mapping
+              </Button>
+              <Button variant="outline" onClick={() => setActiveTab("validate")}>
+                Validate Pipeline
+              </Button>
+              <Button onClick={handleSave}>
+                <Save className="mr-2 h-4 w-4" />
+                Save Pipeline
+              </Button>
+            </div>
           </div>
         );
       
@@ -283,14 +364,63 @@ const ProjectDetail = () => {
           <div className="p-6 bg-white rounded-lg border border-gray-200">
             <h2 className="text-xl font-semibold mb-4">Validate Pipeline</h2>
             <p className="text-gray-500 mb-6">Run validation checks on your data transformation pipeline</p>
-            <div className="text-center py-10">
-              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mx-auto text-gray-300 mb-4">
-                <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-                <path d="m9 12 2 2 4-4" />
-              </svg>
-              <p className="text-gray-500 mb-2">Create a pipeline first to validate it</p>
+            
+            <div className="mb-6 p-6 border border-gray-200 rounded-lg bg-gray-50">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-medium">Validation Results</h3>
+                <Button size="sm">
+                  <Play className="mr-2 h-4 w-4" />
+                  Run Validation
+                </Button>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center text-sm">
+                  <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center mr-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500">
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
+                  </div>
+                  <span>Source connection is valid</span>
+                </div>
+                <div className="flex items-center text-sm">
+                  <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center mr-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500">
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
+                  </div>
+                  <span>Target connection is valid</span>
+                </div>
+                <div className="flex items-center text-sm">
+                  <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center mr-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500">
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
+                  </div>
+                  <span>Table mappings are consistent</span>
+                </div>
+                <div className="flex items-center text-sm">
+                  <div className="w-5 h-5 rounded-full bg-yellow-100 flex items-center justify-center mr-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-yellow-500">
+                      <path d="M12 9v4" />
+                      <path d="M12 17h.01" />
+                    </svg>
+                  </div>
+                  <span>Warning: Potential data type conversion issues in 2 columns</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setActiveTab("createPipeline")}>
-                Create Pipeline
+                Back to Pipeline
+              </Button>
+              <Button variant="outline" onClick={() => setActiveTab("savePipeline")}>
+                Go to Save Pipeline
+              </Button>
+              <Button>
+                <Play className="mr-2 h-4 w-4" />
+                Run Pipeline
               </Button>
             </div>
           </div>
@@ -301,11 +431,57 @@ const ProjectDetail = () => {
           <div className="p-6 bg-white rounded-lg border border-gray-200">
             <h2 className="text-xl font-semibold mb-4">Save Pipeline</h2>
             <p className="text-gray-500 mb-6">Save and export your data transformation pipeline</p>
-            <div className="text-center py-10">
-              <Save className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-              <p className="text-gray-500 mb-2">Create and validate a pipeline first</p>
-              <Button variant="outline" onClick={() => setActiveTab("createPipeline")}>
-                Create Pipeline
+            
+            <div className="mb-6 p-6 border border-gray-200 rounded-lg bg-gray-50">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Pipeline Name</label>
+                  <Input defaultValue={`${project.name} Pipeline`} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Version</label>
+                  <Input defaultValue="1.0.0" />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 h-24 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    defaultValue="ETL flow to integrate sales data from multiple sources into a centralized data warehouse."
+                  ></textarea>
+                </div>
+              </div>
+              
+              <div className="mt-6 space-y-4">
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="schedule"
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="schedule" className="ml-2 block text-sm text-gray-700">
+                    Schedule this pipeline
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="export"
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="export" className="ml-2 block text-sm text-gray-700">
+                    Export as JSON configuration
+                  </label>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setActiveTab("validate")}>
+                Back to Validation
+              </Button>
+              <Button onClick={handleSave}>
+                <Save className="mr-2 h-4 w-4" />
+                Save Pipeline
               </Button>
             </div>
           </div>
@@ -323,119 +499,75 @@ const ProjectDetail = () => {
   return (
     <SidebarLayout workspaceId={projectId}>
       <div className="flex flex-col h-full">
-        <div className="bg-white border-b p-4 flex items-center">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={handleBackToDashboard} 
-            className="mr-4"
-          >
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Back to Dashboard
-          </Button>
+        <div className="bg-white border-b p-4">
           <div>
             <h1 className="text-xl font-bold">{project.name}</h1>
             <p className="text-sm text-muted-foreground">{project.description}</p>
           </div>
         </div>
         
-        <div className="flex flex-col md:flex-row md:gap-6 bg-white border-b p-6">
-          <div className="w-full md:w-64 flex-shrink-0 mb-6 md:mb-0">
-            <div className="space-y-1">
-              <div className={`flex items-center gap-2 ${activeTab === 'source' ? 'bg-primary/10 text-primary' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
-                onClick={() => setActiveTab('source')}>
-                <div className="w-full text-sm font-medium">Source</div>
-              </div>
-              <div className={`flex items-center gap-2 ${activeTab === 'destination' ? 'bg-primary/10 text-primary' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
-                onClick={() => setActiveTab('destination')}>
-                <div className="w-full text-sm font-medium">Destination</div>
-              </div>
-              <div className={`flex items-center gap-2 ${activeTab === 'tableMapping' ? 'bg-primary/10 text-primary' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
-                onClick={() => setActiveTab('tableMapping')}>
-                <div className="w-full text-sm font-medium">Table Mapping</div>
-              </div>
-              <div className={`flex items-center gap-2 ${activeTab === 'trainingData' ? 'bg-primary/10 text-primary' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
-                onClick={() => setActiveTab('trainingData')}>
-                <div className="w-full text-sm font-medium">Training Data</div>
-              </div>
-              <div className={`flex items-center gap-2 ${activeTab === 'createPipeline' ? 'bg-primary/10 text-primary' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
-                onClick={() => setActiveTab('createPipeline')}>
-                <div className="w-full text-sm font-medium">Create Pipeline</div>
-              </div>
-              <div className={`flex items-center gap-2 ${activeTab === 'validate' ? 'bg-primary/10 text-primary' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
-                onClick={() => setActiveTab('validate')}>
-                <div className="w-full text-sm font-medium">Validate</div>
-              </div>
-              <div className={`flex items-center gap-2 ${activeTab === 'savePipeline' ? 'bg-primary/10 text-primary' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
-                onClick={() => setActiveTab('savePipeline')}>
-                <div className="w-full text-sm font-medium">Save Pipeline</div>
+        <div className="flex h-full">
+          <div className="w-64 flex-shrink-0 border-r border-gray-200 bg-white">
+            <div className="py-4">
+              <div className="space-y-1 px-3">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 mb-2">
+                  Pipeline Steps
+                </h3>
+                <div 
+                  className={`flex items-center gap-2 ${activeTab === 'source' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                  onClick={() => setActiveTab('source')}
+                >
+                  <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">1</div>
+                  <div className="w-full text-sm font-medium">Source</div>
+                </div>
+                <div 
+                  className={`flex items-center gap-2 ${activeTab === 'destination' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                  onClick={() => setActiveTab('destination')}
+                >
+                  <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">2</div>
+                  <div className="w-full text-sm font-medium">Destination</div>
+                </div>
+                <div 
+                  className={`flex items-center gap-2 ${activeTab === 'tableMapping' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                  onClick={() => setActiveTab('tableMapping')}
+                >
+                  <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">3</div>
+                  <div className="w-full text-sm font-medium">Table Mapping</div>
+                </div>
+                <div 
+                  className={`flex items-center gap-2 ${activeTab === 'trainingData' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                  onClick={() => setActiveTab('trainingData')}
+                >
+                  <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">4</div>
+                  <div className="w-full text-sm font-medium">Training Data</div>
+                </div>
+                <div 
+                  className={`flex items-center gap-2 ${activeTab === 'createPipeline' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                  onClick={() => setActiveTab('createPipeline')}
+                >
+                  <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">5</div>
+                  <div className="w-full text-sm font-medium">Create Pipeline</div>
+                </div>
+                <div 
+                  className={`flex items-center gap-2 ${activeTab === 'validate' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                  onClick={() => setActiveTab('validate')}
+                >
+                  <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">6</div>
+                  <div className="w-full text-sm font-medium">Validate</div>
+                </div>
+                <div 
+                  className={`flex items-center gap-2 ${activeTab === 'savePipeline' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                  onClick={() => setActiveTab('savePipeline')}
+                >
+                  <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">7</div>
+                  <div className="w-full text-sm font-medium">Save Pipeline</div>
+                </div>
               </div>
             </div>
           </div>
           
-          <div className="flex-1">
-            <ul className="flex flex-wrap -mb-px text-sm font-medium text-center border-b border-gray-200">
-              <li className="mr-2">
-                <a 
-                  className={`inline-block p-4 rounded-t-lg cursor-pointer ${activeTab === 'source' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
-                  onClick={() => setActiveTab('source')}
-                >
-                  Source
-                </a>
-              </li>
-              <li className="mr-2">
-                <a 
-                  className={`inline-block p-4 rounded-t-lg cursor-pointer ${activeTab === 'destination' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
-                  onClick={() => setActiveTab('destination')}
-                >
-                  Destination
-                </a>
-              </li>
-              <li className="mr-2">
-                <a 
-                  className={`inline-block p-4 rounded-t-lg cursor-pointer ${activeTab === 'tableMapping' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
-                  onClick={() => setActiveTab('tableMapping')}
-                >
-                  Table Mapping
-                </a>
-              </li>
-              <li className="mr-2">
-                <a 
-                  className={`inline-block p-4 rounded-t-lg cursor-pointer ${activeTab === 'trainingData' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
-                  onClick={() => setActiveTab('trainingData')}
-                >
-                  Training Data
-                </a>
-              </li>
-              <li className="mr-2">
-                <a 
-                  className={`inline-block p-4 rounded-t-lg cursor-pointer ${activeTab === 'createPipeline' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
-                  onClick={handleCreatePipeline}
-                >
-                  Create Pipeline
-                </a>
-              </li>
-              <li className="mr-2">
-                <a 
-                  className={`inline-block p-4 rounded-t-lg cursor-pointer ${activeTab === 'validate' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
-                  onClick={() => setActiveTab('validate')}
-                >
-                  Validate
-                </a>
-              </li>
-              <li>
-                <a 
-                  className={`inline-block p-4 rounded-t-lg cursor-pointer ${activeTab === 'savePipeline' ? 'border-b-2 border-indigo-600 text-indigo-600' : 'hover:border-gray-300 hover:text-gray-600'}`}
-                  onClick={() => setActiveTab('savePipeline')}
-                >
-                  Save Pipeline
-                </a>
-              </li>
-            </ul>
-            
-            <div className="p-4">
-              {getWorkflowTabs()}
-            </div>
+          <div className="flex-1 p-6">
+            {getWorkflowTabs()}
           </div>
         </div>
       </div>
