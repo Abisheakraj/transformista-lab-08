@@ -8,13 +8,55 @@
     <meta name="description" content="Build powerful ETL workflows with an intuitive visual interface" />
     <meta name="author" content="DataGenieAI" />
     <meta property="og:image" content="/lovable-uploads/09ae87d1-a7e0-4c76-baab-0153c8d642e0.png" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><circle cx='20' cy='20' r='16' stroke='currentColor' stroke-width='2' fill='%236366F1' opacity='0.5'/><circle cx='20' cy='20' r='8' fill='currentColor'/><circle cx='12' cy='12' r='4' fill='%236366F1'/></svg>" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'><circle cx='20' cy='20' r='16' stroke='%236366F1' stroke-width='2' fill='%236366F1' opacity='0.8'/><circle cx='20' cy='20' r='8' fill='%23000'/><circle cx='12' cy='12' r='4' fill='%236366F1'/></svg>" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+      :root {
+        --primary-color: #6366F1;
+        --secondary-color: #8B5CF6;
+        --accent-color: #F59E0B;
+        --success-color: #10B981;
+        --warning-color: #F59E0B;
+        --error-color: #EF4444;
+      }
+      
       body {
         font-family: 'Inter', sans-serif;
+        background-color: #f9fafb;
+      }
+      
+      .react-flow-graph-improved .react-flow__node {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        transition: all 0.2s ease;
+      }
+      
+      .react-flow-graph-improved .react-flow__node.selected {
+        box-shadow: 0 0 0 2px var(--primary-color), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
+      
+      .react-flow-graph-improved .react-flow__handle {
+        background-color: white;
+        border: 2px solid var(--primary-color);
+      }
+      
+      .react-flow-graph-improved .react-flow__edge-path {
+        stroke-width: 2;
+      }
+      
+      .react-flow-graph-improved .react-flow__edge-text {
+        font-size: 12px;
+        font-weight: 500;
+      }
+      
+      /* Gradient backgrounds */
+      .bg-gradient-primary {
+        background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+      }
+      
+      .bg-gradient-accent {
+        background: linear-gradient(135deg, #10B981 0%, #3B82F6 100%);
       }
     </style>
   </head>
