@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Play, Save, Upload, Database, ChevronLeft } from "lucide-react";
+import { ArrowLeft, Play, Save, Upload, Database, ChevronLeft, Plus, Link2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input"; 
 import { Separator } from "@/components/ui/separator"; 
@@ -12,11 +12,20 @@ import FlowDesignerTab from "@/components/flow/FlowDesignerTab";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import AddDataSourceDialog from "@/components/flow/AddDataSourceDialog";
 import SchemaGraphView from "@/components/flow/SchemaGraphView";
+import { useToast } from "@/hooks/use-toast";
+import DataVisualization from "@/components/files/DataVisualization";
+import FileUploadArea from "@/components/files/FileUploadArea";
 
 interface Project {
   id: string;
   name: string;
   description: string;
+}
+
+interface ProcessedFile {
+  name: string;
+  status: "processed" | "processing";
+  progress?: number;
 }
 
 const ProjectDetail = () => {
@@ -28,7 +37,12 @@ const ProjectDetail = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
   const [targetDialogOpen, setTargetDialogOpen] = useState(false);
+  const [processedFiles, setProcessedFiles] = useState<ProcessedFile[]>([]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileData, setFileData] = useState<any[] | null>(null);
+  const [pipelineCreated, setPipelineCreated] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -82,8 +96,94 @@ const ProjectDetail = () => {
     });
   };
 
+  const handleFileUpload = (files: FileList) => {
+    if (files.length > 0) {
+      const file = files[0];
+      setSelectedFile(file);
+      
+      // Add to processed files
+      setProcessedFiles(prev => [
+        ...prev, 
+        { 
+          name: file.name, 
+          status: file.name === "customers.csv" ? "processed" : "processing", 
+          progress: file.name === "customers.csv" ? 100 : 75 
+        }
+      ]);
+
+      // Process file and extract data
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          // This is a simplified example - actual parsing would depend on file type
+          const fileExtension = file.name.split('.').pop()?.toLowerCase();
+          let data: any[] = [];
+          
+          if (fileExtension === 'csv') {
+            // For demo purposes - simple CSV parsing
+            const content = e.target?.result as string;
+            const rows = content.split('\n');
+            const headers = rows[0].split(',');
+            data = rows.slice(1).map(row => {
+              const values = row.split(',');
+              return headers.reduce((obj, header, i) => {
+                obj[header.trim()] = values[i]?.trim() || '';
+                return obj;
+              }, {} as any);
+            });
+          } else if (fileExtension === 'json') {
+            data = JSON.parse(e.target?.result as string);
+          }
+          
+          setFileData(data);
+          
+          toast({
+            title: "File uploaded",
+            description: `${file.name} has been uploaded successfully.`
+          });
+          
+        } catch (error) {
+          console.error("Error processing file:", error);
+          toast({
+            title: "Error",
+            description: "There was an error processing the file.",
+            variant: "destructive"
+          });
+        }
+      };
+      
+      if (file.type === "application/json") {
+        reader.readAsText(file);
+      } else if (file.type === "text/csv" || file.name.endsWith('.csv')) {
+        reader.readAsText(file);
+      } else if (file.type.includes("spreadsheet") || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        // For Excel files, we would use a library like XLSX
+        // This is simplified for demo purposes
+        reader.readAsText(file);
+      }
+    }
+  };
+
   const handleCreatePipeline = () => {
+    setPipelineCreated(true);
     setActiveTab("createPipeline");
+    toast({
+      title: "Pipeline Created",
+      description: "Your pipeline has been created successfully."
+    });
+  };
+
+  const handleRunPipeline = () => {
+    setIsRunning(true);
+    
+    // Simulate API call
+    setTimeout(() => {
+      setIsRunning(false);
+      toast({
+        title: "Pipeline Executed",
+        description: "Your pipeline has been executed successfully."
+      });
+    }, 2000);
   };
 
   if (isLoading) {
@@ -130,10 +230,22 @@ const ProjectDetail = () => {
                 <p className="text-sm text-gray-500">Where do you want to get connected?</p>
               </div>
               
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={() => setSourceDialogOpen(true)} className="flex items-center gap-2">
                   <Database className="h-4 w-4" />
                   Oracle
+                </Button>
+                <Button variant="outline" onClick={() => setSourceDialogOpen(true)} className="flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  MySQL
+                </Button>
+                <Button variant="outline" onClick={() => setSourceDialogOpen(true)} className="flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  PostgreSQL
+                </Button>
+                <Button variant="outline" onClick={() => setSourceDialogOpen(true)} className="flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  SQL Server
                 </Button>
                 <Button variant="outline" onClick={() => setSourceDialogOpen(true)} className="flex items-center gap-2">
                   <Database className="h-4 w-4" />
@@ -196,18 +308,30 @@ const ProjectDetail = () => {
                 <p className="text-sm text-gray-500">Where do you want to get connected?</p>
               </div>
               
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={() => setTargetDialogOpen(true)} className="flex items-center gap-2">
                   <Database className="h-4 w-4" />
                   Oracle
                 </Button>
                 <Button variant="outline" onClick={() => setTargetDialogOpen(true)} className="flex items-center gap-2">
                   <Database className="h-4 w-4" />
+                  MySQL
+                </Button>
+                <Button variant="outline" onClick={() => setTargetDialogOpen(true)} className="flex items-center gap-2">
+                  <Database className="h-4 w-4" />
                   Postgres
                 </Button>
-                <Button variant="outline" className="flex items-center gap-2">
-                  <Upload className="h-4 w-4" />
-                  Upload Excel
+                <Button variant="outline" onClick={() => setTargetDialogOpen(true)} className="flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  SQL Server
+                </Button>
+                <Button variant="outline" onClick={() => setTargetDialogOpen(true)} className="flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  BigQuery
+                </Button>
+                <Button variant="outline" onClick={() => setTargetDialogOpen(true)} className="flex items-center gap-2">
+                  <Database className="h-4 w-4" />
+                  Snowflake
                 </Button>
               </div>
             </div>
@@ -250,7 +374,28 @@ const ProjectDetail = () => {
             <h2 className="text-xl font-semibold mb-4">Table Mapping</h2>
             <p className="text-gray-500 mb-6">Define relationships between source and target tables</p>
             
-            <div className="mb-6 h-96">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="flex items-center gap-1">
+                  <Plus className="h-4 w-4" />
+                  Add Table
+                </Button>
+                <Button variant="outline" size="sm" className="flex items-center gap-1">
+                  <Link2 className="h-4 w-4" />
+                  Create Relationship
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm">
+                  Export
+                </Button>
+                <Button onClick={handleCreatePipeline}>
+                  Create Pipeline
+                </Button>
+              </div>
+            </div>
+            
+            <div className="mb-6 h-96 border border-gray-200 rounded-lg overflow-hidden">
               <SchemaGraphView />
             </div>
             
@@ -272,35 +417,48 @@ const ProjectDetail = () => {
             <h2 className="text-xl font-semibold mb-4">Training Data</h2>
             <p className="text-gray-500 mb-6">Upload or configure training datasets for transformation learning</p>
             
-            <div className="mb-6 p-6 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 text-center">
-              <Upload className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-              <p className="text-gray-500 mb-2">Drag and drop files here, or click to select files</p>
-              <input type="file" id="file-upload" className="hidden" multiple />
-              <label htmlFor="file-upload">
-                <Button variant="outline" className="mx-auto">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Files
-                </Button>
-              </label>
-              <p className="text-xs text-gray-400 mt-2">Supported formats: .csv, .xlsx, .json</p>
-            </div>
+            <FileUploadArea onFilesSelected={handleFileUpload} />
             
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <h3 className="font-medium mb-2">File Processing</h3>
-              <p className="text-sm text-gray-500 mb-4">Upload your training data files and the system will automatically process them to learn data transformation patterns.</p>
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span>customers.csv</span>
-                  <span className="text-green-500">Processed</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span>sales_2023.xlsx</span>
-                  <div className="w-24 bg-gray-200 rounded-full h-2.5">
-                    <div className="bg-blue-500 h-2.5 rounded-full" style={{ width: '75%' }}></div>
-                  </div>
+            {selectedFile && fileData && (
+              <div className="mt-6">
+                <h3 className="text-lg font-medium mb-3">Data Preview</h3>
+                <DataVisualization data={fileData} />
+              </div>
+            )}
+            
+            {processedFiles.length > 0 && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-6">
+                <h3 className="font-medium mb-2">File Processing</h3>
+                <p className="text-sm text-gray-500 mb-4">Upload your training data files and the system will automatically process them to learn data transformation patterns.</p>
+                
+                <div className="space-y-4">
+                  {processedFiles.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between text-sm">
+                      <span>{file.name}</span>
+                      {file.status === "processed" ? (
+                        <span className="text-green-500">Processed</span>
+                      ) : (
+                        <div className="w-24 bg-gray-200 rounded-full h-2.5">
+                          <div 
+                            className="bg-blue-500 h-2.5 rounded-full" 
+                            style={{ width: `${file.progress || 0}%` }}
+                          ></div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
+            )}
+            
+            <div className="flex justify-between mt-6">
+              <Button variant="outline" onClick={() => setActiveTab("tableMapping")}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Table Mapping
+              </Button>
+              <Button onClick={() => setActiveTab("createPipeline")}>
+                Continue to Create Pipeline
+              </Button>
             </div>
           </div>
         );
@@ -310,43 +468,31 @@ const ProjectDetail = () => {
           <div className="p-6 bg-white rounded-lg border border-gray-200">
             <h2 className="text-xl font-semibold mb-4">Create Pipeline</h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-              <div className="md:col-span-2 bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h3 className="font-medium mb-3">Connection Info</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Source:</span>
-                    <span className="font-medium">Oracle Database</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Target:</span>
-                    <span className="font-medium">PostgreSQL</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Tables:</span>
-                    <span className="font-medium">4 mapped</span>
-                  </div>
-                </div>
-                
-                <Separator className="my-4" />
-                
-                <h3 className="font-medium mb-3">Table Mapping</h3>
-                <div className="mb-3">
-                  <SchemaGraphView />
-                </div>
-                <Button variant="outline" size="sm" className="w-full" onClick={() => setActiveTab("tableMapping")}>
-                  Edit Mappings
+            <div className="bg-white rounded-lg mb-6">
+              <div className="mb-4">
+                <h3 className="text-lg font-medium mb-2">Flow Designer</h3>
+                <p className="text-gray-500">Create your data transformation pipeline by adding nodes and connecting them together.</p>
+              </div>
+              
+              <div className="flex items-center gap-2 mb-4">
+                <Button variant="outline" size="sm" className="flex items-center gap-1">
+                  <Plus className="h-4 w-4" />
+                  Add Node
+                </Button>
+                <Button variant="outline" size="sm" className="flex items-center gap-1">
+                  <Link2 className="h-4 w-4" />
+                  Add Relations
                 </Button>
               </div>
               
-              <div className="md:col-span-3">
+              <div className="h-[500px] border border-gray-200 rounded-lg overflow-hidden">
                 <FlowDesignerTab projectId={project.id} />
               </div>
             </div>
             
             <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={() => setActiveTab("tableMapping")}>
-                Back to Mapping
+              <Button variant="outline" onClick={() => setActiveTab("trainingData")}>
+                Back to Training Data
               </Button>
               <Button variant="outline" onClick={() => setActiveTab("validate")}>
                 Validate Pipeline
@@ -418,9 +564,18 @@ const ProjectDetail = () => {
               <Button variant="outline" onClick={() => setActiveTab("savePipeline")}>
                 Go to Save Pipeline
               </Button>
-              <Button>
-                <Play className="mr-2 h-4 w-4" />
-                Run Pipeline
+              <Button onClick={handleRunPipeline} disabled={isRunning}>
+                {isRunning ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Running...
+                  </>
+                ) : (
+                  <>
+                    <Play className="mr-2 h-4 w-4" />
+                    Run Pipeline
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -479,9 +634,18 @@ const ProjectDetail = () => {
               <Button variant="outline" onClick={() => setActiveTab("validate")}>
                 Back to Validation
               </Button>
-              <Button onClick={handleSave}>
-                <Save className="mr-2 h-4 w-4" />
-                Save Pipeline
+              <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Pipeline
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -514,49 +678,49 @@ const ProjectDetail = () => {
                   Pipeline Steps
                 </h3>
                 <div 
-                  className={`flex items-center gap-2 ${activeTab === 'source' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                  className={`flex items-center gap-2 ${activeTab === 'source' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer transition-colors`}
                   onClick={() => setActiveTab('source')}
                 >
                   <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">1</div>
                   <div className="w-full text-sm font-medium">Source</div>
                 </div>
                 <div 
-                  className={`flex items-center gap-2 ${activeTab === 'destination' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                  className={`flex items-center gap-2 ${activeTab === 'destination' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer transition-colors`}
                   onClick={() => setActiveTab('destination')}
                 >
                   <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">2</div>
                   <div className="w-full text-sm font-medium">Destination</div>
                 </div>
                 <div 
-                  className={`flex items-center gap-2 ${activeTab === 'tableMapping' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                  className={`flex items-center gap-2 ${activeTab === 'tableMapping' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer transition-colors`}
                   onClick={() => setActiveTab('tableMapping')}
                 >
                   <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">3</div>
                   <div className="w-full text-sm font-medium">Table Mapping</div>
                 </div>
                 <div 
-                  className={`flex items-center gap-2 ${activeTab === 'trainingData' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                  className={`flex items-center gap-2 ${activeTab === 'trainingData' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer transition-colors`}
                   onClick={() => setActiveTab('trainingData')}
                 >
                   <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">4</div>
                   <div className="w-full text-sm font-medium">Training Data</div>
                 </div>
                 <div 
-                  className={`flex items-center gap-2 ${activeTab === 'createPipeline' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                  className={`flex items-center gap-2 ${activeTab === 'createPipeline' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer transition-colors`}
                   onClick={() => setActiveTab('createPipeline')}
                 >
                   <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">5</div>
                   <div className="w-full text-sm font-medium">Create Pipeline</div>
                 </div>
                 <div 
-                  className={`flex items-center gap-2 ${activeTab === 'validate' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                  className={`flex items-center gap-2 ${activeTab === 'validate' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer transition-colors`}
                   onClick={() => setActiveTab('validate')}
                 >
                   <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">6</div>
                   <div className="w-full text-sm font-medium">Validate</div>
                 </div>
                 <div 
-                  className={`flex items-center gap-2 ${activeTab === 'savePipeline' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer`}
+                  className={`flex items-center gap-2 ${activeTab === 'savePipeline' ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'} rounded-md px-3 py-2 cursor-pointer transition-colors`}
                   onClick={() => setActiveTab('savePipeline')}
                 >
                   <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs">7</div>
@@ -566,7 +730,7 @@ const ProjectDetail = () => {
             </div>
           </div>
           
-          <div className="flex-1 p-6">
+          <div className="flex-1 p-6 overflow-y-auto">
             {getWorkflowTabs()}
           </div>
         </div>

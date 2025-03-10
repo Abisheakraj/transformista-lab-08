@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import { Plus, Folder } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface Workspace {
   id: string;
@@ -18,7 +19,9 @@ interface Workspace {
 
 const WorkspacePage = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
   const [newWorkspaceDesc, setNewWorkspaceDesc] = useState("");
   const [workspaces, setWorkspaces] = useState<Workspace[]>([
@@ -48,20 +51,68 @@ const WorkspacePage = () => {
     },
   ]);
 
-  const handleCreateWorkspace = () => {
-    if (!newWorkspaceName) return;
-
-    const newWorkspace: Workspace = {
-      id: (workspaces.length + 1).toString(),
-      name: newWorkspaceName,
-      description: newWorkspaceDesc || "No description",
-      createdAt: new Date().toISOString().split("T")[0]
+  // Simulate fetching workspaces from database
+  useEffect(() => {
+    const fetchWorkspaces = async () => {
+      setIsLoading(true);
+      try {
+        // This would be an API call in a real application
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Data is already set in the initial state for demo purposes
+        
+      } catch (error) {
+        console.error("Error fetching workspaces:", error);
+        toast({
+          title: "Error fetching workspaces",
+          description: "There was an error loading your workspaces. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
     };
+    
+    fetchWorkspaces();
+  }, [toast]);
 
-    setWorkspaces([...workspaces, newWorkspace]);
-    setNewWorkspaceName("");
-    setNewWorkspaceDesc("");
-    setIsCreateDialogOpen(false);
+  const handleCreateWorkspace = async () => {
+    if (!newWorkspaceName) return;
+    
+    setIsLoading(true);
+    
+    try {
+      // Simulate API call to create workspace in database
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      const newWorkspace: Workspace = {
+        id: (workspaces.length + 1).toString(),
+        name: newWorkspaceName,
+        description: newWorkspaceDesc || "No description",
+        createdAt: new Date().toISOString().split("T")[0]
+      };
+
+      setWorkspaces([...workspaces, newWorkspace]);
+      
+      toast({
+        title: "Workspace created",
+        description: `Workspace "${newWorkspaceName}" has been created successfully.`,
+      });
+      
+      setNewWorkspaceName("");
+      setNewWorkspaceDesc("");
+      setIsCreateDialogOpen(false);
+      
+    } catch (error) {
+      console.error("Error creating workspace:", error);
+      toast({
+        title: "Error creating workspace",
+        description: "There was an error creating your workspace. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const openWorkspace = (id: string) => {
@@ -73,35 +124,48 @@ const WorkspacePage = () => {
       <div className="container mx-auto p-6">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-semibold">Your Workspaces</h2>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
+          <Button onClick={() => setIsCreateDialogOpen(true)} className="transition-all hover:shadow-md">
             <Plus size={16} className="mr-2" />
             Create Workspace
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {workspaces.map((workspace) => (
-            <Card 
-              key={workspace.id} 
-              className="hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => openWorkspace(workspace.id)}
-            >
-              <div className="p-6">
-                <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                  <Folder size={20} className="text-gray-600" />
+        {isLoading && workspaces.length === 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i} className="p-6 animate-pulse">
+                <div className="h-10 w-10 bg-gray-200 rounded-full mb-4"></div>
+                <div className="h-5 bg-gray-200 rounded mb-2 w-3/4"></div>
+                <div className="h-4 bg-gray-200 rounded mb-4 w-full"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {workspaces.map((workspace) => (
+              <Card 
+                key={workspace.id} 
+                className="hover:shadow-md transition-all cursor-pointer"
+                onClick={() => openWorkspace(workspace.id)}
+              >
+                <div className="p-6">
+                  <div className="h-10 w-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mb-4">
+                    <Folder size={20} />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-1">{workspace.name}</h3>
+                  <p className="text-gray-500 text-sm mb-4 line-clamp-2">{workspace.description}</p>
+                  <div className="text-xs text-gray-400">
+                    Created on {workspace.createdAt}
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold mb-1">{workspace.name}</h3>
-                <p className="text-gray-500 text-sm mb-4">{workspace.description}</p>
-                <div className="text-xs text-gray-400">
-                  Created on {workspace.createdAt}
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+              </Card>
+            ))}
+          </div>
+        )}
 
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Create Workspace</DialogTitle>
               <DialogDescription>
@@ -132,8 +196,16 @@ const WorkspacePage = () => {
               <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleCreateWorkspace} disabled={!newWorkspaceName}>
-                Create
+              <Button 
+                onClick={handleCreateWorkspace} 
+                disabled={!newWorkspaceName || isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Creating...
+                  </>
+                ) : "Create"}
               </Button>
             </DialogFooter>
           </DialogContent>
