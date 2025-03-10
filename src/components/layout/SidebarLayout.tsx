@@ -30,7 +30,7 @@ const SidebarLayout = ({ children, title, workspaceId }: SidebarLayoutProps) => 
       {/* Sidebar */}
       <div className={`bg-white border-r border-gray-200 flex flex-col ${isSidebarCollapsed ? 'w-16' : 'w-64'} transition-all duration-300 shadow-sm`}>
         <div className="p-4 border-b border-gray-200">
-          <Link to="/dashboard" className="flex items-center">
+          <Link to="/dashboard" className="flex items-center hover:opacity-80 transition-opacity">
             <div className="flex-shrink-0 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full p-1 flex items-center justify-center">
               <svg width={isSidebarCollapsed ? "24" : "20"} height={isSidebarCollapsed ? "24" : "20"} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-white">
                 <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="2" />
@@ -55,7 +55,7 @@ const SidebarLayout = ({ children, title, workspaceId }: SidebarLayoutProps) => 
                   isActive("/dashboard") 
                     ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-600" 
                     : "text-gray-700 hover:bg-gray-50"
-                }`}
+                } transition-colors duration-200`}
               >
                 <LayoutDashboard size={20} className={`${isSidebarCollapsed ? 'mx-auto' : 'mr-3'} ${isActive("/dashboard") ? "text-indigo-600" : "text-gray-500"}`} />
                 {!isSidebarCollapsed && <span>Explore</span>}
@@ -68,7 +68,7 @@ const SidebarLayout = ({ children, title, workspaceId }: SidebarLayoutProps) => 
                   isActive("/workspace") 
                     ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-600" 
                     : "text-gray-700 hover:bg-gray-50"
-                }`}
+                } transition-colors duration-200`}
               >
                 <Layers size={20} className={`${isSidebarCollapsed ? 'mx-auto' : 'mr-3'} ${isActive("/workspace") ? "text-indigo-600" : "text-gray-500"}`} />
                 {!isSidebarCollapsed && <span>Workspace</span>}
@@ -81,10 +81,10 @@ const SidebarLayout = ({ children, title, workspaceId }: SidebarLayoutProps) => 
                   isActive("/connections") 
                     ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-600" 
                     : "text-gray-700 hover:bg-gray-50"
-                }`}
+                } transition-colors duration-200`}
               >
                 <Database size={20} className={`${isSidebarCollapsed ? 'mx-auto' : 'mr-3'} ${isActive("/connections") ? "text-indigo-600" : "text-gray-500"}`} />
-                {!isSidebarCollapsed && <span>Discover</span>}
+                {!isSidebarCollapsed && <span>Connections</span>}
               </Link>
             </li>
           </ul>
@@ -98,7 +98,7 @@ const SidebarLayout = ({ children, title, workspaceId }: SidebarLayoutProps) => 
                   isActive("/settings") 
                     ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-600" 
                     : "text-gray-700 hover:bg-gray-50"
-                }`}
+                } transition-colors duration-200`}
                 onClick={() => navigate("/settings")}
               >
                 <Settings size={20} className={`${isSidebarCollapsed ? 'mx-auto' : 'mr-3'} ${isActive("/settings") ? "text-indigo-600" : "text-gray-500"}`} />
@@ -111,7 +111,7 @@ const SidebarLayout = ({ children, title, workspaceId }: SidebarLayoutProps) => 
                   isActive("/help") 
                     ? "bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-600" 
                     : "text-gray-700 hover:bg-gray-50"
-                }`}
+                } transition-colors duration-200`}
                 onClick={() => {}}
               >
                 <CircleHelp size={20} className={`${isSidebarCollapsed ? 'mx-auto' : 'mr-3'} ${isActive("/help") ? "text-indigo-600" : "text-gray-500"}`} />
@@ -120,7 +120,7 @@ const SidebarLayout = ({ children, title, workspaceId }: SidebarLayoutProps) => 
             </li>
             <li>
               <button
-                className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg text-red-600 hover:bg-red-50"
+                className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg text-red-600 hover:bg-red-50 transition-colors duration-200"
                 onClick={logout}
               >
                 <LogOut size={20} className={`${isSidebarCollapsed ? 'mx-auto' : 'mr-3'} text-red-500`} />
@@ -131,10 +131,10 @@ const SidebarLayout = ({ children, title, workspaceId }: SidebarLayoutProps) => 
         </div>
         
         <button
-          className="absolute top-20 -right-3 bg-white border border-gray-200 rounded-full p-1 shadow-sm hover:bg-gray-50"
+          className="absolute top-20 -right-3 bg-white border border-gray-200 rounded-full p-1 shadow-sm hover:bg-gray-50 transition-colors duration-200"
           onClick={toggleSidebar}
         >
-          <PanelLeft size={16} className={`text-gray-500 transition-transform ${isSidebarCollapsed ? 'rotate-180' : ''}`} />
+          <PanelLeft size={16} className={`text-gray-500 transition-transform duration-200 ${isSidebarCollapsed ? 'rotate-180' : ''}`} />
         </button>
       </div>
 
@@ -150,18 +150,6 @@ const SidebarLayout = ({ children, title, workspaceId }: SidebarLayoutProps) => 
                     Workspace ID: {workspaceId}
                   </div>
                 )}
-              </div>
-              
-              <div className="flex items-center gap-4">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                  onClick={logout}
-                >
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
               </div>
             </div>
           </header>
