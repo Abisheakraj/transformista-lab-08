@@ -99,7 +99,7 @@ export const fetchDatabaseSchemas = async (credentials: DatabaseCredentials): Pr
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 1000));
   
-  // For demo, return mock schemas
+  // Enhanced schema simulation with more realistic table structures
   return [
     {
       schemaName: "public",
@@ -422,7 +422,7 @@ export const executeQuery = async (credentials: DatabaseCredentials, query: stri
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 1500));
   
-  // For demo, return mock results based on the query
+  // Enhanced query result simulation based on the query
   if (query.toLowerCase().includes("select") && query.toLowerCase().includes("customers")) {
     return [
       { id: 1, name: "John Doe", email: "john@example.com", created_at: "2023-01-15T10:30:00Z" },
@@ -502,7 +502,7 @@ export const fetchSampleData = async (
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 1000));
   
-  // For demo, return mock data based on table name
+  // Enhanced sample data based on table name
   if (table === "customers") {
     return [
       { id: 1, name: "John Doe", email: "john@example.com", created_at: "2023-01-15T10:30:00Z" },
@@ -564,6 +564,7 @@ export const createTableMapping = async (
   };
 };
 
+// Check if user is connected to Supabase
 export const getSupabaseStatus = (): { connected: boolean; project?: string } => {
   // In a real implementation, this would check if the user is connected to Supabase
   // For demo purposes, we'll return connected: true
@@ -571,4 +572,107 @@ export const getSupabaseStatus = (): { connected: boolean; project?: string } =>
     connected: true,
     project: "quantum-etl"
   };
+};
+
+// Function to get all available tables from a database connection
+export const getAllDatabaseTables = async (credentials: DatabaseCredentials): Promise<{
+  schemaName: string;
+  tables: string[];
+}[]> => {
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 1200));
+  
+  // Return mock schemas and tables
+  return [
+    {
+      schemaName: "public",
+      tables: ["customers", "orders", "products", "order_items", "users", "inventory", "categories"]
+    },
+    {
+      schemaName: "analytics",
+      tables: ["customer_metrics", "sales_summary", "product_performance", "user_activity"]
+    },
+    {
+      schemaName: "reports",
+      tables: ["monthly_sales", "quarterly_results", "annual_summary"]
+    }
+  ];
+};
+
+// Function to create a data pipeline
+export const createDataPipeline = async (
+  pipelineConfig: {
+    name: string;
+    description: string;
+    source: {
+      type: string;
+      credentials: DatabaseCredentials;
+    };
+    target: {
+      type: string;
+      credentials: DatabaseCredentials;
+    };
+    transformations: {
+      type: string;
+      config: any;
+    }[];
+    schedule?: {
+      frequency: "once" | "hourly" | "daily" | "weekly" | "monthly";
+      startTime?: string;
+      daysOfWeek?: number[];
+    };
+  }
+): Promise<{ success: boolean; pipelineId?: string; message: string }> => {
+  console.log("Creating data pipeline:", pipelineConfig);
+  
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 2500));
+  
+  // For demo, always return success
+  return {
+    success: true,
+    pipelineId: `pipe_${Math.random().toString(36).substring(2, 15)}`,
+    message: `Successfully created pipeline "${pipelineConfig.name}"`
+  };
+};
+
+// Function to get data preview after transformation
+export const getTransformationPreview = async (
+  sourceData: any[],
+  transformations: {
+    type: string;
+    config: any;
+  }[]
+): Promise<any[]> => {
+  console.log("Getting transformation preview for:", sourceData.length, "records with", transformations.length, "transformations");
+  
+  // Simulate API call delay
+  await new Promise(resolve => setTimeout(resolve, 1800));
+  
+  // Apply mock transformations (in a real app, this would actually transform the data)
+  let transformed = [...sourceData];
+  
+  // For demo purposes, just modify the data slightly
+  if (transformed.length > 0) {
+    transformed = transformed.map(item => {
+      const newItem = { ...item };
+      
+      // Add transformation columns
+      newItem.transformed = true;
+      newItem.processed_at = new Date().toISOString();
+      
+      // If there's a price or amount field, apply a calculation
+      if (newItem.price !== undefined) {
+        newItem.price_with_tax = parseFloat((newItem.price * 1.1).toFixed(2));
+      }
+      
+      if (newItem.amount !== undefined) {
+        newItem.amount_with_discount = parseFloat((newItem.amount * 0.9).toFixed(2));
+      }
+      
+      return newItem;
+    });
+  }
+  
+  return transformed;
 };
