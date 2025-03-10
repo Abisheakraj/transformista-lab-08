@@ -2,7 +2,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { Upload, File, X, Table, FileCheck, FileWarning, FileSpreadsheet, FileCsv, FileJson } from 'lucide-react';
+import { Upload, File, X, Table, FileCheck, FileWarning, FileSpreadsheet, FileJson, Files } from 'lucide-react';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 
@@ -33,7 +33,7 @@ const FileUploadArea = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getFileIcon = (fileType: string) => {
-    if (fileType.includes('csv')) return <FileCsv className="h-5 w-5 text-green-500" />;
+    if (fileType.includes('csv')) return <Files className="h-5 w-5 text-green-500" />;
     if (fileType.includes('sheet') || fileType.includes('excel') || fileType.endsWith('xls')) 
       return <FileSpreadsheet className="h-5 w-5 text-blue-500" />;
     if (fileType.includes('json')) return <FileJson className="h-5 w-5 text-amber-500" />;
