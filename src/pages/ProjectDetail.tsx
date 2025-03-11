@@ -3,8 +3,19 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Play, Save, Upload, Database, ChevronLeft, Plus, Link2 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { 
+  ArrowLeft, 
+  Play, 
+  Save, 
+  Upload, 
+  Database, 
+  ChevronLeft, 
+  Plus, 
+  Link2,
+  Check,
+  X
+} from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 import { Input } from "@/components/ui/input"; 
 import { Separator } from "@/components/ui/separator"; 
 import DataSourcesTab from "@/components/flow/DataSourcesTab";
@@ -28,6 +39,21 @@ interface ProcessedFile {
   progress?: number;
 }
 
+interface FlowNode {
+  id: string;
+  type: string;
+  position: { x: number; y: number };
+  data: any;
+}
+
+interface FlowEdge {
+  id: string;
+  source: string;
+  target: string;
+  animated?: boolean;
+  type?: string;
+}
+
 const ProjectDetail = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const [project, setProject] = useState<Project | null>(null);
@@ -41,6 +67,10 @@ const ProjectDetail = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileData, setFileData] = useState<any[] | null>(null);
   const [pipelineCreated, setPipelineCreated] = useState(false);
+  const [pipelineNodes, setPipelineNodes] = useState<FlowNode[]>([]);
+  const [pipelineEdges, setPipelineEdges] = useState<FlowEdge[]>([]);
+  const [sourceConnection, setSourceConnection] = useState({ type: "Oracle Database", tables: 4 });
+  const [targetConnection, setTargetConnection] = useState({ type: "PostgreSQL", tables: 3 });
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -81,6 +111,10 @@ const ProjectDetail = () => {
   const handleSourceSubmit = (data: any) => {
     console.log("Source data:", data);
     setSourceDialogOpen(false);
+    setSourceConnection({
+      type: data.connectionType || "Oracle Database",
+      tables: 4
+    });
     toast({
       title: "Source Added",
       description: `Source "${data.name}" has been added successfully.`
@@ -90,6 +124,10 @@ const ProjectDetail = () => {
   const handleTargetSubmit = (data: any) => {
     console.log("Target data:", data);
     setTargetDialogOpen(false);
+    setTargetConnection({
+      type: data.connectionType || "PostgreSQL",
+      tables: 3
+    });
     toast({
       title: "Target Added",
       description: `Target "${data.name}" has been added successfully.`
@@ -101,46 +139,55 @@ const ProjectDetail = () => {
       const file = files[0];
       setSelectedFile(file);
       
-      // Add to processed files
-      setProcessedFiles(prev => [
-        ...prev, 
-        { 
-          name: file.name, 
-          status: file.name === "customers.csv" ? "processed" : "processing", 
-          progress: file.name === "customers.csv" ? 100 : 75 
-        }
-      ]);
+      // Add to processed files with a random progress for files that aren't "customers.csv"
+      const isCustomersCsv = file.name === "customers.csv";
+      const newFile = { 
+        name: file.name, 
+        status: isCustomersCsv ? "processed" : "processing", 
+        progress: isCustomersCsv ? 100 : Math.floor(Math.random() * 30) + 65 // Random progress between 65-95% for non-customers.csv
+      };
+      
+      setProcessedFiles(prev => [...prev, newFile]);
 
       // Process file and extract data
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
-          // This is a simplified example - actual parsing would depend on file type
+          // Process based on file type
           const fileExtension = file.name.split('.').pop()?.toLowerCase();
           let data: any[] = [];
           
           if (fileExtension === 'csv') {
-            // For demo purposes - simple CSV parsing
             const content = e.target?.result as string;
-            const rows = content.split('\n');
-            const headers = rows[0].split(',');
-            data = rows.slice(1).map(row => {
-              const values = row.split(',');
-              return headers.reduce((obj, header, i) => {
-                obj[header.trim()] = values[i]?.trim() || '';
-                return obj;
-              }, {} as any);
-            });
+            const parsedData = Papa.parse(content, { header: true });
+            data = parsedData.data as any[];
           } else if (fileExtension === 'json') {
             data = JSON.parse(e.target?.result as string);
+          } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+            const arrayBuffer = e.target?.result as ArrayBuffer;
+            const wb = XLSX.read(arrayBuffer, { type: 'array' });
+            const wsname = wb.SheetNames[0];
+            const ws = wb.Sheets[wsname];
+            data = XLSX.utils.sheet_to_json(ws);
           }
           
           setFileData(data);
           
-          toast({
-            title: "File uploaded",
-            description: `${file.name} has been uploaded successfully.`
-          });
+          // Simulate file processing completing after a delay for non-processed files
+          if (!isCustomersCsv) {
+            setTimeout(() => {
+              setProcessedFiles(prev => 
+                prev.map(pf => 
+                  pf.name === file.name ? { ...pf, status: "processed", progress: 100 } : pf
+                )
+              );
+              
+              toast({
+                title: "File processing complete",
+                description: `${file.name} has been processed successfully.`
+              });
+            }, 2500);
+          }
           
         } catch (error) {
           console.error("Error processing file:", error);
@@ -157,19 +204,88 @@ const ProjectDetail = () => {
       } else if (file.type === "text/csv" || file.name.endsWith('.csv')) {
         reader.readAsText(file);
       } else if (file.type.includes("spreadsheet") || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-        // For Excel files, we would use a library like XLSX
-        // This is simplified for demo purposes
-        reader.readAsText(file);
+        reader.readAsArrayBuffer(file);
       }
     }
   };
 
   const handleCreatePipeline = () => {
+    // Create initial pipeline nodes based on source/target connections
+    const initialNodes: FlowNode[] = [
+      {
+        id: 'source-1',
+        type: 'input',
+        position: { x: 100, y: 100 },
+        data: { label: `${sourceConnection.type} Source` }
+      },
+      {
+        id: 'transform-1',
+        type: 'default',
+        position: { x: 350, y: 100 },
+        data: { label: 'Data Transformation' }
+      },
+      {
+        id: 'target-1',
+        type: 'output',
+        position: { x: 600, y: 100 },
+        data: { label: `${targetConnection.type} Target` }
+      }
+    ];
+    
+    const initialEdges: FlowEdge[] = [
+      {
+        id: 'e-source-transform',
+        source: 'source-1',
+        target: 'transform-1',
+        animated: true
+      },
+      {
+        id: 'e-transform-target',
+        source: 'transform-1',
+        target: 'target-1',
+        animated: true
+      }
+    ];
+    
+    setPipelineNodes(initialNodes);
+    setPipelineEdges(initialEdges);
     setPipelineCreated(true);
     setActiveTab("createPipeline");
+    
     toast({
       title: "Pipeline Created",
       description: "Your pipeline has been created successfully."
+    });
+  };
+
+  const handleAddNode = () => {
+    // Add a new transformation node to the pipeline
+    const newNodeId = `transform-${pipelineNodes.length + 1}`;
+    const lastNodeIndex = pipelineNodes.length - 1;
+    const lastNodeX = pipelineNodes[lastNodeIndex]?.position?.x || 350;
+    const lastNodeY = pipelineNodes[lastNodeIndex]?.position?.y || 100;
+    
+    // Create new node
+    const newNode: FlowNode = {
+      id: newNodeId,
+      type: 'default',
+      position: { x: lastNodeX, y: lastNodeY + 100 },
+      data: { label: 'New Transformation' }
+    };
+    
+    // Create new edge connecting to the previous node
+    const newEdge: FlowEdge = {
+      id: `e-new-${Date.now()}`,
+      source: pipelineNodes[lastNodeIndex].id,
+      target: newNodeId
+    };
+    
+    setPipelineNodes(prev => [...prev, newNode]);
+    setPipelineEdges(prev => [...prev, newEdge]);
+    
+    toast({
+      title: "Node Added",
+      description: "New transformation node added to pipeline."
     });
   };
 
@@ -262,33 +378,23 @@ const ProjectDetail = () => {
               <h3 className="font-medium mb-2">Common Tasks</h3>
               <ul className="space-y-2">
                 <li className="flex items-center gap-2 text-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500">
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
+                  <Check className="h-4 w-4 text-green-500" />
                   Enter Credentials
                 </li>
                 <li className="flex items-center gap-2 text-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500">
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
+                  <Check className="h-4 w-4 text-green-500" />
                   Test Database connection
                 </li>
                 <li className="flex items-center gap-2 text-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500">
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
+                  <Check className="h-4 w-4 text-green-500" />
                   List Schemas
                 </li>
                 <li className="flex items-center gap-2 text-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500">
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
+                  <Check className="h-4 w-4 text-green-500" />
                   Generate Knowledge Graph
                 </li>
                 <li className="flex items-center gap-2 text-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500">
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
+                  <Check className="h-4 w-4 text-green-500" />
                   Select Schemas
                 </li>
               </ul>
@@ -340,27 +446,19 @@ const ProjectDetail = () => {
               <h3 className="font-medium mb-2">Common Tasks</h3>
               <ul className="space-y-2">
                 <li className="flex items-center gap-2 text-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500">
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
+                  <Check className="h-4 w-4 text-green-500" />
                   Enter Credentials
                 </li>
                 <li className="flex items-center gap-2 text-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500">
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
+                  <Check className="h-4 w-4 text-green-500" />
                   Test Database connection
                 </li>
                 <li className="flex items-center gap-2 text-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500">
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
+                  <Check className="h-4 w-4 text-green-500" />
                   List Schemas
                 </li>
                 <li className="flex items-center gap-2 text-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500">
-                    <path d="M20 6 9 17l-5-5" />
-                  </svg>
+                  <Check className="h-4 w-4 text-green-500" />
                   Generate Knowledge Graph
                 </li>
               </ul>
@@ -436,13 +534,18 @@ const ProjectDetail = () => {
                     <div key={index} className="flex items-center justify-between text-sm">
                       <span>{file.name}</span>
                       {file.status === "processed" ? (
-                        <span className="text-green-500">Processed</span>
+                        <span className="text-green-500 flex items-center">
+                          <Check className="h-4 w-4 mr-1" /> Processed
+                        </span>
                       ) : (
-                        <div className="w-24 bg-gray-200 rounded-full h-2.5">
-                          <div 
-                            className="bg-blue-500 h-2.5 rounded-full" 
-                            style={{ width: `${file.progress || 0}%` }}
-                          ></div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-24 bg-gray-200 rounded-full h-2.5">
+                            <div 
+                              className="bg-blue-500 h-2.5 rounded-full" 
+                              style={{ width: `${file.progress || 0}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs text-gray-500">{file.progress}%</span>
                         </div>
                       )}
                     </div>
@@ -471,22 +574,26 @@ const ProjectDetail = () => {
             <div className="bg-white rounded-lg mb-6">
               <div className="mb-4">
                 <h3 className="text-lg font-medium mb-2">Flow Designer</h3>
-                <p className="text-gray-500">Create your data transformation pipeline by adding nodes and connecting them together.</p>
+                <p className="text-gray-500">Create your data transformation pipeline using the designer below.</p>
               </div>
               
               <div className="flex items-center gap-2 mb-4">
-                <Button variant="outline" size="sm" className="flex items-center gap-1">
+                <Button size="sm" className="flex items-center gap-1" onClick={handleAddNode}>
                   <Plus className="h-4 w-4" />
                   Add Node
                 </Button>
                 <Button variant="outline" size="sm" className="flex items-center gap-1">
                   <Link2 className="h-4 w-4" />
-                  Add Relations
+                  Connect Nodes
                 </Button>
               </div>
               
               <div className="h-[500px] border border-gray-200 rounded-lg overflow-hidden">
-                <FlowDesignerTab projectId={project.id} />
+                <FlowDesignerTab 
+                  projectId={project.id} 
+                  initialNodes={pipelineNodes}
+                  initialEdges={pipelineEdges}
+                />
               </div>
             </div>
             
@@ -523,34 +630,25 @@ const ProjectDetail = () => {
               <div className="space-y-3">
                 <div className="flex items-center text-sm">
                   <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center mr-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500">
-                      <path d="M20 6 9 17l-5-5" />
-                    </svg>
+                    <Check className="h-3 w-3 text-green-500" />
                   </div>
                   <span>Source connection is valid</span>
                 </div>
                 <div className="flex items-center text-sm">
                   <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center mr-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500">
-                      <path d="M20 6 9 17l-5-5" />
-                    </svg>
+                    <Check className="h-3 w-3 text-green-500" />
                   </div>
                   <span>Target connection is valid</span>
                 </div>
                 <div className="flex items-center text-sm">
                   <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center mr-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500">
-                      <path d="M20 6 9 17l-5-5" />
-                    </svg>
+                    <Check className="h-3 w-3 text-green-500" />
                   </div>
                   <span>Table mappings are consistent</span>
                 </div>
                 <div className="flex items-center text-sm">
                   <div className="w-5 h-5 rounded-full bg-yellow-100 flex items-center justify-center mr-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-yellow-500">
-                      <path d="M12 9v4" />
-                      <path d="M12 17h.01" />
-                    </svg>
+                    <X className="h-3 w-3 text-yellow-500" />
                   </div>
                   <span>Warning: Potential data type conversion issues in 2 columns</span>
                 </div>

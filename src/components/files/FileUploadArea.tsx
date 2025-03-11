@@ -73,33 +73,26 @@ const FileUploadArea: React.FC<FileUploadAreaProps> = ({ onFilesSelected }) => {
       return;
     }
 
+    // Show success toast
+    toast({
+      title: "File uploaded successfully",
+      description: `Processing ${file.name}...`,
+      variant: "default",
+    });
+
     // Call the parent handler
     onFilesSelected(files);
   };
 
-  // Function to determine icon based on file extension
-  const getFileIcon = (fileExtension: string) => {
-    switch (fileExtension.toLowerCase()) {
-      case "csv":
-        return <Files className="h-16 w-16 text-gray-300" />;
-      case "xlsx":
-      case "xls":
-        return <FileSpreadsheet className="h-16 w-16 text-gray-300" />;
-      case "json":
-        return <FileJson className="h-16 w-16 text-gray-300" />;
-      default:
-        return <Upload className="h-16 w-16 text-gray-300" />;
-    }
-  };
-
   return (
     <div
-      className={`mb-6 p-6 border-2 border-dashed ${
+      className={`p-6 border-2 border-dashed ${
         isDragging ? "border-indigo-400 bg-indigo-50" : "border-gray-300 bg-gray-50"
-      } rounded-lg transition-colors duration-200 text-center`}
+      } rounded-lg transition-colors duration-200 text-center cursor-pointer`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      onClick={handleButtonClick}
     >
       <Upload className="h-16 w-16 mx-auto text-gray-300 mb-4" />
       <p className="text-gray-500 mb-2">Drag and drop files here, or click to select files</p>
@@ -114,7 +107,10 @@ const FileUploadArea: React.FC<FileUploadAreaProps> = ({ onFilesSelected }) => {
       <Button 
         variant="outline" 
         className="mx-auto hover:bg-gray-100"
-        onClick={handleButtonClick}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleButtonClick();
+        }}
       >
         <Upload className="h-4 w-4 mr-2" />
         Upload Files
