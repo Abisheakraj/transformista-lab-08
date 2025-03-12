@@ -1,16 +1,12 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { toast } from "@/hooks/use-toast";
-import { Badge } from "@/components/ui/badge";
-import { Database, Plus, Trash2, RefreshCcw, ExternalLink, Files } from "lucide-react";
-import AddDataSourceDialog from "./AddDataSourceDialog";
-import { Separator } from "@/components/ui/separator";
-import { Link as RouterLink } from "react-router-dom";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Plus, Database, Server, ArrowRightLeft, X, Trash2, Check } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import FileUploadArea, { UploadedFile } from "../files/FileUploadArea";
-import DataVisualization from "../files/DataVisualization";
+import { toast } from "@/hooks/use-toast";
+import AddDataSourceDialog from "./AddDataSourceDialog";
 
 interface DataSource {
   id: string;
@@ -19,8 +15,11 @@ interface DataSource {
   connectionType: string;
   host: string;
   database: string;
-  lastSync?: string;
-  status: "connected" | "error" | "pending";
+  selected: boolean;
+  username?: string;
+  password?: string;
+  port?: string;
+  connectionStatus?: "connected" | "disconnected" | "testing";
 }
 
 interface DataSourcesTabProps {
@@ -28,375 +27,383 @@ interface DataSourcesTabProps {
 }
 
 const DataSourcesTab = ({ projectId }: DataSourcesTabProps) => {
-  const [isAddSourceOpen, setIsAddSourceOpen] = useState(false);
-  const [isAddTargetOpen, setIsAddTargetOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("sources");
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [selectedFile, setSelectedFile] = useState<UploadedFile | null>(null);
-
-  const [sources, setSources] = useState<DataSource[]>([
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"source" | "target">("source");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dataSources, setDataSources] = useState<DataSource[]>([
     {
-      id: "src1",
+      id: "1",
       name: "Sales MySQL Database",
       type: "source",
       connectionType: "MySQL",
       host: "sales-db.example.com",
       database: "sales",
-      lastSync: "2023-07-15 14:30",
-      status: "connected"
+      selected: false,
+      username: "admin",
+      password: "********",
+      port: "3306",
     },
     {
-      id: "src2",
-      name: "Marketing PostgreSQL",
+      id: "2",
+      name: "Customer PostgreSQL Database",
       type: "source",
       connectionType: "PostgreSQL",
-      host: "marketing-db.example.com",
-      database: "marketing_data",
-      lastSync: "2023-07-14 09:15",
-      status: "connected"
-    }
-  ]);
-  
-  const [targets, setTargets] = useState<DataSource[]>([
+      host: "customers-db.example.com",
+      database: "customers",
+      selected: false,
+      username: "postgres",
+      password: "********",
+      port: "5432",
+    },
     {
-      id: "tgt1",
+      id: "3",
       name: "Analytics Data Warehouse",
       type: "target",
       connectionType: "BigQuery",
-      host: "analytics-bq.example.com",
-      database: "analytics_dw",
-      status: "connected"
-    }
+      host: "analytics.example.com",
+      database: "analytics_dwh",
+      selected: false,
+    },
+    {
+      id: "4",
+      name: "Reporting Database",
+      type: "target",
+      connectionType: "Snowflake",
+      host: "reporting.example.com",
+      database: "reporting",
+      selected: false,
+    },
   ]);
 
-  const handleTestConnection = (sourceId: string) => {
-    setIsLoading(true);
+  const handleAddDataSource = (dataSource: Omit<DataSource, "id" | "selected">) => {
+    const newDataSource: DataSource = {
+      id: Math.random().toString(36).substr(2, 9),
+      ...dataSource,
+      selected: false,
+    };
     
-    // Simulate API call
+    setDataSources([...dataSources, newDataSource]);
+    setIsAddDialogOpen(false);
+    toast({
+      title: "Data source added",
+      description: `${dataSource.name} was successfully added.`
+    });
+  };
+
+  const handleToggleSelect = (id: string) => {
+    setDataSources(dataSources.map(ds => 
+      ds.id === id ? { ...ds, selected: !ds.selected } : ds
+    ));
+  };
+
+  const handleDeleteDataSource = (id: string) => {
+    const dataSourceToDelete = dataSources.find(ds => ds.id === id);
+    setDataSources(dataSources.filter(ds => ds.id !== id));
+    
+    toast({
+      title: "Data source deleted",
+      description: `${dataSourceToDelete?.name} was successfully removed.`
+    });
+  };
+
+  const handleTestConnection = (id: string) => {
+    setDataSources(dataSources.map(ds => 
+      ds.id === id ? { ...ds, connectionStatus: "testing" } : ds
+    ));
+
+    // Simulate API call to test connection
     setTimeout(() => {
-      const success = Math.random() > 0.3; // 70% success rate for demo
+      const success = Math.random() > 0.3; // 70% chance of success for demo
       
+      setDataSources(dataSources.map(ds => 
+        ds.id === id ? { 
+          ...ds, 
+          connectionStatus: success ? "connected" : "disconnected"
+        } : ds
+      ));
+
       if (success) {
         toast({
           title: "Connection successful",
-          description: "The database connection was tested successfully."
+          description: "Database connection test was successful."
         });
       } else {
         toast({
           title: "Connection failed",
-          description: "Unable to connect to the database. Please check your credentials.",
+          description: "Could not connect to the database. Please check your credentials.",
           variant: "destructive"
         });
       }
-      
-      setIsLoading(false);
     }, 1500);
   };
 
-  const handleDeleteSource = (sourceId: string, sourceType: "source" | "target") => {
-    if (sourceType === "source") {
-      setSources(sources.filter(src => src.id !== sourceId));
-    } else {
-      setTargets(targets.filter(tgt => tgt.id !== sourceId));
+  const filteredDataSources = dataSources.filter(ds => 
+    ds.type === activeTab && 
+    (searchQuery === "" || ds.name.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const getConnectionIcon = (connectionType: string) => {
+    switch (connectionType) {
+      case "MySQL":
+      case "PostgreSQL":
+      case "SQLite":
+        return <Database className="h-5 w-5 mr-2" />;
+      case "BigQuery":
+      case "Snowflake":
+      case "Redshift":
+        return <Server className="h-5 w-5 mr-2" />;
+      default:
+        return <ArrowRightLeft className="h-5 w-5 mr-2" />;
     }
-    
-    toast({
-      title: "Connection removed",
-      description: "The data connection has been removed from your project."
-    });
   };
 
-  const handleSubmitSource = (dataSource: any) => {
-    if (dataSource.type === "source") {
-      setSources([...sources, {
-        id: `src${sources.length + 1}`,
-        ...dataSource,
-        status: "connected",
-        lastSync: "Never"
-      }]);
-      setIsAddSourceOpen(false);
-    } else {
-      setTargets([...targets, {
-        id: `tgt${targets.length + 1}`,
-        ...dataSource,
-        status: "connected"
-      }]);
-      setIsAddTargetOpen(false);
-    }
-    
-    toast({
-      title: "Connection added",
-      description: `The ${dataSource.name} connection has been added to your project.`
-    });
-  };
-
-  const handleFilesUploaded = (files: UploadedFile[]) => {
-    setUploadedFiles(files);
-    if (files.length > 0 && !selectedFile) {
-      setSelectedFile(files[0]);
-    }
-  };
+  const selectedCount = dataSources.filter(ds => ds.selected && ds.type === activeTab).length;
 
   return (
     <div>
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full mb-6 bg-indigo-50 p-1">
-          <TabsTrigger 
-            value="sources" 
-            className="flex-1 data-[state=active]:bg-white data-[state=active]:text-indigo-700 data-[state=active]:shadow-sm"
-          >
-            Database Connections
-          </TabsTrigger>
-          <TabsTrigger 
-            value="files" 
-            className="flex-1 data-[state=active]:bg-white data-[state=active]:text-indigo-700 data-[state=active]:shadow-sm"
-          >
-            File Upload & Visualization
-          </TabsTrigger>
-        </TabsList>
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold mb-4">Data Connections</h2>
+        <p className="text-muted-foreground mb-6">
+          Select or add data sources and targets for your ETL flow. You'll be able to explore 
+          the schema and tables from selected connections in the Flow Designer.
+        </p>
+      </div>
 
-        <TabsContent value="sources" className="space-y-6 animate-in fade-in-50 mt-0">
-          <div className="flex justify-end">
-            <Button variant="outline" size="sm" asChild>
-              <RouterLink to="/connections" className="flex items-center">
-                <Database className="h-4 w-4 mr-1.5" />
-                Manage All Connections
-                <ExternalLink className="h-3.5 w-3.5 ml-1.5" />
-              </RouterLink>
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "source" | "target")}>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+          <TabsList>
+            <TabsTrigger value="source">Source Databases</TabsTrigger>
+            <TabsTrigger value="target">Target Databases</TabsTrigger>
+          </TabsList>
+          
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <Input
+              placeholder="Search databases..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="max-w-[300px]"
+            />
+            <Button onClick={() => setIsAddDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add {activeTab === "source" ? "Source" : "Target"}
             </Button>
           </div>
-          
-          <div className="flex flex-col md:flex-row gap-6">
-            <div className="md:w-1/2">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Source Databases</h2>
-                <Button onClick={() => setIsAddSourceOpen(true)} className="bg-indigo-600 hover:bg-indigo-700">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Source
-                </Button>
-              </div>
-              
-              {sources.length === 0 ? (
-                <Card className="border-dashed">
-                  <CardContent className="pt-6 text-center">
-                    <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-medium mb-2">No Source Databases</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Add a source database to start importing data for your ETL flow.
-                    </p>
-                    <Button onClick={() => setIsAddSourceOpen(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Source
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-4">
-                  {sources.map(source => (
-                    <Card key={source.id} className="border border-gray-200 hover:border-indigo-200 transition-colors">
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle className="text-lg">{source.name}</CardTitle>
-                            <CardDescription>
-                              {source.connectionType} • {source.host}/{source.database}
-                            </CardDescription>
-                          </div>
-                          <Badge 
-                            variant={source.status === "connected" ? "outline" : "destructive"}
-                            className={source.status === "connected" ? "border-green-300 text-green-700 bg-green-50" : ""}
-                          >
-                            {source.status === "connected" ? "Connected" : "Error"}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pb-3 pt-0">
-                        <div className="text-xs text-muted-foreground">
-                          Last synchronized: {source.lastSync || "Never"}
-                        </div>
-                      </CardContent>
-                      <CardFooter className="border-t pt-3 flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleTestConnection(source.id)}
-                          disabled={isLoading}
-                        >
-                          {isLoading ? (
-                            <>
-                              <div className="w-3 h-3 rounded-full border-2 border-primary border-t-transparent animate-spin mr-1"></div>
-                              Testing...
-                            </>
-                          ) : (
-                            <>
-                              <RefreshCcw className="h-3.5 w-3.5 mr-1" />
-                              Test
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteSource(source.id, "source")}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 mr-1" />
-                          Remove
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            <div className="md:w-1/2">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Target Databases</h2>
-                <Button onClick={() => setIsAddTargetOpen(true)} className="bg-purple-600 hover:bg-purple-700">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Target
-                </Button>
-              </div>
-              
-              {targets.length === 0 ? (
-                <Card className="border-dashed">
-                  <CardContent className="pt-6 text-center">
-                    <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-medium mb-2">No Target Databases</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Add a target database to define where your processed data will be stored.
-                    </p>
-                    <Button onClick={() => setIsAddTargetOpen(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Target
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-4">
-                  {targets.map(target => (
-                    <Card key={target.id} className="border border-gray-200 hover:border-purple-200 transition-colors">
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle className="text-lg">{target.name}</CardTitle>
-                            <CardDescription>
-                              {target.connectionType} • {target.host}/{target.database}
-                            </CardDescription>
-                          </div>
-                          <Badge 
-                            variant={target.status === "connected" ? "outline" : "destructive"}
-                            className={target.status === "connected" ? "border-green-300 text-green-700 bg-green-50" : ""}
-                          >
-                            {target.status === "connected" ? "Connected" : "Error"}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pb-3 pt-0">
-                        <div className="text-xs text-muted-foreground">
-                          Output destination for transformed data
-                        </div>
-                      </CardContent>
-                      <CardFooter className="border-t pt-3 flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleTestConnection(target.id)}
-                          disabled={isLoading}
-                        >
-                          {isLoading ? (
-                            <>
-                              <div className="w-3 h-3 rounded-full border-2 border-primary border-t-transparent animate-spin mr-1"></div>
-                              Testing...
-                            </>
-                          ) : (
-                            <>
-                              <RefreshCcw className="h-3.5 w-3.5 mr-1" />
-                              Test
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteSource(target.id, "target")}
-                        >
-                          <Trash2 className="h-3.5 w-3.5 mr-1" />
-                          Remove
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
+        </div>
+
+        <TabsContent value="source">
+          <div className="mb-4">
+            <p className="text-sm text-muted-foreground">
+              {selectedCount} source{selectedCount !== 1 ? "s" : ""} selected
+            </p>
           </div>
+          
+          {filteredDataSources.length === 0 ? (
+            <Card className="text-center py-12">
+              <CardContent>
+                <p className="text-muted-foreground mb-4">No source databases found.</p>
+                <Button onClick={() => setIsAddDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Source Database
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredDataSources.map((dataSource) => (
+                <Card key={dataSource.id} className={dataSource.selected ? "border-primary" : ""}>
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center">
+                        {getConnectionIcon(dataSource.connectionType)}
+                        <CardTitle className="text-lg">{dataSource.name}</CardTitle>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={`rounded-full ${dataSource.selected ? "bg-primary/10" : ""}`}
+                          onClick={() => handleToggleSelect(dataSource.id)}
+                        >
+                          {dataSource.selected ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-full text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteDataSource(dataSource.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <CardDescription className="text-xs font-medium uppercase tracking-wider mt-1">
+                      {dataSource.connectionType}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="text-sm py-2">
+                    <div className="grid grid-cols-2 gap-1">
+                      <div className="text-muted-foreground">Host:</div>
+                      <div className="truncate">{dataSource.host}</div>
+                      <div className="text-muted-foreground">Database:</div>
+                      <div className="truncate">{dataSource.database}</div>
+                      {dataSource.username && (
+                        <>
+                          <div className="text-muted-foreground">Username:</div>
+                          <div className="truncate">{dataSource.username}</div>
+                        </>
+                      )}
+                      {dataSource.port && (
+                        <>
+                          <div className="text-muted-foreground">Port:</div>
+                          <div className="truncate">{dataSource.port}</div>
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="pt-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full" 
+                      onClick={() => handleTestConnection(dataSource.id)}
+                      disabled={dataSource.connectionStatus === "testing"}
+                    >
+                      {dataSource.connectionStatus === "testing" ? (
+                        <>
+                          <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin mr-2"></div>
+                          Testing...
+                        </>
+                      ) : dataSource.connectionStatus === "connected" ? (
+                        <>
+                          <Check className="h-4 w-4 mr-2 text-green-500" />
+                          Connected
+                        </>
+                      ) : dataSource.connectionStatus === "disconnected" ? (
+                        <>
+                          <X className="h-4 w-4 mr-2 text-red-500" />
+                          Failed
+                        </>
+                      ) : (
+                        "Test Connection"
+                      )}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
-        
-        <TabsContent value="files" className="space-y-8 animate-in fade-in-50 mt-0">
-          <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold mb-2 flex items-center">
-                <Files className="h-5 w-5 mr-2 text-indigo-600" />
-                Upload Data Files
-              </h2>
-              <p className="text-gray-500 mb-4">
-                Upload CSV, Excel, or JSON files to visualize and transform your data
-              </p>
-              
-              <FileUploadArea 
-                onFilesUploaded={handleFilesUploaded}
-                allowedFileTypes={['.csv', '.xlsx', '.xls', '.json']}
-                maxFileSize={20}
-                multiple={true}
-              />
-            </div>
+
+        <TabsContent value="target">
+          <div className="mb-4">
+            <p className="text-sm text-muted-foreground">
+              {selectedCount} target{selectedCount !== 1 ? "s" : ""} selected
+            </p>
           </div>
           
-          {uploadedFiles.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold">Data Visualization</h2>
-                
-                <div className="flex gap-2">
-                  <select 
-                    className="border border-gray-300 rounded-md text-sm p-1.5"
-                    value={selectedFile?.id || ''}
-                    onChange={(e) => {
-                      const selected = uploadedFiles.find(file => file.id === e.target.value);
-                      if (selected) setSelectedFile(selected);
-                    }}
-                  >
-                    {uploadedFiles.map(file => (
-                      <option key={file.id} value={file.id}>
-                        {file.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              
-              {selectedFile && (
-                <DataVisualization file={selectedFile} />
-              )}
+          {filteredDataSources.length === 0 ? (
+            <Card className="text-center py-12">
+              <CardContent>
+                <p className="text-muted-foreground mb-4">No target databases found.</p>
+                <Button onClick={() => setIsAddDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Target Database
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredDataSources.map((dataSource) => (
+                <Card key={dataSource.id} className={dataSource.selected ? "border-primary" : ""}>
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center">
+                        {getConnectionIcon(dataSource.connectionType)}
+                        <CardTitle className="text-lg">{dataSource.name}</CardTitle>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={`rounded-full ${dataSource.selected ? "bg-primary/10" : ""}`}
+                          onClick={() => handleToggleSelect(dataSource.id)}
+                        >
+                          {dataSource.selected ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="rounded-full text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteDataSource(dataSource.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <CardDescription className="text-xs font-medium uppercase tracking-wider mt-1">
+                      {dataSource.connectionType}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="text-sm py-2">
+                    <div className="grid grid-cols-2 gap-1">
+                      <div className="text-muted-foreground">Host:</div>
+                      <div className="truncate">{dataSource.host}</div>
+                      <div className="text-muted-foreground">Database:</div>
+                      <div className="truncate">{dataSource.database}</div>
+                      {dataSource.username && (
+                        <>
+                          <div className="text-muted-foreground">Username:</div>
+                          <div className="truncate">{dataSource.username}</div>
+                        </>
+                      )}
+                      {dataSource.port && (
+                        <>
+                          <div className="text-muted-foreground">Port:</div>
+                          <div className="truncate">{dataSource.port}</div>
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                  <CardFooter className="pt-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full" 
+                      onClick={() => handleTestConnection(dataSource.id)}
+                      disabled={dataSource.connectionStatus === "testing"}
+                    >
+                      {dataSource.connectionStatus === "testing" ? (
+                        <>
+                          <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin mr-2"></div>
+                          Testing...
+                        </>
+                      ) : dataSource.connectionStatus === "connected" ? (
+                        <>
+                          <Check className="h-4 w-4 mr-2 text-green-500" />
+                          Connected
+                        </>
+                      ) : dataSource.connectionStatus === "disconnected" ? (
+                        <>
+                          <X className="h-4 w-4 mr-2 text-red-500" />
+                          Failed
+                        </>
+                      ) : (
+                        "Test Connection"
+                      )}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
             </div>
           )}
         </TabsContent>
       </Tabs>
-      
+
       <AddDataSourceDialog
-        open={isAddSourceOpen}
-        onOpenChange={setIsAddSourceOpen}
-        onSubmit={handleSubmitSource}
-        type="source"
-      />
-      
-      <AddDataSourceDialog
-        open={isAddTargetOpen}
-        onOpenChange={setIsAddTargetOpen}
-        onSubmit={handleSubmitSource}
-        type="target"
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        onSubmit={handleAddDataSource}
+        type={activeTab}
       />
     </div>
   );
