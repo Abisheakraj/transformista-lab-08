@@ -8,8 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useForm, Controller } from "react-hook-form";
 import { Link } from "react-router-dom";
 import { ExternalLink, Loader2, Database, CheckCircle2, AlertCircle } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
-import { testDatabaseConnection, getSupabaseStatus } from "@/lib/database-client";
+import { useToast } from "@/hooks/use-toast";
+import { testDatabaseConnection } from "@/lib/database-client";
 
 interface AddDataSourceDialogProps {
   open: boolean;
@@ -57,12 +57,12 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
       setConnectionResult(null);
     } else {
       // Check Supabase status
-      const status = getSupabaseStatus();
-      setSupabaseStatus(status);
+      const mockSupabaseStatus = { connected: false, project: undefined };
+      setSupabaseStatus(mockSupabaseStatus);
       
       // Pre-fill form if supabase is connected
-      if (status.connected) {
-        setValue('name', `${status.project || 'Supabase'} ${type === 'source' ? 'Source' : 'Target'}`);
+      if (mockSupabaseStatus.connected) {
+        setValue('name', `${mockSupabaseStatus.project || 'Supabase'} ${type === 'source' ? 'Source' : 'Target'}`);
       }
     }
   }, [open, reset, type, setValue]);
@@ -75,7 +75,7 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
         ...data,
         type,
       });
-      toast({
+      useToast().toast({
         title: `${type === "source" ? "Source" : "Target"} connection added`,
         description: `Successfully added ${data.name} connection.`
       });
@@ -83,7 +83,7 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
       setConnectionResult(null);
     } catch (error) {
       console.error("Error adding data source:", error);
-      toast({
+      useToast().toast({
         title: "Error adding connection",
         description: "There was a problem adding your connection. Please try again.",
         variant: "destructive"
@@ -97,7 +97,7 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
     const values = getValues();
     
     if (!values.host || !values.database) {
-      toast({
+      useToast().toast({
         title: "Missing Information",
         description: "Please provide at least host and database name to test the connection.",
         variant: "destructive"
@@ -124,19 +124,19 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
       });
       
       if (result.success) {
-        toast({
+        useToast().toast({
           title: "Connection Successful",
           description: result.message
         });
       } else {
-        toast({
+        useToast().toast({
           title: "Connection Failed",
           description: result.message,
           variant: "destructive"
         });
       }
     } catch (error) {
-      toast({
+      useToast().toast({
         title: "Connection Error",
         description: "An unexpected error occurred while testing the connection.",
         variant: "destructive"

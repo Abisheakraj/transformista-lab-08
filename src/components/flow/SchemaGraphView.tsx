@@ -1,514 +1,310 @@
 
-import React, { useState, useCallback, useEffect } from 'react';
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   ReactFlow,
   MiniMap,
   Controls,
   Background,
-  Node,
-  Edge,
   useNodesState,
   useEdgesState,
   addEdge,
-  NodeChange,
-  EdgeChange,
   Connection,
-  Position,
-  MarkerType
-} from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Link2, Download, Trash } from 'lucide-react';
+  Edge,
+  Node,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import { Download, Plus, Link2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
-interface TableNodeData {
-  label: string;
-  columns: { name: string; type: string; primaryKey?: boolean; foreignKey?: boolean }[];
+interface SchemaGraphViewProps {
+  schemas?: any[];
+  onCreatePipeline?: (nodes: Node[], edges: Edge[]) => void;
 }
 
-interface TableRelationship {
-  sourceTable: string;
-  sourceColumn: string;
-  targetTable: string;
-  targetColumn: string;
-}
-
-const SchemaGraphView: React.FC = () => {
+const SchemaGraphView = ({ schemas = [], onCreatePipeline }: SchemaGraphViewProps) => {
   const { toast } = useToast();
-  
-  const initialNodes: Node[] = [
-    {
-      id: 'customers',
-      type: 'default',
-      data: {
-        label: 'Customers Table',
-        columns: [
-          { name: 'id', type: 'INTEGER', primaryKey: true },
-          { name: 'name', type: 'VARCHAR' },
-          { name: 'email', type: 'VARCHAR' },
-          { name: 'created_at', type: 'TIMESTAMP' }
-        ]
-      },
-      position: { x: 100, y: 100 },
-      style: {
-        width: 220,
-        backgroundColor: '#ffffff',
-        borderRadius: '8px',
-        padding: 0,
-        overflow: 'hidden'
-      },
-      targetPosition: Position.Left,
-      sourcePosition: Position.Right
-    },
-    {
-      id: 'orders',
-      type: 'default',
-      data: {
-        label: 'Orders Table',
-        columns: [
-          { name: 'id', type: 'INTEGER', primaryKey: true },
-          { name: 'customer_id', type: 'INTEGER', foreignKey: true },
-          { name: 'order_date', type: 'TIMESTAMP' },
-          { name: 'total', type: 'DECIMAL' }
-        ]
-      },
-      position: { x: 450, y: 100 },
-      style: {
-        width: 220,
-        backgroundColor: '#ffffff',
-        borderRadius: '8px',
-        padding: 0,
-        overflow: 'hidden'
-      },
-      targetPosition: Position.Left,
-      sourcePosition: Position.Right
-    }
-  ];
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [selectedTables, setSelectedTables] = useState<string[]>([]);
 
-  const initialEdges: Edge[] = [
-    {
-      id: 'e-customers-orders',
-      source: 'customers',
-      target: 'orders',
-      animated: true,
-      label: 'one-to-many',
-      type: 'smoothstep',
-      style: { stroke: '#6366f1' },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: '#6366f1'
-      }
-    }
-  ];
-
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [addTableDialogOpen, setAddTableDialogOpen] = useState(false);
-  const [addRelationshipDialogOpen, setAddRelationshipDialogOpen] = useState(false);
-  const [newTableName, setNewTableName] = useState('');
-  const [newTableColumns, setNewTableColumns] = useState('id:INTEGER,name:VARCHAR');
-  const [selectedNodes, setSelectedNodes] = useState<Node[]>([]);
-  const [relationship, setRelationship] = useState<TableRelationship>({
-    sourceTable: '',
-    sourceColumn: '',
-    targetTable: '',
-    targetColumn: ''
-  });
-
-  // Update selected nodes when nodes change
   useEffect(() => {
-    setSelectedNodes(nodes.filter(node => node.selected));
-  }, [nodes]);
+    initializeGraph();
+  }, [schemas]);
 
-  const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge({
-      ...params,
-      animated: true,
-      style: { stroke: '#6366f1' },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: '#6366f1'
-      }
-    }, eds)),
-    [setEdges]
-  );
+  const initializeGraph = () => {
+    if (!schemas || schemas.length === 0) {
+      // Create some mock data for visualization if no schemas provided
+      const mockNodes: Node[] = [
+        {
+          id: "customers",
+          type: "default",
+          data: {
+            label: "Customers",
+            columns: ["id", "name", "email", "created_at"],
+            primaryKey: ["id"]
+          },
+          position: { x: 100, y: 100 },
+          style: {
+            width: 180,
+            padding: 10,
+            background: "#f0f9ff",
+            borderColor: "#93c5fd",
+            borderWidth: 2,
+          },
+        },
+        {
+          id: "orders",
+          type: "default",
+          data: {
+            label: "Orders",
+            columns: ["id", "customer_id", "total", "status", "created_at"],
+            primaryKey: ["id"],
+            foreignKeys: [{ columns: ["customer_id"], referencedTable: "customers", referencedColumns: ["id"] }]
+          },
+          position: { x: 400, y: 100 },
+          style: {
+            width: 180,
+            padding: 10,
+            background: "#f0f9ff",
+            borderColor: "#93c5fd",
+            borderWidth: 2,
+          },
+        },
+        {
+          id: "products",
+          type: "default",
+          data: {
+            label: "Products",
+            columns: ["id", "name", "price", "category"],
+            primaryKey: ["id"]
+          },
+          position: { x: 100, y: 300 },
+          style: {
+            width: 180,
+            padding: 10,
+            background: "#f0f9ff",
+            borderColor: "#93c5fd",
+            borderWidth: 2,
+          },
+        },
+        {
+          id: "order_items",
+          type: "default",
+          data: {
+            label: "Order Items",
+            columns: ["id", "order_id", "product_id", "quantity", "price"],
+            primaryKey: ["id"],
+            foreignKeys: [
+              { columns: ["order_id"], referencedTable: "orders", referencedColumns: ["id"] },
+              { columns: ["product_id"], referencedTable: "products", referencedColumns: ["id"] }
+            ]
+          },
+          position: { x: 400, y: 300 },
+          style: {
+            width: 180,
+            padding: 10,
+            background: "#f0f9ff", 
+            borderColor: "#93c5fd",
+            borderWidth: 2,
+          },
+        },
+      ];
+
+      const mockEdges: Edge[] = [
+        {
+          id: "e-customers-orders",
+          source: "customers",
+          target: "orders",
+          animated: true,
+          label: "1:N",
+          style: { stroke: "#93c5fd" },
+        },
+        {
+          id: "e-orders-order_items",
+          source: "orders",
+          target: "order_items",
+          animated: true,
+          label: "1:N",
+          style: { stroke: "#93c5fd" },
+        },
+        {
+          id: "e-products-order_items",
+          source: "products",
+          target: "order_items",
+          animated: true,
+          label: "1:N",
+          style: { stroke: "#93c5fd" },
+        },
+      ];
+
+      setNodes(mockNodes);
+      setEdges(mockEdges);
+      setSelectedTables(mockNodes.map(node => node.id));
+    } else {
+      // Generate graph from actual schema data
+      const schemaNodes: Node[] = [];
+      const schemaEdges: Edge[] = [];
+      let yOffset = 0;
+
+      schemas.forEach((schema) => {
+        if (schema.tables) {
+          schema.tables.forEach((table: any, tableIndex: number) => {
+            const nodeId = `${schema.name}-${table.name}`;
+            const xPos = (tableIndex % 2) * 300 + 100;
+            const yPos = Math.floor(tableIndex / 2) * 200 + 100 + yOffset;
+
+            schemaNodes.push({
+              id: nodeId,
+              type: "default",
+              data: {
+                label: table.name,
+                schema: schema.name,
+                columns: table.columns.map((col: any) => col.name),
+                primaryKey: table.primaryKey,
+                foreignKeys: table.foreignKeys
+              },
+              position: { x: xPos, y: yPos },
+              style: {
+                width: 180,
+                padding: 10,
+                background: "#f0f9ff",
+                borderColor: "#93c5fd",
+                borderWidth: 2,
+              },
+            });
+          });
+          yOffset += schema.tables.length * 100;
+        }
+      });
+
+      // Add edges based on foreign keys
+      schemas.forEach((schema) => {
+        if (schema.tables) {
+          schema.tables.forEach((table: any) => {
+            const sourceNodeId = `${schema.name}-${table.name}`;
+            
+            if (table.foreignKeys) {
+              table.foreignKeys.forEach((fk: any, fkIndex: number) => {
+                // Find the target schema
+                let targetSchema = schema.name; // Default to same schema
+                let targetNodeId = `${targetSchema}-${fk.referencedTable}`;
+                
+                // Create edge
+                schemaEdges.push({
+                  id: `e-${sourceNodeId}-${targetNodeId}-${fkIndex}`,
+                  source: sourceNodeId,
+                  target: targetNodeId,
+                  animated: true,
+                  label: `${fk.columns.join(',')} -> ${fk.referencedColumns.join(',')}`,
+                  style: { stroke: "#93c5fd" },
+                });
+              });
+            }
+          });
+        }
+      });
+
+      setNodes(schemaNodes);
+      setEdges(schemaEdges);
+      setSelectedTables(schemaNodes.map(node => node.id));
+    }
+  };
+
+  const onConnect = (params: Connection) => setEdges((eds) => addEdge(params, eds));
 
   const handleAddTable = () => {
-    if (!newTableName.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Table name is required',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    const tableId = newTableName.toLowerCase().replace(/\s+/g, '_');
-    
-    // Parse columns
-    const columns = newTableColumns.split(',').map(columnStr => {
-      const [name, type] = columnStr.trim().split(':');
-      const isPrimaryKey = name.toLowerCase() === 'id';
-      return { name, type: type || 'VARCHAR', primaryKey: isPrimaryKey };
-    });
-
-    // Create new table node
+    const newId = `table-${nodes.length + 1}`;
     const newNode: Node = {
-      id: tableId,
-      type: 'default',
-      data: {
-        label: `${newTableName} Table`,
-        columns
-      },
-      position: { 
-        x: Math.random() * 300 + 100, 
-        y: Math.random() * 300 + 100
-      },
+      id: newId,
+      type: "default",
+      data: { label: `New Table ${nodes.length + 1}` },
+      position: { x: Math.random() * 400 + 50, y: Math.random() * 400 + 50 },
       style: {
-        width: 220,
-        backgroundColor: '#ffffff',
-        borderRadius: '8px',
-        padding: 0,
-        overflow: 'hidden'
+        width: 180,
+        padding: 10,
+        background: "#f0f9ff",
+        borderColor: "#93c5fd",
+        borderWidth: 2,
       },
-      targetPosition: Position.Left,
-      sourcePosition: Position.Right
     };
-
-    setNodes(prevNodes => [...prevNodes, newNode]);
-    setNewTableName('');
-    setNewTableColumns('id:INTEGER,name:VARCHAR');
-    setAddTableDialogOpen(false);
-
+    
+    setNodes((nds) => [...nds, newNode]);
+    setSelectedTables((prev) => [...prev, newId]);
+    
     toast({
-      title: 'Table Added',
-      description: `${newTableName} table has been added to your schema.`
+      title: "Table Added",
+      description: "New table has been added to the schema graph."
     });
   };
 
-  const handleAddRelationship = () => {
-    const { sourceTable, sourceColumn, targetTable, targetColumn } = relationship;
-    
-    if (!sourceTable || !sourceColumn || !targetTable || !targetColumn) {
+  const handleCreatePipeline = () => {
+    if (onCreatePipeline) {
+      onCreatePipeline(nodes, edges);
+      
       toast({
-        title: 'Error',
-        description: 'All fields are required to create a relationship',
-        variant: 'destructive'
+        title: "Pipeline Created",
+        description: "Pipeline has been created from the selected schema elements."
       });
-      return;
     }
-
-    const edgeId = `e-${sourceTable}-${targetTable}-${Date.now()}`;
-    
-    // Create new edge
-    const newEdge: Edge = {
-      id: edgeId,
-      source: sourceTable,
-      target: targetTable,
-      animated: true,
-      label: 'relates to',
-      type: 'smoothstep',
-      style: { stroke: '#6366f1' },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: '#6366f1'
-      }
-    };
-
-    setEdges(prevEdges => [...prevEdges, newEdge]);
-    
-    // Reset form
-    setRelationship({
-      sourceTable: '',
-      sourceColumn: '',
-      targetTable: '',
-      targetColumn: ''
-    });
-    
-    setAddRelationshipDialogOpen(false);
-
-    toast({
-      title: 'Relationship Added',
-      description: `Relationship between ${sourceTable} and ${targetTable} has been created.`
-    });
-  };
-
-  const handleDeleteSelected = () => {
-    if (selectedNodes.length === 0) {
-      toast({
-        title: 'No Selection',
-        description: 'Please select at least one node to delete',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    const selectedNodeIds = selectedNodes.map(node => node.id);
-    
-    // Remove selected nodes
-    setNodes(nodes.filter(node => !selectedNodeIds.includes(node.id)));
-    
-    // Remove edges connected to deleted nodes
-    setEdges(edges.filter(edge => 
-      !selectedNodeIds.includes(edge.source) && !selectedNodeIds.includes(edge.target)
-    ));
-
-    toast({
-      title: 'Deleted',
-      description: `${selectedNodeIds.length} item(s) have been deleted.`
-    });
   };
 
   const handleExportSchema = () => {
-    const schema = {
-      tables: nodes.map(node => ({
-        name: node.id,
-        label: node.data.label,
-        columns: node.data.columns
-      })),
-      relationships: edges.map(edge => ({
-        id: edge.id,
-        sourceTable: edge.source,
-        targetTable: edge.target,
-        label: edge.label
-      }))
+    const schemaData = {
+      nodes,
+      edges,
+      selectedTables,
     };
-
-    const jsonString = JSON.stringify(schema, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
     
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'schema.json';
-    a.click();
-    URL.revokeObjectURL(url);
-
+    const dataStr = JSON.stringify(schemaData, null, 2);
+    const dataUri = `data:application/json;charset=utf-8,${encodeURIComponent(dataStr)}`;
+    
+    const linkElement = document.createElement("a");
+    linkElement.setAttribute("href", dataUri);
+    linkElement.setAttribute("download", "schema-graph.json");
+    linkElement.click();
+    
     toast({
-      title: 'Schema Exported',
-      description: 'Your schema has been exported as JSON.'
+      title: "Schema Exported",
+      description: "Schema graph has been exported to a JSON file."
     });
   };
 
-  // Custom node renderer
-  const customNodeComponent = ({ id, data }: { id: string, data: TableNodeData }) => {
-    return (
-      <div className="table-node">
-        <div className="table-node-header bg-indigo-600 text-white px-3 py-2 text-sm font-semibold">
-          {data.label}
-        </div>
-        <div className="table-node-columns">
-          {data.columns.map((column, idx) => (
-            <div key={idx} className="table-node-column px-3 py-1 text-xs border-b border-gray-100 flex justify-between">
-              <div className="flex items-center">
-                {column.primaryKey && <span className="w-2 h-2 bg-yellow-400 rounded-full mr-1" title="Primary Key" />}
-                {column.foreignKey && <span className="w-2 h-2 bg-blue-400 rounded-full mr-1" title="Foreign Key" />}
-                <span>{column.name}</span>
-              </div>
-              <span className="text-gray-500">{column.type}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  // Set custom node types
-  const nodeTypes = {
-    default: customNodeComponent,
-  };
-
   return (
-    <div className="w-full h-full">
-      <div className="absolute top-3 right-6 z-10 flex space-x-2">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="flex items-center gap-1"
-          onClick={() => setAddTableDialogOpen(true)}
-        >
+    <div className="w-full h-full" style={{ height: "500px" }}>
+      <div className="flex items-center justify-end mb-4 gap-2">
+        <Button variant="outline" size="sm" className="flex items-center gap-1" onClick={handleAddTable}>
           <Plus className="h-4 w-4" />
           Add Table
         </Button>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="flex items-center gap-1"
-          onClick={() => setAddRelationshipDialogOpen(true)}
-        >
+        <Button variant="outline" size="sm" className="flex items-center gap-1">
           <Link2 className="h-4 w-4" />
           Add Relationship
         </Button>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="flex items-center gap-1"
-          onClick={handleExportSchema}
-        >
+        <Button variant="outline" size="sm" className="flex items-center gap-1" onClick={handleExportSchema}>
           <Download className="h-4 w-4" />
-          Export
+          Export Schema
         </Button>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="flex items-center gap-1"
-          onClick={handleDeleteSelected}
-        >
-          <Trash className="h-4 w-4" />
-          Delete
+        <Button variant="default" size="sm" onClick={handleCreatePipeline}>
+          Create Pipeline
         </Button>
       </div>
-
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        nodeTypes={nodeTypes}
-        fitView
-      >
-        <Background color="#f0f0f0" gap={16} />
-        <Controls />
-        <MiniMap />
-      </ReactFlow>
-
-      {/* Add Table Dialog */}
-      <Dialog open={addTableDialogOpen} onOpenChange={setAddTableDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Table</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="tableName">Table Name</Label>
-              <Input
-                id="tableName"
-                value={newTableName}
-                onChange={(e) => setNewTableName(e.target.value)}
-                placeholder="e.g. Products"
-              />
-            </div>
-            <div>
-              <Label htmlFor="tableColumns">
-                Columns (format: name:type, name:type, ...)
-              </Label>
-              <Input
-                id="tableColumns"
-                value={newTableColumns}
-                onChange={(e) => setNewTableColumns(e.target.value)}
-                placeholder="e.g. id:INTEGER, name:VARCHAR"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Example: id:INTEGER,name:VARCHAR,price:DECIMAL
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddTableDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddTable}>Add Table</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Relationship Dialog */}
-      <Dialog open={addRelationshipDialogOpen} onOpenChange={setAddRelationshipDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Relationship</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="sourceTable">Source Table</Label>
-              <Select
-                value={relationship.sourceTable}
-                onValueChange={(value) => setRelationship({ ...relationship, sourceTable: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select source table" />
-                </SelectTrigger>
-                <SelectContent>
-                  {nodes.map((node) => (
-                    <SelectItem key={node.id} value={node.id}>
-                      {node.data.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="sourceColumn">Source Column</Label>
-              <Select
-                value={relationship.sourceColumn}
-                onValueChange={(value) => setRelationship({ ...relationship, sourceColumn: value })}
-                disabled={!relationship.sourceTable}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select source column" />
-                </SelectTrigger>
-                <SelectContent>
-                  {relationship.sourceTable && 
-                    nodes.find(node => node.id === relationship.sourceTable)?.data.columns.map((column) => (
-                      <SelectItem key={column.name} value={column.name}>
-                        {column.name} ({column.type})
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="targetTable">Target Table</Label>
-              <Select
-                value={relationship.targetTable}
-                onValueChange={(value) => setRelationship({ ...relationship, targetTable: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select target table" />
-                </SelectTrigger>
-                <SelectContent>
-                  {nodes.map((node) => (
-                    <SelectItem key={node.id} value={node.id}>
-                      {node.data.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="targetColumn">Target Column</Label>
-              <Select
-                value={relationship.targetColumn}
-                onValueChange={(value) => setRelationship({ ...relationship, targetColumn: value })}
-                disabled={!relationship.targetTable}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select target column" />
-                </SelectTrigger>
-                <SelectContent>
-                  {relationship.targetTable && 
-                    nodes.find(node => node.id === relationship.targetTable)?.data.columns.map((column) => (
-                      <SelectItem key={column.name} value={column.name}>
-                        {column.name} ({column.type})
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddRelationshipDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddRelationship}>Add Relationship</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <div style={{ height: "100%", width: "100%" }}>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          fitView
+          attributionPosition="top-right"
+          style={{ background: "#F7F9FB" }}
+        >
+          <Controls />
+          <MiniMap />
+          <Background gap={16} size={1} />
+        </ReactFlow>
+      </div>
     </div>
   );
 };

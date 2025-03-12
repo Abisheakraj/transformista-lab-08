@@ -1,224 +1,222 @@
 
-import { useState, useEffect, useCallback } from 'react';
-import { toast } from '@/hooks/use-toast';
+import { useState, useEffect } from "react";
 import { 
+  DatabaseCredentials, 
+  SchemaInfo, 
   testDatabaseConnection, 
   fetchDatabaseSchemas, 
-  fetchSampleData,
-  getSupabaseStatus,
-  DatabaseCredentials,
-  DatabaseSchema,
-  ConnectionStatus
-} from '@/lib/database-client';
+  fetchTableSampleData
+} from "@/lib/database-client";
+import { useToast } from "@/hooks/use-toast";
 
-export interface Connection {
+interface SupabaseStatus {
+  connected: boolean;
+  project?: string;
+}
+
+export interface DatabaseConnection {
   id: string;
   name: string;
-  type: 'source' | 'target';
+  type: "source" | "target";
   connectionType: string;
   host: string;
   port?: string;
   database: string;
   username?: string;
   password?: string;
-  status: 'connected' | 'error' | 'pending';
+  status: "connected" | "failed" | "pending";
   lastTested?: string;
 }
 
-export interface Table {
-  name: string;
-  schema: string;
-  columns: Column[];
-}
-
-export interface Column {
-  name: string;
-  dataType: string;
-  isPrimaryKey: boolean;
-  isForeignKey: boolean;
-}
-
-export default function useDatabaseConnections() {
-  const [connections, setConnections] = useState<Connection[]>([]);
+export function useDatabaseConnections() {
+  const [connections, setConnections] = useState<DatabaseConnection[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [schemas, setSchemas] = useState<DatabaseSchema[]>([]);
-  const [supbaseStatus, setSupabaseStatus] = useState<{connected: boolean; project?: string}>({ connected: false });
-  
-  // Check if connected to Supabase
-  useEffect(() => {
-    const checkSupabaseStatus = async () => {
-      try {
-        const status = getSupabaseStatus();
-        setSupabaseStatus(status);
-        
-        if (status.connected) {
-          toast({
-            title: "Supabase Connected",
-            description: `Connected to Supabase project: ${status.project}`,
-          });
-        }
-      } catch (error) {
-        console.error("Error checking Supabase status:", error);
-      }
+  const [schemas, setSchemas] = useState<SchemaInfo[]>([]);
+  const [selectedConnection, setSelectedConnection] = useState<DatabaseConnection | null>(null);
+  const { toast } = useToast();
+
+  // Get Supabase status
+  const getSupabaseStatus = (): SupabaseStatus => {
+    // This is a mock implementation
+    // In a real app, this would check if Supabase is connected
+    return {
+      connected: false,
+      project: undefined
     };
-    
-    checkSupabaseStatus();
+  };
+
+  // Load connections from localStorage on mount
+  useEffect(() => {
+    const savedConnections = localStorage.getItem('databaseConnections');
+    if (savedConnections) {
+      try {
+        setConnections(JSON.parse(savedConnections));
+      } catch (error) {
+        console.error('Error loading saved connections:', error);
+      }
+    }
   }, []);
-  
-  const addConnection = useCallback((connection: Omit<Connection, 'id' | 'status' | 'lastTested'>) => {
-    const newConnection: Connection = {
+
+  // Save connections to localStorage when they change
+  useEffect(() => {
+    if (connections.length > 0) {
+      localStorage.setItem('databaseConnections', JSON.stringify(connections));
+    }
+  }, [connections]);
+
+  const addConnection = (connection: Omit<DatabaseConnection, 'id' | 'status'>) => {
+    const newConnection: DatabaseConnection = {
       ...connection,
-      id: `conn-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      status: 'pending',
-      lastTested: undefined
+      id: `conn-${Date.now()}`,
+      status: "pending"
     };
     
     setConnections(prev => [...prev, newConnection]);
     
-    toast({
-      title: "Connection Added",
-      description: `${connection.name} has been added. Test the connection to verify it works.`,
-    });
-    
     return newConnection.id;
-  }, []);
-  
-  const removeConnection = useCallback((connectionId: string) => {
-    setConnections(prev => prev.filter(conn => conn.id !== connectionId));
+  };
+
+  const updateConnection = (id: string, updates: Partial<DatabaseConnection>) => {
+    setConnections(prev => 
+      prev.map(conn => conn.id === id ? { ...conn, ...updates } : conn)
+    );
+  };
+
+  const removeConnection = (id: string) => {
+    setConnections(prev => prev.filter(conn => conn.id !== id));
+  };
+
+  const testConnection = async (connectionId: string) => {
+    const connection = connections.find(conn => conn.id === connectionId);
+    if (!connection) return false;
     
-    toast({
-      title: "Connection Removed",
-      description: "The database connection has been removed.",
-    });
-  }, []);
-  
-  const testConnection = useCallback(async (connectionId: string): Promise<ConnectionStatus> => {
     setIsLoading(true);
+    updateConnection(connectionId, { status: "pending" });
     
     try {
-      const connection = connections.find(conn => conn.id === connectionId);
-      
-      if (!connection) {
-        throw new Error("Connection not found");
-      }
-      
       const credentials: DatabaseCredentials = {
         host: connection.host,
-        port: connection.port || "",
+        port: connection.port,
         database: connection.database,
-        username: connection.username || "",
-        password: connection.password || "",
+        username: connection.username,
+        password: connection.password,
         connectionType: connection.connectionType
       };
       
       const result = await testDatabaseConnection(credentials);
       
-      // Update connection status
-      setConnections(prev => prev.map(conn => {
-        if (conn.id === connectionId) {
-          return {
-            ...conn,
-            status: result.success ? 'connected' : 'error',
-            lastTested: new Date().toISOString()
-          };
-        }
-        return conn;
-      }));
+      updateConnection(connectionId, { 
+        status: result.success ? "connected" : "failed",
+        lastTested: new Date().toISOString()
+      });
       
       if (result.success) {
         toast({
-          title: "Connection Successful",
+          title: "Connection successful",
           description: result.message
         });
-        
-        // If connection is successful, fetch the schemas
-        try {
-          const schemas = await fetchDatabaseSchemas(credentials);
-          setSchemas(schemas);
-        } catch (error) {
-          console.error("Error fetching schemas:", error);
-        }
       } else {
         toast({
-          title: "Connection Failed",
+          title: "Connection failed",
           description: result.message,
           variant: "destructive"
         });
       }
       
-      return result;
+      return result.success;
     } catch (error) {
-      console.error("Error testing connection:", error);
-      
       toast({
-        title: "Connection Error",
+        title: "Connection error",
         description: "An unexpected error occurred while testing the connection.",
         variant: "destructive"
       });
       
-      return {
-        success: false,
-        message: "An unexpected error occurred."
-      };
+      updateConnection(connectionId, { 
+        status: "failed",
+        lastTested: new Date().toISOString()
+      });
+      
+      return false;
     } finally {
       setIsLoading(false);
     }
-  }, [connections]);
-  
-  const getSampleData = useCallback(async (connectionId: string, schema: string, table: string, limit = 5) => {
+  };
+
+  const fetchSchemas = async (connectionId: string) => {
+    const connection = connections.find(conn => conn.id === connectionId);
+    if (!connection) return;
+    
     setIsLoading(true);
     
     try {
-      const connection = connections.find(conn => conn.id === connectionId);
-      
-      if (!connection) {
-        throw new Error("Connection not found");
-      }
-      
       const credentials: DatabaseCredentials = {
         host: connection.host,
-        port: connection.port || "",
+        port: connection.port,
         database: connection.database,
-        username: connection.username || "",
-        password: connection.password || "",
+        username: connection.username,
+        password: connection.password,
         connectionType: connection.connectionType
       };
       
-      const sampleData = await fetchSampleData(credentials, schema, table, limit);
-      return sampleData;
-    } catch (error) {
-      console.error("Error fetching sample data:", error);
+      const fetchedSchemas = await fetchDatabaseSchemas(credentials);
+      setSchemas(fetchedSchemas);
+      setSelectedConnection(connection);
       
+      return fetchedSchemas;
+    } catch (error) {
+      console.error('Error fetching schemas:', error);
       toast({
-        title: "Data Fetch Error",
-        description: "An error occurred while fetching sample data.",
+        title: "Error fetching database schemas",
+        description: "Could not retrieve database schema information.",
         variant: "destructive"
       });
-      
-      return [];
     } finally {
       setIsLoading(false);
     }
-  }, [connections]);
-  
-  const getConnectionById = useCallback((connectionId: string) => {
-    return connections.find(conn => conn.id === connectionId);
-  }, [connections]);
-  
-  const getConnectionsByType = useCallback((type: 'source' | 'target') => {
-    return connections.filter(conn => conn.type === type);
-  }, [connections]);
-  
+  };
+
+  const fetchSampleData = async (
+    connectionId: string, 
+    schema: string, 
+    table: string, 
+    limit: number = 10
+  ) => {
+    const connection = connections.find(conn => conn.id === connectionId);
+    if (!connection) return null;
+    
+    try {
+      const credentials: DatabaseCredentials = {
+        host: connection.host,
+        port: connection.port,
+        database: connection.database,
+        username: connection.username,
+        password: connection.password,
+        connectionType: connection.connectionType
+      };
+      
+      return await fetchTableSampleData(credentials, schema, table, limit);
+    } catch (error) {
+      console.error('Error fetching sample data:', error);
+      toast({
+        title: "Error fetching sample data",
+        description: "Could not retrieve sample data from the table.",
+        variant: "destructive"
+      });
+      return null;
+    }
+  };
+
   return {
     connections,
-    schemas,
     isLoading,
-    supbaseStatus,
+    schemas,
+    selectedConnection,
+    getSupabaseStatus,
     addConnection,
+    updateConnection,
     removeConnection,
     testConnection,
-    getSampleData,
-    getConnectionById,
-    getConnectionsByType
+    fetchSchemas,
+    fetchSampleData
   };
 }

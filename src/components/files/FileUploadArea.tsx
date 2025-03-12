@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
+import { FileUploadAreaProps } from "@/types/file-types";
 
-interface FileUploadAreaProps {
-  onFilesSelected: (files: FileList) => void;
-}
-
-const FileUploadArea: React.FC<FileUploadAreaProps> = ({ onFilesSelected }) => {
+const FileUploadArea: React.FC<FileUploadAreaProps> = ({ 
+  onFilesSelected, 
+  allowedFileTypes = [".csv", ".xlsx", ".xls", ".json"],
+  maxFileSize = 10, // MB
+  multiple = false
+}) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
@@ -52,22 +54,27 @@ const FileUploadArea: React.FC<FileUploadAreaProps> = ({ onFilesSelected }) => {
     if (files.length === 0) return;
 
     // Check file extensions
-    const file = files[0];
-    const extension = file.name.split(".").pop()?.toLowerCase();
+    const filesArray = Array.from(files);
+    const invalidFiles = filesArray.filter(file => {
+      const extension = `.${file.name.split(".").pop()?.toLowerCase()}`;
+      return !allowedFileTypes.includes(extension);
+    });
 
-    if (!extension) {
+    if (invalidFiles.length > 0) {
       toast({
-        title: "Invalid file",
-        description: "Cannot determine file type.",
+        title: "Unsupported file format",
+        description: `Please upload only ${allowedFileTypes.join(", ")} files.`,
         variant: "destructive",
       });
       return;
     }
 
-    if (!["csv", "xlsx", "xls", "json"].includes(extension)) {
+    // Check file size
+    const oversizedFiles = filesArray.filter(file => file.size > maxFileSize * 1024 * 1024);
+    if (oversizedFiles.length > 0) {
       toast({
-        title: "Unsupported file format",
-        description: "Please upload a CSV, Excel, or JSON file.",
+        title: "File too large",
+        description: `Maximum file size is ${maxFileSize}MB.`,
         variant: "destructive",
       });
       return;
@@ -76,7 +83,7 @@ const FileUploadArea: React.FC<FileUploadAreaProps> = ({ onFilesSelected }) => {
     // Show success toast
     toast({
       title: "File uploaded successfully",
-      description: `Processing ${file.name}...`,
+      description: `Processing ${files.length > 1 ? 'files' : files[0].name}...`,
       variant: "default",
     });
 
@@ -101,8 +108,8 @@ const FileUploadArea: React.FC<FileUploadAreaProps> = ({ onFilesSelected }) => {
         ref={fileInputRef}
         className="hidden"
         onChange={handleFileInputChange}
-        accept=".csv,.xlsx,.xls,.json"
-        multiple={false}
+        accept={allowedFileTypes.join(",")}
+        multiple={multiple}
       />
       <Button 
         variant="outline" 
@@ -115,7 +122,7 @@ const FileUploadArea: React.FC<FileUploadAreaProps> = ({ onFilesSelected }) => {
         <Upload className="h-4 w-4 mr-2" />
         Upload Files
       </Button>
-      <p className="text-xs text-gray-400 mt-2">Supported formats: .csv, .xlsx, .json</p>
+      <p className="text-xs text-gray-400 mt-2">Supported formats: {allowedFileTypes.join(", ")}</p>
     </div>
   );
 };
