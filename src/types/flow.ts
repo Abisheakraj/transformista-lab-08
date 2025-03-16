@@ -30,15 +30,14 @@ export interface FlowEdge {
   target: string;
   sourceHandle?: string | null;
   targetHandle?: string | null;
-  // Make animated optional to match Edge type
   animated?: boolean;
   style?: React.CSSProperties;
   type?: string;
   markerEnd?: string | {
     type: string;
-    width: number;
-    height: number;
-    color: string;
+    width?: number;
+    height?: number;
+    color?: string;
   };
   label?: string;
 }

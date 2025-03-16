@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect, useRef } from "react";
 import {
   ReactFlow,
@@ -153,30 +152,27 @@ const FlowDesignerTab = ({ projectId, onSave, onRun }: FlowDesignerTabProps) => 
 
   const onConnect = useCallback(
     (params: Connection) => {
-      // Create a custom edge object that matches our FlowEdge interface
-      const newEdge = {
-        ...params,
-        id: `e${params.source}-${params.target}`,
-        animated: true,
-        style: { stroke: "#93c5fd" },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 20,
-          height: 20,
-          color: "#93c5fd",
-        },
-        label: "connects to",
-      };
+      const edgeId = `e${params.source}-${params.target}`;
       
-      // Use addEdge to create the edge with the correct type
-      setEdges((eds) => addEdge(newEdge, eds));
-      
-      toast({
-        title: "Relationship Added",
-        description: "A new relationship has been created between the nodes.",
-      });
+      // Create a new edge with the correct type structure
+      setEdges((eds) => 
+        addEdge({
+          ...params,
+          id: edgeId,
+          animated: true,
+          style: { stroke: "#93c5fd" },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+          },
+          label: "connects to",
+        }, eds)
+      );
       
       if (isAddRelationshipMode) {
+        toast({
+          title: "Relationship Added",
+          description: "A new relationship has been created between the nodes.",
+        });
         setIsAddRelationshipMode(false);
       }
     },
