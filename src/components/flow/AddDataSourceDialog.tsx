@@ -48,7 +48,16 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
   const [connectionResult, setConnectionResult] = useState<{ success: boolean; message: string } | null>(null);
   const [supabaseStatus, setSupabaseStatus] = useState<{ connected: boolean; project?: string }>({ connected: false });
   
-  const { register, handleSubmit, reset, control, getValues, setValue, formState: { errors } } = useForm<FormData>();
+  const { register, handleSubmit, reset, control, getValues, setValue, formState: { errors } } = useForm<FormData>({
+    defaultValues: {
+      connectionType: type === 'source' ? 'MySQL' : 'PostgreSQL',
+      host: 'localhost',
+      port: '3306',
+      database: 'airportdb',
+      username: 'root',
+      password: '9009'
+    }
+  });
 
   // Reset form when dialog opens/closes
   useEffect(() => {
@@ -70,6 +79,29 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
   const handleFormSubmit = async (data: FormData) => {
     try {
       setIsLoading(true);
+      
+      // Test connection before submitting
+      const testResult = await testDatabaseConnection({
+        host: data.host,
+        port: data.port,
+        database: data.database,
+        username: data.username,
+        password: data.password,
+        connectionType: data.connectionType.toLowerCase(),
+        db_type: data.connectionType.toLowerCase()
+      });
+      
+      if (!testResult.success) {
+        useToast().toast({
+          title: "Connection Failed",
+          description: testResult.message,
+          variant: "destructive"
+        });
+        setConnectionResult(testResult);
+        setIsLoading(false);
+        return;
+      }
+      
       await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API call
       onSubmit({
         ...data,
@@ -81,6 +113,7 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
       });
       reset();
       setConnectionResult(null);
+      onOpenChange(false);
     } catch (error) {
       console.error("Error adding data source:", error);
       useToast().toast({
@@ -109,15 +142,18 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
     setConnectionResult(null);
     
     try {
+      console.log("Testing connection with data:", values);
       const result = await testDatabaseConnection({
         host: values.host,
         port: values.port,
         database: values.database,
         username: values.username,
         password: values.password,
-        connectionType: values.connectionType.toLowerCase()
+        connectionType: values.connectionType.toLowerCase(),
+        db_type: values.connectionType.toLowerCase()
       });
       
+      console.log("Connection test result:", result);
       setConnectionResult({
         success: result.success,
         message: result.message
@@ -136,6 +172,7 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
         });
       }
     } catch (error) {
+      console.error("Connection test error:", error);
       useToast().toast({
         title: "Connection Error",
         description: "An unexpected error occurred while testing the connection.",

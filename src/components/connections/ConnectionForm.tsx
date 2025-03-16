@@ -66,6 +66,7 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
     setConnectionResult(null);
     
     try {
+      console.log("Testing connection with data:", formData);
       const result = await testDatabaseConnection({
         host: formData.host,
         port: formData.port,
@@ -76,6 +77,7 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
         db_type: formData.connectionType.toLowerCase()
       });
       
+      console.log("Connection test result:", result);
       setConnectionResult(result);
       
       if (result.success) {
@@ -91,6 +93,7 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
         });
       }
     } catch (error) {
+      console.error("Connection test error:", error);
       toast({
         title: "Connection Error",
         description: "An unexpected error occurred while testing the connection.",
@@ -122,6 +125,7 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
     
     try {
       // Test the connection before adding
+      console.log("Testing connection before adding...");
       const testResult = await testDatabaseConnection({
         host: formData.host,
         port: formData.port,
@@ -143,6 +147,7 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
         return;
       }
 
+      console.log("Adding connection to store");
       // Add connection to the store
       addConnection({
         name: formData.name,
@@ -166,6 +171,7 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
         description: `Successfully added ${formData.name} connection.`
       });
     } catch (error) {
+      console.error("Error adding connection:", error);
       toast({
         title: "Error adding connection",
         description: "There was a problem adding your connection. Please try again.",
