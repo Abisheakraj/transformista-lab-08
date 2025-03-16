@@ -11,11 +11,10 @@ import Dashboard from "./pages/Dashboard";
 import ProjectDetail from "./pages/ProjectDetail";
 import WorkspacePage from "./pages/WorkspacePage";
 import ConnectionsPage from "./pages/ConnectionsPage";
-import AgentSelectionPage from "./pages/AgentSelectionPage";
 
 // Create a simple auth context to simulate authentication
 interface AuthContextType {
-  isAuthenticated: boolean;
+  is Authenticated: boolean;
   login: () => void;
   logout: () => void;
 }
@@ -57,11 +56,6 @@ const App = () => {
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<LoginPage />} />
-              <Route path="/agent-selection" element={
-                <ProtectedRoute>
-                  <AgentSelectionPage />
-                </ProtectedRoute>
-              } />
               <Route path="/dashboard" element={
                 <ProtectedRoute>
                   <Dashboard />

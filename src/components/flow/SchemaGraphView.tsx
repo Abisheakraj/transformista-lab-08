@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -65,10 +66,15 @@ const SchemaGraphView = ({ schemas = [], onCreatePipeline, onTableMappingChange 
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedTables, setSelectedTables] = useState<string[]>([]);
   const [nodeTypes] = useState({ tableNode: TableNode });
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    initializeGraph();
-  }, [schemas]);
+    // Only initialize once or when schemas change
+    if (!initialized || schemas.length > 0) {
+      initializeGraph();
+      setInitialized(true);
+    }
+  }, [schemas, initialized]);
 
   const initializeGraph = () => {
     if (!schemas || schemas.length === 0) {
@@ -208,18 +214,14 @@ const SchemaGraphView = ({ schemas = [], onCreatePipeline, onTableMappingChange 
               data: {
                 label: table.name,
                 schema: schema.name,
-                columns: table.columns.map((col: any) => col.name),
-                primaryKey: table.primaryKey,
-                foreignKeys: table.foreignKeys
+                columns: table.columns.map((col: any) => ({
+                  name: col.name,
+                  type: col.type,
+                  isPrimaryKey: table.primaryKey?.includes(col.name),
+                  isForeignKey: table.foreignKeys?.some((fk: any) => fk.columns.includes(col.name))
+                })),
               },
               position: { x: xPos, y: yPos },
-              style: {
-                width: 180,
-                padding: 10,
-                background: "#f0f9ff",
-                borderColor: "#93c5fd",
-                borderWidth: 2,
-              },
             });
           });
           yOffset += schema.tables.length * 100;

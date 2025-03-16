@@ -6,35 +6,61 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { FileSpreadsheet, BarChart2, PieChart as PieChartIcon } from "lucide-react";
 import { DataVisualizationProps } from "@/types/file-types";
 
-const DataVisualization = ({ data = [], columns = [], rows = [] }: DataVisualizationProps) => {
+const DataVisualization = ({ data = [], columns = [], rows = [], file }: DataVisualizationProps) => {
   const [activeTab, setActiveTab] = useState("table");
   
+  // Use data from file if provided, otherwise use direct data
+  const displayData = file?.rows || data;
+  const displayColumns = file?.columns || columns;
+  const displayRows = file?.rows || rows;
+  
   // Determine if we can create a chart from this data
-  const canCreateChart = data && data.length > 0 && columns && columns.length > 0;
+  const canCreateChart = displayData && displayData.length > 0;
   
   // Find numeric columns for charting
-  const numericColumns = columns.filter(column => {
-    if (!data || data.length === 0) return false;
-    const sampleValue = data[0][column];
+  const numericColumns = displayColumns ? displayColumns.filter(column => {
+    if (!displayData || displayData.length === 0) return false;
+    // For file data structure
+    if (displayRows && displayRows.length > 0) {
+      const sampleValue = displayRows[0][displayColumns.indexOf(column)];
+      return typeof sampleValue === 'number' || !isNaN(Number(sampleValue));
+    }
+    // For object data structure
+    const sampleValue = displayData[0][column];
     return typeof sampleValue === 'number' || !isNaN(Number(sampleValue));
-  });
+  }) : [];
   
   const hasNumericData = numericColumns.length > 0;
   
   // Prepare chart data (use up to 10 rows for clarity)
-  const chartData = data?.slice(0, 10).map((row, i) => ({
-    name: `Row ${i + 1}`,
-    ...numericColumns.reduce((acc, col) => {
-      acc[col] = Number(row[col]);
-      return acc;
-    }, {} as Record<string, number>)
-  }));
+  const chartData = canCreateChart ? displayData.slice(0, 10).map((row, i) => {
+    if (Array.isArray(row)) {
+      // Handle row-based data
+      return {
+        name: `Row ${i + 1}`,
+        ...numericColumns.reduce((acc, col, colIndex) => {
+          const value = row[displayColumns.indexOf(col)];
+          acc[col] = Number(value) || 0;
+          return acc;
+        }, {} as Record<string, number>)
+      };
+    } else {
+      // Handle object-based data
+      return {
+        name: `Row ${i + 1}`,
+        ...numericColumns.reduce((acc, col) => {
+          acc[col] = Number(row[col]) || 0;
+          return acc;
+        }, {} as Record<string, number>)
+      };
+    }
+  }) : [];
   
   // For pie chart, just use the first numeric column and row labels
-  const pieChartData = chartData?.map((item) => ({
+  const pieChartData = hasNumericData ? chartData?.map((item) => ({
     name: item.name,
     value: item[numericColumns[0]] || 0
-  }));
+  })) : [];
   
   // Colors for charts
   const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
@@ -59,11 +85,11 @@ const DataVisualization = ({ data = [], columns = [], rows = [] }: DataVisualiza
         
         <TabsContent value="table" className="p-0">
           <div className="overflow-auto max-h-96">
-            {columns && columns.length > 0 && rows && rows.length > 0 ? (
+            {displayColumns && displayColumns.length > 0 && displayRows && displayRows.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    {columns.map((column, i) => (
+                    {displayColumns.map((column, i) => (
                       <TableHead key={i} className="font-semibold">
                         {column}
                       </TableHead>
@@ -71,7 +97,7 @@ const DataVisualization = ({ data = [], columns = [], rows = [] }: DataVisualiza
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.slice(0, 100).map((row, i) => (
+                  {displayRows.slice(0, 100).map((row, i) => (
                     <TableRow key={i}>
                       {row.map((cell, j) => (
                         <TableCell key={j}>
@@ -82,11 +108,11 @@ const DataVisualization = ({ data = [], columns = [], rows = [] }: DataVisualiza
                   ))}
                 </TableBody>
               </Table>
-            ) : data && data.length > 0 ? (
+            ) : displayData && displayData.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    {Object.keys(data[0]).map((key) => (
+                    {Object.keys(displayData[0]).map((key) => (
                       <TableHead key={key} className="font-semibold">
                         {key}
                       </TableHead>
@@ -94,7 +120,7 @@ const DataVisualization = ({ data = [], columns = [], rows = [] }: DataVisualiza
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.slice(0, 100).map((row, i) => (
+                  {displayData.slice(0, 100).map((row, i) => (
                     <TableRow key={i}>
                       {Object.values(row).map((value, j) => (
                         <TableCell key={j}>
@@ -126,7 +152,9 @@ const DataVisualization = ({ data = [], columns = [], rows = [] }: DataVisualiza
                   tick={{ fontSize: 12 }}
                 />
                 <YAxis />
-                <Tooltip />
+                <Tooltip formatter={(value) => {
+                  return typeof value === 'number' ? value.toFixed(2) : value;
+                }} />
                 <Legend wrapperStyle={{ bottom: 0 }} />
                 {numericColumns.slice(0, 4).map((column, index) => (
                   <Bar key={column} dataKey={column} fill={COLORS[index % COLORS.length]} />
@@ -158,7 +186,9 @@ const DataVisualization = ({ data = [], columns = [], rows = [] }: DataVisualiza
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => typeof value === 'number' ? value.toFixed(2) : value} />
+                <Tooltip formatter={(value) => {
+                  return typeof value === 'number' ? value.toFixed(2) : value;
+                }} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
