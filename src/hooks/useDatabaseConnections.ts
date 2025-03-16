@@ -33,6 +33,9 @@ export function useDatabaseConnections() {
   const [isLoading, setIsLoading] = useState(false);
   const [schemas, setSchemas] = useState<SchemaInfo[]>([]);
   const [selectedConnection, setSelectedConnection] = useState<DatabaseConnection | null>(null);
+  const [selectedTable, setSelectedTable] = useState<string | null>(null);
+  const [selectedSchema, setSelectedSchema] = useState<string | null>(null);
+  const [tableData, setTableData] = useState<{columns: string[], rows: any[][]} | null>(null);
   const { toast } = useToast();
 
   // Get Supabase status
@@ -162,12 +165,38 @@ export function useDatabaseConnections() {
       setSchemas(fetchedSchemas);
       setSelectedConnection(connection);
       
+      // Reset selected table when schemas change
+      setSelectedTable(null);
+      setTableData(null);
+      
       return fetchedSchemas;
     } catch (error) {
       console.error('Error fetching schemas:', error);
       toast({
         title: "Error fetching database schemas",
         description: "Could not retrieve database schema information.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const selectTable = async (schema: string, table: string) => {
+    if (!selectedConnection) return;
+    
+    setSelectedSchema(schema);
+    setSelectedTable(table);
+    setIsLoading(true);
+    
+    try {
+      const data = await fetchSampleData(selectedConnection.id, schema, table, 50);
+      setTableData(data);
+    } catch (error) {
+      console.error('Error selecting table:', error);
+      toast({
+        title: "Error selecting table",
+        description: "Could not load table data.",
         variant: "destructive"
       });
     } finally {
@@ -211,12 +240,16 @@ export function useDatabaseConnections() {
     isLoading,
     schemas,
     selectedConnection,
+    selectedTable,
+    selectedSchema,
+    tableData,
     getSupabaseStatus,
     addConnection,
     updateConnection,
     removeConnection,
     testConnection,
     fetchSchemas,
-    fetchSampleData
+    fetchSampleData,
+    selectTable
   };
 }

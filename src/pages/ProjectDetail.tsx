@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -38,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
+import { useDatabaseConnections } from "@/hooks/useDatabaseConnections";
 
 interface Project {
   id: string;
@@ -85,6 +85,18 @@ const ProjectDetail = () => {
   const [targetConnection, setTargetConnection] = useState<any>({ type: "PostgreSQL", tables: 3 });
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [sourceTabContent, setSourceTabContent] = useState<"database" | "files">("database");
+  
+  const { 
+    connections, 
+    isLoading: isDbLoading, 
+    schemas, 
+    selectedConnection,
+    selectedTable,
+    selectedSchema,
+    tableData,
+    fetchSchemas, 
+    selectTable 
+  } = useDatabaseConnections();
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -137,6 +149,11 @@ const ProjectDetail = () => {
       title: "Source Added",
       description: `Source "${data.name}" has been added successfully.`
     });
+    
+    if (data.id) {
+      fetchSchemas(data.id);
+    }
+    
     setActiveTab("tableMapping");
   };
 
@@ -157,13 +174,15 @@ const ProjectDetail = () => {
     setActiveTab("tableMapping");
   };
 
+  const handleTableSelect = (schema: string, tableName: string) => {
+    selectTable(schema, tableName);
+  };
+
   const handleFilesSelected = (files: FileList) => {
-    // Process each uploaded file
     Array.from(files).forEach(file => {
       const reader = new FileReader();
       const fileId = `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       
-      // Create a new file entry
       const newFile: UploadedFile = {
         id: fileId,
         name: file.name,
@@ -172,7 +191,6 @@ const ProjectDetail = () => {
         data: null
       };
       
-      // Add to processed files with progress indicator
       const processedFile: ProcessedFile = { 
         name: file.name, 
         status: "processing", 
@@ -183,7 +201,6 @@ const ProjectDetail = () => {
       
       reader.onload = (e) => {
         try {
-          // Process based on file type
           const fileExtension = file.name.split('.').pop()?.toLowerCase();
           let parsedData: any[] = [];
           let columns: string[] = [];
@@ -198,7 +215,6 @@ const ProjectDetail = () => {
               columns = parsedCsv.meta.fields;
             }
             
-            // Convert data to rows format
             rows = parsedData.map(item => columns.map(col => item[col]));
             
           } else if (fileExtension === 'json') {
@@ -222,7 +238,6 @@ const ProjectDetail = () => {
             }
           }
           
-          // Update the file with parsed data
           const updatedFile = {
             ...newFile,
             data: parsedData,
@@ -237,7 +252,6 @@ const ProjectDetail = () => {
             setFileData(parsedData);
           }
           
-          // Simulate file processing with progress updates
           let progress = 0;
           const interval = setInterval(() => {
             progress += 10;
@@ -278,7 +292,6 @@ const ProjectDetail = () => {
         }
       };
       
-      // Read the file based on its type
       if (file.type === "application/json") {
         reader.readAsText(file);
       } else if (file.type === "text/csv" || file.name.endsWith('.csv')) {
@@ -290,7 +303,6 @@ const ProjectDetail = () => {
   };
 
   const handleCreatePipeline = (nodes?: any[], edges?: any[]) => {
-    // Create initial pipeline nodes based on source/target connections
     const initialNodes: FlowNode[] = nodes || [
       {
         id: 'source-1',
@@ -347,7 +359,6 @@ const ProjectDetail = () => {
   const handleRunPipeline = () => {
     setIsRunning(true);
     
-    // Simulate API call
     setTimeout(() => {
       setIsRunning(false);
       toast({
@@ -519,14 +530,65 @@ const ProjectDetail = () => {
                             </div>
                           </CardHeader>
                           <CardContent>
-                            <h4 className="text-sm font-medium mb-2">Available Tables</h4>
-                            <div className="grid grid-cols-2 gap-2">
-                              {['customers', 'orders', 'products', 'inventory'].map(table => (
-                                <div key={table} className="bg-gray-50 p-2 rounded border text-sm flex items-center">
-                                  <Table className="h-3.5 w-3.5 mr-2 text-gray-500" />
-                                  {table}
+                            <div className="space-y-4">
+                              <div>
+                                <h4 className="text-sm font-medium mb-2">Select a Table to View</h4>
+                                <Select 
+                                  onValueChange={(value) => {
+                                    const [schema, table] = value.split('.');
+                                    handleTableSelect(schema, table);
+                                  }}
+                                  value={selectedSchema && selectedTable ? `${selectedSchema}.${selectedTable}` : undefined}
+                                >
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Select a table" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {schemas.map((schema) => (
+                                      <div key={schema.name}>
+                                        <Label className="px-2 py-1.5 text-xs font-semibold text-gray-500">{schema.name}</Label>
+                                        {schema.tables.map((table) => (
+                                          <SelectItem 
+                                            key={`${schema.name}.${table.name}`} 
+                                            value={`${schema.name}.${table.name}`}
+                                            className="flex items-center"
+                                          >
+                                            <Table className="h-3.5 w-3.5 mr-2 text-gray-500" />
+                                            {table.name}
+                                          </SelectItem>
+                                        ))}
+                                      </div>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              
+                              {isDbLoading && (
+                                <div className="py-8 flex items-center justify-center">
+                                  <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                  <span className="ml-2 text-sm text-gray-500">Loading table data...</span>
                                 </div>
-                              ))}
+                              )}
+                              
+                              {selectedTable && tableData && !isDbLoading && (
+                                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                                  <div className="bg-gray-50 px-4 py-2 border-b">
+                                    <h4 className="font-medium">{selectedTable} Data</h4>
+                                  </div>
+                                  <DataVisualization
+                                    data={[]}
+                                    columns={tableData.columns}
+                                    rows={tableData.rows}
+                                  />
+                                </div>
+                              )}
+                              
+                              {!selectedTable && !isDbLoading && (
+                                <div className="text-center py-6 text-gray-500 border border-gray-200 rounded-lg">
+                                  <Table className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                                  <p>Select a table to view its data</p>
+                                </div>
+                              )}
                             </div>
                           </CardContent>
                         </Card>
