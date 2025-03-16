@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { useAuth } from "@/App";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import CreateProjectDialog from "@/components/projects/CreateProjectDialog";
 import CorsProxy from "@/components/connections/CorsProxy";
+import { useToast } from "@/hooks/use-toast";
 
 // Sample projects data
 const projects = [
@@ -62,6 +62,7 @@ const templates = [
 const Dashboard = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const { isAuthenticated, logout } = useAuth();
+  const { toast } = useToast();
 
   // Simple date formatter
   const formatDate = (date: Date) => {
@@ -70,6 +71,18 @@ const Dashboard = () => {
       day: "numeric",
       year: "numeric",
     }).format(date);
+  };
+
+  // Handle project creation
+  const handleCreateProject = (project: { name: string; description: string }) => {
+    // Here you would typically make an API call to save the project
+    toast({
+      title: "Project Created",
+      description: `Successfully created project "${project.name}"`,
+    });
+    
+    setCreateDialogOpen(false);
+    // Optionally, you could refresh the projects list here or redirect to the new project
   };
 
   return (
@@ -220,7 +233,11 @@ const Dashboard = () => {
           </TabsContent>
         </Tabs>
 
-        <CreateProjectDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
+        <CreateProjectDialog 
+          open={createDialogOpen} 
+          onOpenChange={setCreateDialogOpen} 
+          onSubmit={handleCreateProject}
+        />
       </div>
     </SidebarLayout>
   );
