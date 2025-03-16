@@ -29,6 +29,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { UploadedFile } from "@/types/file-types";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 
 interface Project {
   id: string;

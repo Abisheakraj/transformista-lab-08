@@ -9,6 +9,7 @@ import { FileUploadAreaProps } from "@/types/file-types";
 
 const FileUploadArea: React.FC<FileUploadAreaProps> = ({ 
   onFilesSelected, 
+  onFilesUploaded,
   allowedFileTypes = [".csv", ".xlsx", ".xls", ".json"],
   maxFileSize = 10, // MB
   multiple = false
@@ -89,6 +90,108 @@ const FileUploadArea: React.FC<FileUploadAreaProps> = ({
 
     // Call the parent handler
     onFilesSelected(files);
+    
+    // If onFilesUploaded is provided, call it with processed files
+    if (onFilesUploaded) {
+      // Process files here
+      processFiles(files).then(processedFiles => {
+        onFilesUploaded(processedFiles);
+      });
+    }
+  };
+  
+  const processFiles = async (files: FileList): Promise<UploadedFile[]> => {
+    const processedFiles: UploadedFile[] = [];
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const fileId = `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      try {
+        const fileData = await readFileData(file);
+        
+        processedFiles.push({
+          id: fileId,
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          data: fileData.data,
+          columns: fileData.columns,
+          rows: fileData.rows
+        });
+      } catch (error) {
+        console.error("Error processing file:", error);
+      }
+    }
+    
+    return processedFiles;
+  };
+  
+  const readFileData = (file: File): Promise<{ data: any[], columns: string[], rows: any[][] }> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const fileExtension = file.name.split('.').pop()?.toLowerCase();
+          let parsedData: any[] = [];
+          let columns: string[] = [];
+          let rows: any[][] = [];
+          
+          if (fileExtension === 'csv') {
+            const content = e.target?.result as string;
+            const parsedCsv = Papa.parse(content, { header: true });
+            parsedData = parsedCsv.data as any[];
+            
+            if (parsedCsv.meta && parsedCsv.meta.fields) {
+              columns = parsedCsv.meta.fields;
+            }
+            
+            // Convert data to rows format
+            rows = parsedData.map(item => columns.map(col => item[col]));
+            
+          } else if (fileExtension === 'json') {
+            parsedData = JSON.parse(e.target?.result as string);
+            
+            if (Array.isArray(parsedData) && parsedData.length > 0) {
+              columns = Object.keys(parsedData[0]);
+              rows = parsedData.map(item => columns.map(col => item[col]));
+            }
+            
+          } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+            const arrayBuffer = e.target?.result as ArrayBuffer;
+            const wb = XLSX.read(arrayBuffer, { type: 'array' });
+            const wsname = wb.SheetNames[0];
+            const ws = wb.Sheets[wsname];
+            parsedData = XLSX.utils.sheet_to_json(ws);
+            
+            if (parsedData.length > 0) {
+              columns = Object.keys(parsedData[0]);
+              rows = parsedData.map(item => columns.map(col => item[col]));
+            }
+          }
+          
+          resolve({ data: parsedData, columns, rows });
+        } catch (error) {
+          reject(error);
+        }
+      };
+      
+      reader.onerror = (error) => {
+        reject(error);
+      };
+      
+      // Read the file based on its type
+      if (file.type === "application/json" || file.name.endsWith('.json')) {
+        reader.readAsText(file);
+      } else if (file.type === "text/csv" || file.name.endsWith('.csv')) {
+        reader.readAsText(file);
+      } else if (file.type.includes("spreadsheet") || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        reader.readAsArrayBuffer(file);
+      } else {
+        reject(new Error("Unsupported file type"));
+      }
+    });
   };
 
   return (
@@ -128,3 +231,14 @@ const FileUploadArea: React.FC<FileUploadAreaProps> = ({
 };
 
 export default FileUploadArea;
+
+// Export the UploadedFile type for use in other components
+export interface UploadedFile {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  data: any[];
+  columns?: string[];
+  rows?: any[][];
+}

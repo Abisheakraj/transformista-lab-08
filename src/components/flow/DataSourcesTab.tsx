@@ -9,8 +9,9 @@ import AddDataSourceDialog from "./AddDataSourceDialog";
 import { Separator } from "@/components/ui/separator";
 import { Link as RouterLink } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import FileUploadArea, { UploadedFile } from "../files/FileUploadArea";
+import FileUploadArea from "../files/FileUploadArea";
 import DataVisualization from "../files/DataVisualization";
+import { UploadedFile } from "../files/FileUploadArea";
 
 interface DataSource {
   id: string;
@@ -131,6 +132,11 @@ const DataSourcesTab = ({ projectId }: DataSourcesTabProps) => {
     });
   };
 
+  const handleFilesSelected = (files: FileList) => {
+    // This will be handled by the FileUploadArea component internally
+    console.log("Files selected:", files);
+  };
+  
   const handleFilesUploaded = (files: UploadedFile[]) => {
     setUploadedFiles(files);
     if (files.length > 0 && !selectedFile) {
@@ -346,6 +352,7 @@ const DataSourcesTab = ({ projectId }: DataSourcesTabProps) => {
               </p>
               
               <FileUploadArea 
+                onFilesSelected={handleFilesSelected}
                 onFilesUploaded={handleFilesUploaded}
                 allowedFileTypes={['.csv', '.xlsx', '.xls', '.json']}
                 maxFileSize={20}
@@ -378,7 +385,11 @@ const DataSourcesTab = ({ projectId }: DataSourcesTabProps) => {
               </div>
               
               {selectedFile && (
-                <DataVisualization file={selectedFile} />
+                <DataVisualization 
+                  data={selectedFile.data}
+                  columns={selectedFile.columns}
+                  rows={selectedFile.rows}
+                />
               )}
             </div>
           )}

@@ -158,7 +158,7 @@ const DataVisualization = ({ data = [], columns = [], rows = [] }: DataVisualiza
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => value.toFixed(2)} />
+                <Tooltip formatter={(value) => typeof value === 'number' ? value.toFixed(2) : value} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
