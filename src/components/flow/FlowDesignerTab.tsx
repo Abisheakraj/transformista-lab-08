@@ -153,10 +153,11 @@ const FlowDesignerTab = ({ projectId, onSave, onRun }: FlowDesignerTabProps) => 
 
   const onConnect = useCallback(
     (params: Connection) => {
+      // Create a new edge with required properties, ensuring compatibility with Edge type
       const newEdge = {
         ...params,
         id: `e${params.source}-${params.target}`,
-        animated: true,
+        animated: true, // This is now optional in FlowEdge type
         style: { stroke: "#93c5fd" },
         markerEnd: {
           type: MarkerType.ArrowClosed,
@@ -166,6 +167,8 @@ const FlowDesignerTab = ({ projectId, onSave, onRun }: FlowDesignerTabProps) => 
         },
         label: "connects to",
       };
+      
+      // Use the Edge type that addEdge returns
       setEdges((eds) => addEdge(newEdge, eds));
       
       toast({

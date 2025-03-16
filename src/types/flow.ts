@@ -28,9 +28,9 @@ export interface FlowEdge {
   id: string;
   source: string;
   target: string;
-  sourceHandle?: string;
-  targetHandle?: string;
-  // Add these properties for React Flow
+  sourceHandle?: string | null;
+  targetHandle?: string | null;
+  // Make animated optional to match Edge type
   animated?: boolean;
   style?: React.CSSProperties;
   type?: string;
