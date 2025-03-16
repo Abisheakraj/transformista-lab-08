@@ -48,7 +48,7 @@ export interface DatabaseSampleData {
   rows: any[][];
 }
 
-// API base URL
+// API base URL - use the provided ngrok URL
 const API_BASE_URL = "https://1280-2405-201-e01c-b2bd-2520-45f9-1b7c-f867.ngrok-free.app";
 
 /**
@@ -64,7 +64,7 @@ export const testDatabaseConnection = async (credentials: DatabaseCredentials): 
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        db_type: credentials.connectionType.toLowerCase(),
+        db_type: credentials.db_type || credentials.connectionType.toLowerCase(),
         host: credentials.host,
         port: credentials.port,
         username: credentials.username,
@@ -107,7 +107,7 @@ export const selectDatabase = async (credentials: DatabaseCredentials): Promise<
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        db_type: credentials.connectionType.toLowerCase(),
+        db_type: credentials.db_type || credentials.connectionType.toLowerCase(),
         host: credentials.host,
         port: credentials.port,
         username: credentials.username,
@@ -152,8 +152,7 @@ export const fetchDatabaseSchemas = async (credentials: DatabaseCredentials): Pr
       throw new Error(selectionResult.message);
     }
     
-    // For this API, we need to use a different approach
-    // We'll get all tables and organize them by schema
+    // For this API, we'll get all tables and organize them by schema
     const tables = await fetchTables(credentials);
     
     if (!tables || tables.length === 0) {
@@ -273,29 +272,6 @@ const fetchTables = async (credentials: DatabaseCredentials): Promise<TableInfo[
     console.error('Error fetching tables:', error);
     throw error;
   }
-};
-
-/**
- * Execute an SQL query
- */
-export const executeQuery = async (credentials: DatabaseCredentials, query: string): Promise<any> => {
-  console.log("Executing query:", query, "on", credentials);
-  
-  // This would be an API call in a real implementation
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  // Mock query result for demo purposes
-  const mockResult = {
-    columns: ["id", "name", "value"],
-    rows: [
-      [1, "Item 1", 10.5],
-      [2, "Item 2", 20.75],
-      [3, "Item 3", 15.3],
-      [4, "Item 4", 30.0]
-    ]
-  };
-  
-  return mockResult;
 };
 
 /**

@@ -1,11 +1,11 @@
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useDatabaseConnections } from "@/hooks/useDatabaseConnections";
-import { Loader2, Wand2 } from "lucide-react";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Wand2, AlertCircle, CheckCircle } from "lucide-react";
 
 interface DatabaseTransformationProps {
   schema: string | null;
@@ -14,66 +14,79 @@ interface DatabaseTransformationProps {
 
 const DatabaseTransformation = ({ schema, table }: DatabaseTransformationProps) => {
   const [instruction, setInstruction] = useState("");
-  const { isLoading, selectedConnection, processTransformation, processingResult } = useDatabaseConnections();
+  const { processTransformation, processingResult, isLoading } = useDatabaseConnections();
 
-  const handleProcess = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!schema || !table || !instruction.trim()) return;
     
     await processTransformation(instruction, table, schema);
   };
 
-  if (!selectedConnection || !schema || !table) {
-    return null;
-  }
+  if (!schema || !table) return null;
 
   return (
-    <Card className="mt-4">
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center">
-          <Wand2 className="h-5 w-5 mr-2 text-purple-600" /> Data Transformation
+    <Card className="mt-6 border-indigo-100">
+      <CardHeader className="bg-gradient-to-r from-indigo-50 to-white">
+        <CardTitle className="flex items-center">
+          <Wand2 className="h-5 w-5 mr-2 text-indigo-600" />
+          Transform Table Data
         </CardTitle>
-        <CardDescription>
-          Apply transformations to {schema}.{table} using natural language instructions
-        </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <Textarea
-            placeholder="Enter your transformation instruction (e.g., 'normalize the base_airport column')"
-            value={instruction}
-            onChange={(e) => setInstruction(e.target.value)}
-            className="min-h-[100px]"
-          />
+      <CardContent className="pt-4">
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <p className="text-sm text-gray-500 mb-2">
+              Enter instructions to transform the data in <span className="font-semibold">{schema}.{table}</span>
+            </p>
+            <Textarea
+              placeholder="e.g., 'Normalize the base_airport column' or 'Convert all country names to uppercase'"
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
+              className="min-h-[100px]"
+            />
+          </div>
           
           {processingResult && (
-            <Alert variant={processingResult.success ? "default" : "destructive"}>
-              <AlertTitle>{processingResult.success ? "Success" : "Error"}</AlertTitle>
-              <AlertDescription>
-                {processingResult.message}
-              </AlertDescription>
+            <Alert 
+              className={`mb-4 ${
+                processingResult.success 
+                  ? "border-green-200 bg-green-50 text-green-800" 
+                  : "border-red-200 bg-red-50 text-red-800"
+              }`}
+            >
+              <div className="flex">
+                {processingResult.success 
+                  ? <CheckCircle className="h-5 w-5 text-green-500 mr-2" /> 
+                  : <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+                }
+                <AlertDescription>
+                  {processingResult.message}
+                </AlertDescription>
+              </div>
             </Alert>
           )}
           
           <div className="flex justify-end">
             <Button 
-              onClick={handleProcess} 
-              disabled={isLoading || !instruction.trim()}
-              className="bg-purple-600 hover:bg-purple-700"
+              type="submit" 
+              disabled={isLoading || !instruction.trim()} 
+              className="flex items-center"
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2"></div>
                   Processing...
                 </>
               ) : (
                 <>
-                  <Wand2 className="mr-2 h-4 w-4" />
+                  <Wand2 className="h-4 w-4 mr-2" />
                   Process Transformation
                 </>
               )}
             </Button>
           </div>
-        </div>
+        </form>
       </CardContent>
     </Card>
   );

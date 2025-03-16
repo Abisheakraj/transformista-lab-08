@@ -8,6 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Database } from "lucide-react";
 import { testDatabaseConnection } from "@/lib/database-client";
 import { useDatabaseConnections } from "@/hooks/useDatabaseConnections";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, CheckCircle } from "lucide-react";
 
 interface ConnectionFormProps {
   type: "source" | "target";
@@ -29,15 +31,16 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const { toast } = useToast();
   const { addConnection } = useDatabaseConnections();
+  const [connectionResult, setConnectionResult] = useState<{ success: boolean; message: string } | null>(null);
   
   const [formData, setFormData] = useState<FormData>({
     name: "",
-    connectionType: "",
-    host: "",
-    port: "",
-    database: "",
-    username: "",
-    password: ""
+    connectionType: "mysql",  // Default to MySQL as per the API
+    host: "localhost", // Default value from your curl commands
+    port: "3306",      // Default value from your curl commands
+    database: "airportdb", // Default value from your curl commands
+    username: "root",  // Default value from your curl commands
+    password: "9009"   // Default value from your curl commands
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,6 +63,7 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
     }
 
     setIsTestingConnection(true);
+    setConnectionResult(null);
     
     try {
       const result = await testDatabaseConnection({
@@ -71,6 +75,8 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
         connectionType: formData.connectionType.toLowerCase(),
         db_type: formData.connectionType.toLowerCase()
       });
+      
+      setConnectionResult(result);
       
       if (result.success) {
         toast({
@@ -89,6 +95,11 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
         title: "Connection Error",
         description: "An unexpected error occurred while testing the connection.",
         variant: "destructive"
+      });
+      
+      setConnectionResult({
+        success: false,
+        message: error instanceof Error ? error.message : "An unexpected error occurred"
       });
     } finally {
       setIsTestingConnection(false);
@@ -110,6 +121,28 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
     setIsLoading(true);
     
     try {
+      // Test the connection before adding
+      const testResult = await testDatabaseConnection({
+        host: formData.host,
+        port: formData.port,
+        database: formData.database,
+        username: formData.username,
+        password: formData.password,
+        connectionType: formData.connectionType.toLowerCase(),
+        db_type: formData.connectionType.toLowerCase()
+      });
+      
+      if (!testResult.success) {
+        toast({
+          title: "Connection Failed",
+          description: testResult.message,
+          variant: "destructive"
+        });
+        setConnectionResult(testResult);
+        setIsLoading(false);
+        return;
+      }
+
       // Add connection to the store
       addConnection({
         name: formData.name,
@@ -125,16 +158,8 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
       // Success
       onSuccess();
       
-      // Reset form
-      setFormData({
-        name: "",
-        connectionType: "",
-        host: "",
-        port: "",
-        database: "",
-        username: "",
-        password: ""
-      });
+      // Reset connection result
+      setConnectionResult(null);
       
       toast({
         title: `${type === "source" ? "Source" : "Target"} connection added`,
@@ -152,8 +177,8 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
   };
 
   const connectionTypes = type === "source" 
-    ? ["MySQL", "PostgreSQL", "Oracle", "MSSQL"] 
-    : ["MySQL", "PostgreSQL", "BigQuery", "Snowflake", "Redshift"];
+    ? ["mysql", "postgresql", "oracle", "mssql"] 
+    : ["mysql", "postgresql", "bigquery", "snowflake", "redshift"];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -184,7 +209,7 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
                 <SelectItem key={dbType} value={dbType.toLowerCase()}>
                   <div className="flex items-center">
                     <Database className="w-4 h-4 mr-2 text-muted-foreground" />
-                    {dbType}
+                    {dbType.toUpperCase()}
                   </div>
                 </SelectItem>
               ))}
@@ -218,11 +243,11 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="database">Initial Database (Optional)</Label>
+          <Label htmlFor="database">Database Name</Label>
           <Input
             id="database"
             name="database"
-            placeholder="e.g., my_database"
+            placeholder="e.g., airportdb"
             value={formData.database}
             onChange={handleInputChange}
           />
@@ -235,7 +260,7 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
           <Input
             id="username"
             name="username"
-            placeholder="e.g., db_user"
+            placeholder="e.g., root"
             value={formData.username}
             onChange={handleInputChange}
           />
@@ -253,6 +278,26 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
           />
         </div>
       </div>
+
+      {connectionResult && (
+        <Alert 
+          className={`${
+            connectionResult.success 
+              ? "border-green-200 bg-green-50 text-green-800" 
+              : "border-red-200 bg-red-50 text-red-800"
+          }`}
+        >
+          <div className="flex">
+            {connectionResult.success 
+              ? <CheckCircle className="h-5 w-5 text-green-500 mr-2" /> 
+              : <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+            }
+            <AlertDescription>
+              {connectionResult.message}
+            </AlertDescription>
+          </div>
+        </Alert>
+      )}
 
       <div className="flex justify-end gap-3">
         <Button 
