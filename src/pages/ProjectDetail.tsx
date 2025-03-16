@@ -10,7 +10,10 @@ import {
   Upload, 
   Database, 
   ChevronLeft, 
-  Plus 
+  Plus,
+  FileSpreadsheet,
+  Table,
+  LayoutDashboard
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator"; 
@@ -19,10 +22,13 @@ import FlowDesignerTab from "@/components/flow/FlowDesignerTab";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import AddDataSourceDialog from "@/components/flow/AddDataSourceDialog";
 import SchemaGraphView from "@/components/flow/SchemaGraphView";
+import TableMappingComponent from "@/components/flow/TableMappingComponent";
 import FileUploadArea from "@/components/files/FileUploadArea";
 import DataVisualization from "@/components/files/DataVisualization";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
+import { UploadedFile } from "@/types/file-types";
 
 interface Project {
   id: string;
@@ -61,13 +67,16 @@ const ProjectDetail = () => {
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
   const [targetDialogOpen, setTargetDialogOpen] = useState(false);
   const [processedFiles, setProcessedFiles] = useState<ProcessedFile[]>([]);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFile, setSelectedFile] = useState<UploadedFile | null>(null);
   const [fileData, setFileData] = useState<any[] | null>(null);
   const [pipelineCreated, setPipelineCreated] = useState(false);
   const [pipelineNodes, setPipelineNodes] = useState<FlowNode[]>([]);
   const [pipelineEdges, setPipelineEdges] = useState<FlowEdge[]>([]);
-  const [sourceConnection, setSourceConnection] = useState({ type: "Oracle Database", tables: 4 });
-  const [targetConnection, setTargetConnection] = useState({ type: "PostgreSQL", tables: 3 });
+  const [sourceConnection, setSourceConnection] = useState<any>({ type: "Oracle Database", tables: 4 });
+  const [targetConnection, setTargetConnection] = useState<any>({ type: "PostgreSQL", tables: 3 });
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [sourceTabContent, setSourceTabContent] = useState<"database" | "files">("database");
+  
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -110,6 +119,9 @@ const ProjectDetail = () => {
     setSourceDialogOpen(false);
     setSourceConnection({
       type: data.connectionType || "Oracle Database",
+      name: data.name,
+      host: data.host,
+      database: data.database,
       tables: 4
     });
     toast({
@@ -124,6 +136,9 @@ const ProjectDetail = () => {
     setTargetDialogOpen(false);
     setTargetConnection({
       type: data.connectionType || "PostgreSQL",
+      name: data.name,
+      host: data.host,
+      database: data.database,
       tables: 3
     });
     toast({
@@ -133,43 +148,85 @@ const ProjectDetail = () => {
     setActiveTab("tableMapping");
   };
 
-  const handleFileUpload = (files: FileList) => {
-    if (files.length > 0) {
-      const file = files[0];
-      setSelectedFile(file);
+  const handleFilesSelected = (files: FileList) => {
+    // Process each uploaded file
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      const fileId = `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       
-      // Add to processed files
-      const newFile: ProcessedFile = { 
+      // Create a new file entry
+      const newFile: UploadedFile = {
+        id: fileId,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        data: null
+      };
+      
+      // Add to processed files with progress indicator
+      const processedFile: ProcessedFile = { 
         name: file.name, 
         status: "processing", 
         progress: 0
       };
       
-      setProcessedFiles(prev => [...prev, newFile]);
-
-      // Process file and extract data
-      const reader = new FileReader();
+      setProcessedFiles(prev => [...prev, processedFile]);
+      
       reader.onload = (e) => {
         try {
           // Process based on file type
           const fileExtension = file.name.split('.').pop()?.toLowerCase();
-          let data: any[] = [];
+          let parsedData: any[] = [];
+          let columns: string[] = [];
+          let rows: any[][] = [];
           
           if (fileExtension === 'csv') {
             const content = e.target?.result as string;
-            const parsedData = Papa.parse(content, { header: true });
-            data = parsedData.data as any[];
+            const parsedCsv = Papa.parse(content, { header: true });
+            parsedData = parsedCsv.data as any[];
+            
+            if (parsedCsv.meta && parsedCsv.meta.fields) {
+              columns = parsedCsv.meta.fields;
+            }
+            
+            // Convert data to rows format
+            rows = parsedData.map(item => columns.map(col => item[col]));
+            
           } else if (fileExtension === 'json') {
-            data = JSON.parse(e.target?.result as string);
+            parsedData = JSON.parse(e.target?.result as string);
+            
+            if (Array.isArray(parsedData) && parsedData.length > 0) {
+              columns = Object.keys(parsedData[0]);
+              rows = parsedData.map(item => columns.map(col => item[col]));
+            }
+            
           } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
             const arrayBuffer = e.target?.result as ArrayBuffer;
             const wb = XLSX.read(arrayBuffer, { type: 'array' });
             const wsname = wb.SheetNames[0];
             const ws = wb.Sheets[wsname];
-            data = XLSX.utils.sheet_to_json(ws);
+            parsedData = XLSX.utils.sheet_to_json(ws);
+            
+            if (parsedData.length > 0) {
+              columns = Object.keys(parsedData[0]);
+              rows = parsedData.map(item => columns.map(col => item[col]));
+            }
           }
           
-          setFileData(data);
+          // Update the file with parsed data
+          const updatedFile = {
+            ...newFile,
+            data: parsedData,
+            columns,
+            rows
+          };
+          
+          setUploadedFiles(prev => [...prev, updatedFile]);
+          
+          if (!selectedFile) {
+            setSelectedFile(updatedFile);
+            setFileData(parsedData);
+          }
           
           // Simulate file processing with progress updates
           let progress = 0;
@@ -212,6 +269,7 @@ const ProjectDetail = () => {
         }
       };
       
+      // Read the file based on its type
       if (file.type === "application/json") {
         reader.readAsText(file);
       } else if (file.type === "text/csv" || file.name.endsWith('.csv')) {
@@ -219,7 +277,7 @@ const ProjectDetail = () => {
       } else if (file.type.includes("spreadsheet") || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
         reader.readAsArrayBuffer(file);
       }
-    }
+    });
   };
 
   const handleCreatePipeline = (nodes?: any[], edges?: any[]) => {
@@ -229,7 +287,10 @@ const ProjectDetail = () => {
         id: 'source-1',
         type: 'source',
         position: { x: 100, y: 100 },
-        data: { label: `${sourceConnection.type} Source`, tables: sourceConnection.tables }
+        data: { 
+          label: sourceConnection.name || `${sourceConnection.type} Source`, 
+          tables: sourceConnection.tables 
+        }
       },
       {
         id: 'transform-1',
@@ -241,7 +302,10 @@ const ProjectDetail = () => {
         id: 'target-1',
         type: 'target',
         position: { x: 600, y: 100 },
-        data: { label: `${targetConnection.type} Target`, tables: targetConnection.tables }
+        data: { 
+          label: targetConnection.name || `${targetConnection.type} Target`, 
+          tables: targetConnection.tables 
+        }
       }
     ];
     
@@ -315,7 +379,7 @@ const ProjectDetail = () => {
   }
 
   return (
-    <SidebarLayout workspaceId={projectId}>
+    <SidebarLayout>
       <div className="flex flex-col h-full">
         <div className="bg-white border-b p-4">
           <div>
@@ -389,38 +453,182 @@ const ProjectDetail = () => {
               <div className="p-6 bg-white rounded-lg border border-gray-200">
                 <h2 className="text-xl font-semibold mb-4">Source Connection</h2>
                 
-                <div className="mb-6 p-6 border border-gray-200 rounded-lg bg-gray-50">
-                  <div className="flex items-center gap-2 mb-2">
-                    <p className="text-sm text-gray-500">Where do you want to get connected?</p>
-                  </div>
+                <Tabs value={sourceTabContent} onValueChange={(v) => setSourceTabContent(v as "database" | "files")} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-6">
+                    <TabsTrigger value="database" className="flex items-center gap-2">
+                      <Database className="h-4 w-4" />
+                      Database
+                    </TabsTrigger>
+                    <TabsTrigger value="files" className="flex items-center gap-2">
+                      <FileSpreadsheet className="h-4 w-4" />
+                      File Upload
+                    </TabsTrigger>
+                  </TabsList>
                   
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" onClick={() => setSourceDialogOpen(true)} className="flex items-center gap-2">
-                      <Database className="h-4 w-4" />
-                      Oracle
-                    </Button>
-                    <Button variant="outline" onClick={() => setSourceDialogOpen(true)} className="flex items-center gap-2">
-                      <Database className="h-4 w-4" />
-                      MySQL
-                    </Button>
-                    <Button variant="outline" onClick={() => setSourceDialogOpen(true)} className="flex items-center gap-2">
-                      <Database className="h-4 w-4" />
-                      PostgreSQL
-                    </Button>
-                    <Button variant="outline" onClick={() => setSourceDialogOpen(true)} className="flex items-center gap-2">
-                      <Database className="h-4 w-4" />
-                      SQL Server
-                    </Button>
-                    <Button variant="outline" onClick={() => setSourceDialogOpen(true)} className="flex items-center gap-2">
-                      <Database className="h-4 w-4" />
-                      Sybase
-                    </Button>
-                    <Button variant="outline" onClick={() => setActiveTab("trainingData")} className="flex items-center gap-2">
-                      <Upload className="h-4 w-4" />
-                      Upload Files
-                    </Button>
-                  </div>
-                </div>
+                  <TabsContent value="database" className="mt-0">
+                    <div className="mb-6 p-6 border border-gray-200 rounded-lg bg-gray-50">
+                      <div className="flex items-center gap-2 mb-4">
+                        <p className="text-sm text-gray-500">Connect to a database source</p>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2 mb-6">
+                        <Button variant="outline" onClick={() => setSourceDialogOpen(true)} className="flex items-center gap-2">
+                          <Database className="h-4 w-4" />
+                          Oracle
+                        </Button>
+                        <Button variant="outline" onClick={() => setSourceDialogOpen(true)} className="flex items-center gap-2">
+                          <Database className="h-4 w-4" />
+                          MySQL
+                        </Button>
+                        <Button variant="outline" onClick={() => setSourceDialogOpen(true)} className="flex items-center gap-2">
+                          <Database className="h-4 w-4" />
+                          PostgreSQL
+                        </Button>
+                        <Button variant="outline" onClick={() => setSourceDialogOpen(true)} className="flex items-center gap-2">
+                          <Database className="h-4 w-4" />
+                          SQL Server
+                        </Button>
+                        <Button variant="outline" onClick={() => setSourceDialogOpen(true)} className="flex items-center gap-2">
+                          <Database className="h-4 w-4" />
+                          Sybase
+                        </Button>
+                      </div>
+                      
+                      {sourceConnection && sourceConnection.name && (
+                        <Card className="mt-6 bg-white">
+                          <CardHeader className="pb-2">
+                            <div className="flex justify-between">
+                              <div>
+                                <CardTitle>{sourceConnection.name}</CardTitle>
+                                <CardDescription>
+                                  {sourceConnection.type} • {sourceConnection.host}/{sourceConnection.database}
+                                </CardDescription>
+                              </div>
+                              <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full flex items-center">
+                                Connected
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <h4 className="text-sm font-medium mb-2">Available Tables</h4>
+                            <div className="grid grid-cols-2 gap-2">
+                              {['customers', 'orders', 'products', 'inventory'].map(table => (
+                                <div key={table} className="bg-gray-50 p-2 rounded border text-sm flex items-center">
+                                  <Table className="h-3.5 w-3.5 mr-2 text-gray-500" />
+                                  {table}
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                    
+                    <div className="flex justify-end">
+                      <Button 
+                        onClick={() => setActiveTab("destination")}
+                        disabled={!sourceConnection.name}
+                      >
+                        Continue to Destination
+                      </Button>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="files" className="mt-0">
+                    <div className="mb-6">
+                      <div className="mb-4">
+                        <p className="text-sm text-gray-500 mb-4">
+                          Upload your data files for processing
+                        </p>
+                        
+                        <FileUploadArea 
+                          onFilesSelected={handleFilesSelected}
+                          allowedFileTypes={['.csv', '.xlsx', '.xls', '.json']}
+                          maxFileSize={20}
+                          multiple={true}
+                        />
+                      </div>
+                      
+                      {processedFiles.length > 0 && (
+                        <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                          <h3 className="font-medium mb-2">Uploaded Files</h3>
+                          <div className="space-y-3">
+                            {processedFiles.map((file, index) => (
+                              <div key={index} className="flex items-center justify-between text-sm bg-white p-2 rounded border">
+                                <span>{file.name}</span>
+                                {file.status === "processed" ? (
+                                  <span className="text-green-500 flex items-center">
+                                    <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Processed
+                                  </span>
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-24 bg-gray-200 rounded-full h-2.5">
+                                      <div 
+                                        className="bg-blue-500 h-2.5 rounded-full" 
+                                        style={{ width: `${file.progress || 0}%` }}
+                                      ></div>
+                                    </div>
+                                    <span className="text-xs text-gray-500">{file.progress}%</span>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {uploadedFiles.length > 0 && selectedFile && (
+                        <div className="mt-6">
+                          <h3 className="text-lg font-medium mb-3">Data Preview</h3>
+                          
+                          <div className="mb-4">
+                            <label htmlFor="file-selector" className="text-sm font-medium">
+                              Select File to Preview:
+                            </label>
+                            <select 
+                              id="file-selector"
+                              className="ml-2 p-1 border border-gray-300 rounded"
+                              value={selectedFile.id}
+                              onChange={(e) => {
+                                const selected = uploadedFiles.find(f => f.id === e.target.value);
+                                if (selected) {
+                                  setSelectedFile(selected);
+                                  setFileData(selected.data);
+                                }
+                              }}
+                            >
+                              {uploadedFiles.map(file => (
+                                <option key={file.id} value={file.id}>
+                                  {file.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          
+                          <div className="border border-gray-200 rounded-lg overflow-hidden">
+                            <DataVisualization 
+                              data={selectedFile.data} 
+                              columns={selectedFile.columns} 
+                              rows={selectedFile.rows} 
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex justify-end">
+                      <Button 
+                        onClick={() => setActiveTab("destination")}
+                        disabled={uploadedFiles.length === 0}
+                      >
+                        Continue to Destination
+                      </Button>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
             )}
             
@@ -429,11 +637,11 @@ const ProjectDetail = () => {
                 <h2 className="text-xl font-semibold mb-4">Target Connection</h2>
                 
                 <div className="mb-6 p-6 border border-gray-200 rounded-lg bg-gray-50">
-                  <div className="flex items-center gap-2 mb-2">
-                    <p className="text-sm text-gray-500">Where do you want to get connected?</p>
+                  <div className="flex items-center gap-2 mb-4">
+                    <p className="text-sm text-gray-500">Connect to a target database</p>
                   </div>
                   
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 mb-6">
                     <Button variant="outline" onClick={() => setTargetDialogOpen(true)} className="flex items-center gap-2">
                       <Database className="h-4 w-4" />
                       Oracle
@@ -459,6 +667,48 @@ const ProjectDetail = () => {
                       Snowflake
                     </Button>
                   </div>
+                  
+                  {targetConnection && targetConnection.name && (
+                    <Card className="mt-6 bg-white">
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between">
+                          <div>
+                            <CardTitle>{targetConnection.name}</CardTitle>
+                            <CardDescription>
+                              {targetConnection.type} • {targetConnection.host}/{targetConnection.database}
+                            </CardDescription>
+                          </div>
+                          <div className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full flex items-center">
+                            Connected
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <h4 className="text-sm font-medium mb-2">Available Tables</h4>
+                        <div className="grid grid-cols-2 gap-2">
+                          {['dim_customers', 'dim_products', 'fact_sales'].map(table => (
+                            <div key={table} className="bg-gray-50 p-2 rounded border text-sm flex items-center">
+                              <Table className="h-3.5 w-3.5 mr-2 text-gray-500" />
+                              {table}
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+                
+                <div className="flex justify-between">
+                  <Button variant="outline" onClick={() => setActiveTab("source")}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Source
+                  </Button>
+                  <Button 
+                    onClick={() => setActiveTab("tableMapping")}
+                    disabled={!targetConnection.name}
+                  >
+                    Continue to Table Mapping
+                  </Button>
                 </div>
               </div>
             )}
@@ -468,14 +718,14 @@ const ProjectDetail = () => {
                 <h2 className="text-xl font-semibold mb-4">Table Mapping</h2>
                 <p className="text-gray-500 mb-6">Define relationships between source and target tables</p>
                 
-                <div className="mb-6 h-96 border border-gray-200 rounded-lg overflow-hidden">
+                <div className="mb-6 h-[500px] border border-gray-200 rounded-lg overflow-hidden">
                   <SchemaGraphView onCreatePipeline={handleCreatePipeline} />
                 </div>
                 
                 <div className="flex justify-between py-4">
-                  <Button variant="outline" onClick={() => setActiveTab("source")}>
+                  <Button variant="outline" onClick={() => setActiveTab("destination")}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Source
+                    Back to Destination
                   </Button>
                   <Button onClick={() => setActiveTab("trainingData")}>
                     Continue to Training Data
@@ -489,12 +739,12 @@ const ProjectDetail = () => {
                 <h2 className="text-xl font-semibold mb-4">Training Data</h2>
                 <p className="text-gray-500 mb-6">Upload or configure training datasets for transformation learning</p>
                 
-                <FileUploadArea onFilesSelected={handleFileUpload} />
+                <FileUploadArea onFilesSelected={handleFilesSelected} />
                 
                 {selectedFile && fileData && (
                   <div className="mt-6">
                     <h3 className="text-lg font-medium mb-3">Data Preview</h3>
-                    <DataVisualization data={fileData} />
+                    <DataVisualization data={fileData} columns={selectedFile.columns} rows={selectedFile.rows} />
                   </div>
                 )}
                 
@@ -623,25 +873,12 @@ const ProjectDetail = () => {
                   </div>
                 </div>
                 
-                <div className="flex justify-end gap-2">
+                <div className="flex justify-between gap-2">
                   <Button variant="outline" onClick={() => setActiveTab("createPipeline")}>
                     Back to Pipeline
                   </Button>
-                  <Button variant="outline" onClick={() => setActiveTab("savePipeline")}>
-                    Go to Save Pipeline
-                  </Button>
-                  <Button onClick={handleRunPipeline} disabled={isRunning}>
-                    {isRunning ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                        Running...
-                      </>
-                    ) : (
-                      <>
-                        <Play className="mr-2 h-4 w-4" />
-                        Run Pipeline
-                      </>
-                    )}
+                  <Button onClick={() => setActiveTab("savePipeline")}>
+                    Continue to Save Pipeline
                   </Button>
                 </div>
               </div>
@@ -650,74 +887,54 @@ const ProjectDetail = () => {
             {activeTab === "savePipeline" && (
               <div className="p-6 bg-white rounded-lg border border-gray-200">
                 <h2 className="text-xl font-semibold mb-4">Save Pipeline</h2>
-                <p className="text-gray-500 mb-6">Save and export your data transformation pipeline</p>
+                <p className="text-gray-500 mb-6">Save your pipeline configuration and schedule execution</p>
                 
-                <div className="mb-6 p-6 border border-gray-200 rounded-lg bg-gray-50">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-6">
+                  <div className="grid gap-4 p-6 border border-gray-200 rounded-lg bg-gray-50">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Pipeline Name</label>
-                      <input 
-                        className="w-full border border-gray-300 rounded-md px-3 py-2"
-                        defaultValue={`${project.name} Pipeline`} 
-                      />
+                      <Label htmlFor="pipeline-name">Pipeline Name</Label>
+                      <Input id="pipeline-name" className="mt-1" placeholder="Enter pipeline name" defaultValue={`${project.name} Pipeline`} />
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Version</label>
-                      <input 
-                        className="w-full border border-gray-300 rounded-md px-3 py-2"
-                        defaultValue="1.0.0" 
-                      />
+                      <Label htmlFor="pipeline-desc">Description</Label>
+                      <Input id="pipeline-desc" className="mt-1" placeholder="Enter description" defaultValue="ETL flow to integrate sales data from multiple sources" />
                     </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                      <textarea
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 h-24"
-                        defaultValue="ETL flow to integrate sales data from multiple sources into a centralized data warehouse."
-                      ></textarea>
+                    
+                    <div>
+                      <Label htmlFor="schedule">Schedule</Label>
+                      <Select defaultValue="manual">
+                        <SelectTrigger id="schedule" className="mt-1">
+                          <SelectValue placeholder="Select schedule" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="manual">Manual Execution</SelectItem>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   
-                  <div className="mt-6 space-y-4">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="schedule"
-                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
-                      />
-                      <label htmlFor="schedule" className="ml-2 block text-sm text-gray-700">
-                        Schedule this pipeline
-                      </label>
-                    </div>
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="export"
-                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
-                      />
-                      <label htmlFor="export" className="ml-2 block text-sm text-gray-700">
-                        Export as JSON configuration
-                      </label>
-                    </div>
+                  <div className="flex justify-between gap-2">
+                    <Button variant="outline" onClick={() => setActiveTab("validate")}>
+                      Back to Validation
+                    </Button>
+                    <Button onClick={handleSave} disabled={isSaving}>
+                      {isSaving ? (
+                        <>
+                          <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Save Pipeline
+                        </>
+                      )}
+                    </Button>
                   </div>
-                </div>
-                
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setActiveTab("validate")}>
-                    Back to Validation
-                  </Button>
-                  <Button onClick={handleSave} disabled={isSaving}>
-                    {isSaving ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        Save Pipeline
-                      </>
-                    )}
-                  </Button>
                 </div>
               </div>
             )}

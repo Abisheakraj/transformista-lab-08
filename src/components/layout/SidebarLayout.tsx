@@ -1,9 +1,19 @@
 
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/App";
-import { Settings, CircleHelp, Database, Layers, PanelLeft, LayoutDashboard, LogOut } from "lucide-react";
+import { 
+  Settings, 
+  CircleHelp, 
+  Database, 
+  Layers, 
+  PanelLeftClose, 
+  PanelLeftOpen, 
+  LayoutDashboard, 
+  LogOut,
+  ChevronRight
+} from "lucide-react";
 
 interface SidebarLayoutProps {
   children: ReactNode;
@@ -16,9 +26,19 @@ const SidebarLayout = ({ children, title, workspaceId }: SidebarLayoutProps) => 
   const navigate = useNavigate();
   const { logout } = useAuth();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  
+  // Get the sidebar state from local storage on mount
+  useEffect(() => {
+    const storedValue = localStorage.getItem('sidebarCollapsed');
+    if (storedValue) {
+      setIsSidebarCollapsed(storedValue === 'true');
+    }
+  }, []);
 
   const toggleSidebar = () => {
-    setIsSidebarCollapsed(!isSidebarCollapsed);
+    const newState = !isSidebarCollapsed;
+    setIsSidebarCollapsed(newState);
+    localStorage.setItem('sidebarCollapsed', String(newState));
   };
 
   const isActive = (path: string) => {
@@ -28,7 +48,11 @@ const SidebarLayout = ({ children, title, workspaceId }: SidebarLayoutProps) => 
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
-      <div className={`bg-white border-r border-gray-200 flex flex-col ${isSidebarCollapsed ? 'w-16' : 'w-64'} transition-all duration-300 shadow-sm`}>
+      <div 
+        className={`fixed top-0 left-0 h-full bg-white border-r border-gray-200 shadow-sm transition-all duration-300 z-20 ${
+          isSidebarCollapsed ? 'w-16' : 'w-64'
+        }`}
+      >
         <div className="p-4 border-b border-gray-200">
           <Link to="/dashboard" className="flex items-center hover:opacity-80 transition-opacity">
             <div className="flex-shrink-0 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full p-1 flex items-center justify-center">
@@ -133,13 +157,18 @@ const SidebarLayout = ({ children, title, workspaceId }: SidebarLayoutProps) => 
         <button
           className="absolute top-20 -right-3 bg-white border border-gray-200 rounded-full p-1 shadow-sm hover:bg-gray-50 transition-colors duration-200"
           onClick={toggleSidebar}
+          aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          <PanelLeft size={16} className={`text-gray-500 transition-transform duration-200 ${isSidebarCollapsed ? 'rotate-180' : ''}`} />
+          {isSidebarCollapsed ? (
+            <PanelLeftOpen size={16} className="text-gray-500" />
+          ) : (
+            <PanelLeftClose size={16} className="text-gray-500" />
+          )}
         </button>
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
+      <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${isSidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
         {title && (
           <header className="bg-white border-b border-gray-200 p-4 shadow-sm">
             <div className="flex items-center justify-between">
