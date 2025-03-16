@@ -40,6 +40,9 @@ export interface FlowEdge {
     color?: string;
   };
   label?: string;
+  labelStyle?: React.CSSProperties;
+  labelBgStyle?: React.CSSProperties;
+  labelShowBg?: boolean;
 }
 
 export interface DataFlow {

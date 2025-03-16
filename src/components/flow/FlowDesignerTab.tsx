@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect, useRef } from "react";
 import {
   ReactFlow,
@@ -20,7 +21,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
-import { Save, Play, Layout, Plus, Trash2, Link2 } from "lucide-react";
+import { Save, Play, Layout, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -118,26 +119,32 @@ const FlowDesignerTab = ({ projectId, onSave, onRun }: FlowDesignerTabProps) => 
       source: "source-1",
       target: "transform-1",
       animated: true,
-      style: { stroke: "#93c5fd" },
+      style: { stroke: "#9b87f5", strokeWidth: 2 },
       markerEnd: {
         type: MarkerType.ArrowClosed,
         width: 20,
         height: 20,
-        color: "#93c5fd",
+        color: "#9b87f5",
       },
+      label: "1:N",
+      labelStyle: { fill: "#6E59A5", fontWeight: 500 },
+      labelBgStyle: { fill: "#F7F9FB" },
     },
     {
       id: "e2-3",
       source: "transform-1",
       target: "target-1",
       animated: true,
-      style: { stroke: "#93c5fd" },
+      style: { stroke: "#9b87f5", strokeWidth: 2 },
       markerEnd: {
         type: MarkerType.ArrowClosed,
         width: 20,
         height: 20,
-        color: "#93c5fd",
+        color: "#9b87f5",
       },
+      label: "1:N",
+      labelStyle: { fill: "#6E59A5", fontWeight: 500 },
+      labelBgStyle: { fill: "#F7F9FB" },
     },
   ];
 
@@ -146,7 +153,6 @@ const FlowDesignerTab = ({ projectId, onSave, onRun }: FlowDesignerTabProps) => 
   const [isRunning, setIsRunning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isAddTransformOpen, setIsAddTransformOpen] = useState(false);
-  const [isAddRelationshipMode, setIsAddRelationshipMode] = useState(false);
   const [transformName, setTransformName] = useState("");
   const [transformOperation, setTransformOperation] = useState("filter");
 
@@ -154,29 +160,31 @@ const FlowDesignerTab = ({ projectId, onSave, onRun }: FlowDesignerTabProps) => 
     (params: Connection) => {
       const edgeId = `e${params.source}-${params.target}`;
       
-      // Create a new edge with the correct type structure
+      // Create a new edge with enhanced styling
       setEdges((eds) => 
         addEdge({
           ...params,
           id: edgeId,
           animated: true,
-          style: { stroke: "#93c5fd" },
+          style: { stroke: "#9b87f5", strokeWidth: 2 },
           markerEnd: {
             type: MarkerType.ArrowClosed,
+            width: 20,
+            height: 20,
+            color: "#9b87f5",
           },
-          label: "connects to",
+          label: "1:N",
+          labelStyle: { fill: "#6E59A5", fontWeight: 500 },
+          labelBgStyle: { fill: "#F7F9FB" },
         }, eds)
       );
       
-      if (isAddRelationshipMode) {
-        toast({
-          title: "Relationship Added",
-          description: "A new relationship has been created between the nodes.",
-        });
-        setIsAddRelationshipMode(false);
-      }
+      toast({
+        title: "Connection Created",
+        description: "A new connection has been created between the nodes.",
+      });
     },
-    [setEdges, toast, isAddRelationshipMode]
+    [setEdges, toast]
   );
 
   const handleSave = () => {
@@ -214,17 +222,6 @@ const FlowDesignerTab = ({ projectId, onSave, onRun }: FlowDesignerTabProps) => 
 
   const handleAddTransform = () => {
     setIsAddTransformOpen(true);
-  };
-
-  const handleAddRelationship = () => {
-    setIsAddRelationshipMode(!isAddRelationshipMode);
-    
-    toast({
-      title: isAddRelationshipMode ? "Relationship Mode Disabled" : "Relationship Mode Enabled",
-      description: isAddRelationshipMode 
-        ? "You can now interact with nodes normally." 
-        : "Connect two nodes by dragging from one node to another.",
-    });
   };
 
   const handleAddTransformSubmit = () => {
@@ -321,13 +318,21 @@ const FlowDesignerTab = ({ projectId, onSave, onRun }: FlowDesignerTabProps) => 
           onEdgeClick={onEdgeClick}
           connectionMode={ConnectionMode.Loose}
           connectionLineType={ConnectionLineType.SmoothStep}
-          connectionLineStyle={{ stroke: '#93c5fd', strokeWidth: 2 }}
+          connectionLineStyle={{ stroke: '#9b87f5', strokeWidth: 2 }}
           fitView
           attributionPosition="top-right"
+          style={{ background: "#F7F9FB" }}
         >
           <Controls />
-          <MiniMap />
-          <Background gap={16} size={1} />
+          <MiniMap nodeColor={(n) => {
+            switch (n.type) {
+              case 'source': return '#d1fae5';
+              case 'transform': return '#dbeafe';
+              case 'target': return '#f5d0fe';
+              default: return '#f1f5f9';
+            }
+          }} />
+          <Background pattern="dots" gap={16} size={1} color="#e5e7eb" />
           
           <Panel position="top-right" className="bg-white p-2 rounded-md shadow-md flex gap-2">
             <Button 
@@ -338,15 +343,6 @@ const FlowDesignerTab = ({ projectId, onSave, onRun }: FlowDesignerTabProps) => 
             >
               <Plus className="h-4 w-4" />
               Add Transform
-            </Button>
-            <Button 
-              variant={isAddRelationshipMode ? "default" : "outline"}
-              size="sm" 
-              onClick={handleAddRelationship} 
-              className="flex items-center gap-1"
-            >
-              <Link2 className="h-4 w-4" />
-              {isAddRelationshipMode ? "Cancel Relationship" : "Add Relationship"}
             </Button>
             <Button 
               variant="outline" 
@@ -381,7 +377,7 @@ const FlowDesignerTab = ({ projectId, onSave, onRun }: FlowDesignerTabProps) => 
               size="sm" 
               onClick={handleRun} 
               disabled={isRunning} 
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700"
             >
               <Play className="h-4 w-4" />
               {isRunning ? "Running..." : "Run Pipeline"}
@@ -426,7 +422,7 @@ const FlowDesignerTab = ({ projectId, onSave, onRun }: FlowDesignerTabProps) => 
             <Button variant="outline" onClick={() => setIsAddTransformOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddTransformSubmit}>
+            <Button onClick={handleAddTransformSubmit} className="bg-indigo-600 hover:bg-indigo-700">
               Add Transformation
             </Button>
           </DialogFooter>

@@ -19,7 +19,7 @@ import {
   ConnectionMode,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Download, Plus, Link2, Trash2 } from "lucide-react";
+import { Download, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { FlowNode, FlowEdge } from "@/types/flow";
 
@@ -50,7 +50,7 @@ const TableNode = ({ data }: { data: any }) => {
       <div className="mt-2 text-sm">
         {data.columns?.map((col: TableColumn, index: number) => (
           <div key={index} className="flex items-center py-1 border-b border-gray-100">
-            <span className={`${col.isPrimaryKey ? 'font-semibold' : ''} ${col.isForeignKey ? 'text-indigo-600' : ''}`}>
+            <span className={`${col.isPrimaryKey ? 'font-semibold text-blue-600' : ''} ${col.isForeignKey ? 'text-indigo-600' : ''}`}>
               {col.name}
             </span>
             <span className="ml-auto text-xs text-gray-500">{col.type}</span>
@@ -70,7 +70,6 @@ const SchemaGraphView = ({ schemas = [], onCreatePipeline, onTableMappingChange 
   const [selectedTables, setSelectedTables] = useState<string[]>([]);
   const [nodeTypes] = useState({ tableNode: TableNode });
   const [initialized, setInitialized] = useState(false);
-  const [isAddingRelationship, setIsAddingRelationship] = useState(false);
 
   useEffect(() => {
     // Only initialize once or when schemas change
@@ -154,12 +153,14 @@ const SchemaGraphView = ({ schemas = [], onCreatePipeline, onTableMappingChange 
           targetHandle: "left",
           animated: true,
           label: "1:N",
-          style: { stroke: "#93c5fd" },
+          style: { stroke: "#9b87f5", strokeWidth: 2 },
+          labelStyle: { fill: "#6E59A5", fontWeight: 500 },
+          labelBgStyle: { fill: "#F7F9FB" },
           markerEnd: {
             type: MarkerType.ArrowClosed,
             width: 20,
             height: 20,
-            color: "#93c5fd",
+            color: "#9b87f5",
           },
         },
         {
@@ -170,12 +171,14 @@ const SchemaGraphView = ({ schemas = [], onCreatePipeline, onTableMappingChange 
           targetHandle: "left",
           animated: true,
           label: "1:N",
-          style: { stroke: "#93c5fd" },
+          style: { stroke: "#9b87f5", strokeWidth: 2 },
+          labelStyle: { fill: "#6E59A5", fontWeight: 500 },
+          labelBgStyle: { fill: "#F7F9FB" },
           markerEnd: {
             type: MarkerType.ArrowClosed,
             width: 20,
             height: 20,
-            color: "#93c5fd",
+            color: "#9b87f5",
           },
         },
         {
@@ -186,12 +189,14 @@ const SchemaGraphView = ({ schemas = [], onCreatePipeline, onTableMappingChange 
           targetHandle: "left",
           animated: true,
           label: "1:N",
-          style: { stroke: "#93c5fd" },
+          style: { stroke: "#9b87f5", strokeWidth: 2 },
+          labelStyle: { fill: "#6E59A5", fontWeight: 500 },
+          labelBgStyle: { fill: "#F7F9FB" },
           markerEnd: {
             type: MarkerType.ArrowClosed,
             width: 20,
             height: 20,
-            color: "#93c5fd",
+            color: "#9b87f5",
           },
         },
       ];
@@ -249,12 +254,14 @@ const SchemaGraphView = ({ schemas = [], onCreatePipeline, onTableMappingChange 
                   target: targetNodeId,
                   animated: true,
                   label: `${fk.columns.join(',')} -> ${fk.referencedColumns.join(',')}`,
-                  style: { stroke: "#93c5fd" },
+                  style: { stroke: "#9b87f5", strokeWidth: 2 },
+                  labelStyle: { fill: "#6E59A5", fontWeight: 500 },
+                  labelBgStyle: { fill: "#F7F9FB" },
                   markerEnd: {
                     type: MarkerType.ArrowClosed,
                     width: 20,
                     height: 20,
-                    color: "#93c5fd",
+                    color: "#9b87f5",
                   },
                 });
               });
@@ -274,14 +281,16 @@ const SchemaGraphView = ({ schemas = [], onCreatePipeline, onTableMappingChange 
       ...params,
       id: `e-${params.source}-${params.target}`,
       animated: true,
-      style: { stroke: "#93c5fd" },
+      style: { stroke: "#9b87f5", strokeWidth: 2 },
       markerEnd: {
         type: MarkerType.ArrowClosed,
         width: 20,
         height: 20,
-        color: "#93c5fd",
+        color: "#9b87f5",
       },
-      label: "Relates to"
+      label: "1:N",
+      labelStyle: { fill: "#6E59A5", fontWeight: 500 },
+      labelBgStyle: { fill: "#F7F9FB" },
     };
     setEdges((eds) => addEdge(newEdge, eds));
     
@@ -290,15 +299,11 @@ const SchemaGraphView = ({ schemas = [], onCreatePipeline, onTableMappingChange 
       description: "A new relationship has been created between the tables."
     });
     
-    if (isAddingRelationship) {
-      setIsAddingRelationship(false);
-    }
-    
     if (onTableMappingChange) {
       const updatedEdges = [...edges, newEdge as Edge];
       onTableMappingChange(nodes, updatedEdges);
     }
-  }, [nodes, edges, setEdges, onTableMappingChange, toast, isAddingRelationship]);
+  }, [nodes, edges, setEdges, onTableMappingChange, toast]);
 
   const handleAddTable = () => {
     const newId = `table-${nodes.length + 1}`;
@@ -322,17 +327,6 @@ const SchemaGraphView = ({ schemas = [], onCreatePipeline, onTableMappingChange 
     toast({
       title: "Table Added",
       description: "New table has been added to the schema graph."
-    });
-  };
-
-  const handleAddRelationship = () => {
-    setIsAddingRelationship(!isAddingRelationship);
-    
-    toast({
-      title: isAddingRelationship ? "Relationship Mode Disabled" : "Relationship Mode Enabled",
-      description: isAddingRelationship 
-        ? "You can now interact with tables normally." 
-        : "Connect two tables by dragging from the output handle of one table to the input handle of another."
     });
   };
 
@@ -397,15 +391,6 @@ const SchemaGraphView = ({ schemas = [], onCreatePipeline, onTableMappingChange 
           <Plus className="h-4 w-4" />
           Add Table
         </Button>
-        <Button 
-          variant={isAddingRelationship ? "default" : "outline"} 
-          size="sm" 
-          className="flex items-center gap-1" 
-          onClick={handleAddRelationship}
-        >
-          <Link2 className="h-4 w-4" />
-          {isAddingRelationship ? "Cancel Relationship" : "Add Relationship"}
-        </Button>
         <Button variant="outline" size="sm" className="flex items-center gap-1" onClick={handleDeleteSelected}>
           <Trash2 className="h-4 w-4" />
           Delete Selected
@@ -414,7 +399,7 @@ const SchemaGraphView = ({ schemas = [], onCreatePipeline, onTableMappingChange 
           <Download className="h-4 w-4" />
           Export Schema
         </Button>
-        <Button variant="default" size="sm" onClick={handleCreatePipeline}>
+        <Button variant="default" size="sm" onClick={handleCreatePipeline} className="bg-indigo-600 hover:bg-indigo-700">
           Create Pipeline
         </Button>
       </div>
@@ -428,14 +413,16 @@ const SchemaGraphView = ({ schemas = [], onCreatePipeline, onTableMappingChange 
           nodeTypes={nodeTypes}
           connectionMode={ConnectionMode.Loose}
           connectionLineType={ConnectionLineType.SmoothStep}
-          connectionLineStyle={{ stroke: '#93c5fd', strokeWidth: 2 }}
+          connectionLineStyle={{ stroke: '#9b87f5', strokeWidth: 2 }}
           fitView
           attributionPosition="top-right"
           style={{ background: "#F7F9FB" }}
         >
           <Controls />
-          <MiniMap />
-          <Background gap={16} size={1} />
+          <MiniMap nodeColor={(n) => {
+            return n.type === 'tableNode' ? '#e5deff' : '#f1f5f9';
+          }} />
+          <Background gap={16} size={1} color="#e5e7eb" pattern="dots" />
         </ReactFlow>
       </div>
     </div>
