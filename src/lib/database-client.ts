@@ -1,4 +1,3 @@
-
 import { mockSchemas, mockTableData, DatabaseCredentials as DbCredentials, SchemaInfo } from "./database-utils";
 
 // Re-export types from database-utils
@@ -9,7 +8,7 @@ export interface ConnectionParams {
   host: string;
   port?: string; // Made optional to match DatabaseCredentials
   database?: string;
-  username: string;
+  username?: string; // Made optional to match DatabaseCredentials
   password: string;
   connectionType: string;
   db_type?: string;
