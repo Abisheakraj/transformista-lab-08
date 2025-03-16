@@ -21,23 +21,50 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import SchemaGraphView from "./SchemaGraphView";
 
 interface TableMappingComponentProps {
-  projectId: string;
+  projectId?: string;
+  sourceConnection?: any;
+  sourceTable?: string;
+  sourceSchema?: string;
   onCreatePipeline?: (mapping: any) => void;
 }
 
-const TableMappingComponent = ({ projectId, onCreatePipeline }: TableMappingComponentProps) => {
+const TableMappingComponent = ({ 
+  projectId, 
+  sourceConnection, 
+  sourceTable, 
+  sourceSchema, 
+  onCreatePipeline 
+}: TableMappingComponentProps) => {
   const [isAddTableOpen, setIsAddTableOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [mappingName, setMappingName] = useState("");
-  const [selectedSourceDb, setSelectedSourceDb] = useState("");
-  const [selectedSourceTable, setSelectedSourceTable] = useState("");
+  const [selectedSourceDb, setSelectedSourceDb] = useState(sourceConnection?.id || "");
+  const [selectedSourceTable, setSelectedSourceTable] = useState(sourceTable || "");
   const [selectedTargetDb, setSelectedTargetDb] = useState("");
   const [selectedTargetTable, setSelectedTargetTable] = useState("");
   const [exportFormat, setExportFormat] = useState("json");
   const [tableMappings, setTableMappings] = useState<any[]>([]);
   const [schemaNodes, setSchemaNodes] = useState<any[]>([]);
   const [schemaEdges, setSchemaEdges] = useState<any[]>([]);
+
+  // Initialize with passed props if available
+  useState(() => {
+    if (sourceConnection && sourceTable && sourceSchema) {
+      const newMapping = {
+        id: `mapping-${Date.now()}`,
+        name: `${sourceSchema}.${sourceTable} Mapping`,
+        sourceDb: sourceConnection.name,
+        sourceTable: sourceTable,
+        targetDb: "Target Database",
+        targetTable: `transformed_${sourceTable}`,
+        status: "active",
+        createdAt: new Date().toISOString()
+      };
+
+      setTableMappings([newMapping]);
+    }
+  });
 
   // Mock data sources
   const sourceDatabases = [
