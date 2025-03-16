@@ -3,7 +3,7 @@ import { Position } from '@xyflow/react';
 
 export interface FlowNode {
   id: string;
-  type: 'table' | 'transformation' | 'output';
+  type: 'table' | 'transformation' | 'output' | 'source' | 'transform' | 'target';
   position: {
     x: number;
     y: number;
@@ -14,6 +14,8 @@ export interface FlowNode {
     columns?: { name: string; type: string }[];
     type?: string;
     sourceNodeId?: string;
+    operation?: string;
+    tables?: number;
   };
   // Add these properties for React Flow
   selected?: boolean;
@@ -26,11 +28,19 @@ export interface FlowEdge {
   id: string;
   source: string;
   target: string;
+  sourceHandle?: string;
+  targetHandle?: string;
   // Add these properties for React Flow
   animated?: boolean;
   style?: React.CSSProperties;
   type?: string;
-  markerEnd?: string;
+  markerEnd?: string | {
+    type: string;
+    width: number;
+    height: number;
+    color: string;
+  };
+  label?: string;
 }
 
 export interface DataFlow {

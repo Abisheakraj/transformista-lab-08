@@ -16,15 +16,18 @@ import {
   NodeTypes,
   NodeMouseHandler,
   EdgeMouseHandler,
+  ConnectionLineType,
+  ConnectionMode,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
-import { Save, Play, Layout, Plus, Trash2, List, Code } from "lucide-react";
+import { Save, Play, Layout, Plus, Trash2, Link2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FlowNode, FlowEdge } from "@/types/flow";
 
 interface FlowDesignerTabProps {
   projectId: string;
@@ -144,6 +147,7 @@ const FlowDesignerTab = ({ projectId, onSave, onRun }: FlowDesignerTabProps) => 
   const [isRunning, setIsRunning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isAddTransformOpen, setIsAddTransformOpen] = useState(false);
+  const [isAddRelationshipMode, setIsAddRelationshipMode] = useState(false);
   const [transformName, setTransformName] = useState("");
   const [transformOperation, setTransformOperation] = useState("filter");
 
@@ -151,6 +155,7 @@ const FlowDesignerTab = ({ projectId, onSave, onRun }: FlowDesignerTabProps) => 
     (params: Connection) => {
       const newEdge = {
         ...params,
+        id: `e${params.source}-${params.target}`,
         animated: true,
         style: { stroke: "#93c5fd" },
         markerEnd: {
@@ -159,10 +164,20 @@ const FlowDesignerTab = ({ projectId, onSave, onRun }: FlowDesignerTabProps) => 
           height: 20,
           color: "#93c5fd",
         },
+        label: "connects to",
       };
       setEdges((eds) => addEdge(newEdge, eds));
+      
+      toast({
+        title: "Relationship Added",
+        description: "A new relationship has been created between the nodes.",
+      });
+      
+      if (isAddRelationshipMode) {
+        setIsAddRelationshipMode(false);
+      }
     },
-    [setEdges]
+    [setEdges, toast, isAddRelationshipMode]
   );
 
   const handleSave = () => {
@@ -200,6 +215,17 @@ const FlowDesignerTab = ({ projectId, onSave, onRun }: FlowDesignerTabProps) => 
 
   const handleAddTransform = () => {
     setIsAddTransformOpen(true);
+  };
+
+  const handleAddRelationship = () => {
+    setIsAddRelationshipMode(!isAddRelationshipMode);
+    
+    toast({
+      title: isAddRelationshipMode ? "Relationship Mode Disabled" : "Relationship Mode Enabled",
+      description: isAddRelationshipMode 
+        ? "You can now interact with nodes normally." 
+        : "Connect two nodes by dragging from one node to another.",
+    });
   };
 
   const handleAddTransformSubmit = () => {
@@ -294,6 +320,9 @@ const FlowDesignerTab = ({ projectId, onSave, onRun }: FlowDesignerTabProps) => 
           nodeTypes={nodeTypes}
           onNodeClick={onNodeClick}
           onEdgeClick={onEdgeClick}
+          connectionMode={ConnectionMode.Loose}
+          connectionLineType={ConnectionLineType.SmoothStep}
+          connectionLineStyle={{ stroke: '#93c5fd', strokeWidth: 2 }}
           fitView
           attributionPosition="top-right"
         >
@@ -310,6 +339,15 @@ const FlowDesignerTab = ({ projectId, onSave, onRun }: FlowDesignerTabProps) => 
             >
               <Plus className="h-4 w-4" />
               Add Transform
+            </Button>
+            <Button 
+              variant={isAddRelationshipMode ? "default" : "outline"}
+              size="sm" 
+              onClick={handleAddRelationship} 
+              className="flex items-center gap-1"
+            >
+              <Link2 className="h-4 w-4" />
+              {isAddRelationshipMode ? "Cancel Relationship" : "Add Relationship"}
             </Button>
             <Button 
               variant="outline" 
