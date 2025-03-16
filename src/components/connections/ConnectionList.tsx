@@ -4,8 +4,19 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Database, RefreshCcw, Trash2, Check, AlertCircle, HardDrive, Table } from "lucide-react";
+import { 
+  Database, 
+  RefreshCcw, 
+  Trash2, 
+  Check, 
+  AlertCircle, 
+  HardDrive, 
+  Table,
+  Server,
+  FileText
+} from "lucide-react";
 import { useDatabaseConnections } from "@/hooks/useDatabaseConnections";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ConnectionListProps {
   type: "source" | "target";
@@ -49,6 +60,28 @@ const ConnectionList = ({
     );
   }
 
+  // Get the appropriate icon based on database type
+  const getDbIcon = (connectionType: string) => {
+    switch(connectionType.toLowerCase()) {
+      case 'mysql':
+        return <Database className="h-4 w-4 text-blue-600 mr-2" />;
+      case 'postgresql':
+        return <Database className="h-4 w-4 text-indigo-600 mr-2" />;
+      case 'oracle':
+        return <Server className="h-4 w-4 text-red-600 mr-2" />;
+      case 'mssql':
+        return <Database className="h-4 w-4 text-blue-500 mr-2" />;
+      case 'bigquery':
+        return <FileText className="h-4 w-4 text-green-600 mr-2" />;
+      case 'snowflake':
+        return <Server className="h-4 w-4 text-cyan-600 mr-2" />;
+      default:
+        return type === "source" 
+          ? <Database className="h-4 w-4 text-indigo-600 mr-2" /> 
+          : <HardDrive className="h-4 w-4 text-purple-600 mr-2" />;
+    }
+  };
+
   return (
     <div className="space-y-4">
       <h2 className="font-semibold text-lg">{type === "source" ? "Source" : "Target"} Connections</h2>
@@ -61,14 +94,11 @@ const ConnectionList = ({
             <div className="flex justify-between items-start">
               <div>
                 <CardTitle className="text-lg flex items-center">
-                  {type === "source" 
-                    ? <Database className="h-4 w-4 text-indigo-600 mr-2" /> 
-                    : <HardDrive className="h-4 w-4 text-purple-600 mr-2" />
-                  }
+                  {getDbIcon(connection.connectionType)}
                   {connection.name}
                 </CardTitle>
                 <CardDescription>
-                  {connection.connectionType} • {connection.host}{connection.port ? `:${connection.port}` : ""}
+                  {connection.connectionType.toUpperCase()} • {connection.host}{connection.port ? `:${connection.port}` : ""}
                   {connection.database && <span className="text-indigo-600">/{connection.database}</span>}
                 </CardDescription>
               </div>
@@ -93,65 +123,105 @@ const ConnectionList = ({
           
           <CardFooter className="border-t pt-3 flex flex-wrap gap-2">
             {connection.status === "connected" && !connection.database && (
-              <Select 
-                onValueChange={(value) => {
-                  if (value) {
-                    selectDatabaseForConnection(connection.id, value);
-                  }
-                }}
-              >
-                <SelectTrigger className="w-[180px] h-8 text-xs">
-                  <SelectValue placeholder="Select Database" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableDatabases.map(db => (
-                    <SelectItem key={db} value={db}>{db}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Select 
+                      onValueChange={(value) => {
+                        if (value) {
+                          selectDatabaseForConnection(connection.id, value);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-[180px] h-8 text-xs">
+                        <SelectValue placeholder="Select Database" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableDatabases.length > 0 ? (
+                          availableDatabases.map(db => (
+                            <SelectItem key={db} value={db}>{db}</SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="airportdb">airportdb</SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Select a database to connect to</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
             
             {connection.status === "selected" && (
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => onSelectConnection(connection.id)}
-                className={selectedConnectionId === connection.id ? "bg-indigo-50" : ""}
-              >
-                <Table className="h-3.5 w-3.5 mr-1.5" />
-                Browse Tables
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => onSelectConnection(connection.id)}
+                      className={selectedConnectionId === connection.id ? "bg-indigo-50" : ""}
+                    >
+                      <Table className="h-3.5 w-3.5 mr-1.5" />
+                      Browse Tables
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>View and browse tables in this database</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
             
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => testConnection(connection.id)}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <div className="w-3 h-3 rounded-full border-2 border-primary border-t-transparent animate-spin mr-1.5"></div>
-                  Testing...
-                </>
-              ) : (
-                <>
-                  <RefreshCcw className="h-3.5 w-3.5 mr-1.5" />
-                  Test
-                </>
-              )}
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => testConnection(connection.id)}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="w-3 h-3 rounded-full border-2 border-primary border-t-transparent animate-spin mr-1.5"></div>
+                        Testing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCcw className="h-3.5 w-3.5 mr-1.5" />
+                        Test
+                      </>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Test the database connection</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             
             {onDeleteConnection && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onDeleteConnection(connection.id)}
-                className="text-red-600 border-red-200 hover:bg-red-50"
-              >
-                <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                Delete
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onDeleteConnection(connection.id)}
+                      className="text-red-600 border-red-200 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                      Delete
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Delete this connection</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
           </CardFooter>
         </Card>
