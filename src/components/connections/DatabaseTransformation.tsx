@@ -1,11 +1,11 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useDatabaseConnections } from "@/hooks/useDatabaseConnections";
-import { Wand2, AlertCircle, CheckCircle } from "lucide-react";
+import { Wand2, AlertCircle, CheckCircle, DatabaseIcon } from "lucide-react";
 
 interface DatabaseTransformationProps {
   schema: string | null;
@@ -15,6 +15,12 @@ interface DatabaseTransformationProps {
 const DatabaseTransformation = ({ schema, table }: DatabaseTransformationProps) => {
   const [instruction, setInstruction] = useState("");
   const { processTransformation, processingResult, isLoading } = useDatabaseConnections();
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
+
+  useEffect(() => {
+    // Log when component props change for debugging purposes
+    console.log("DatabaseTransformation props changed:", { schema, table });
+  }, [schema, table]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,9 +39,45 @@ const DatabaseTransformation = ({ schema, table }: DatabaseTransformationProps) 
     }
   };
 
+  // Debug button to toggle showing debug info
+  const toggleDebugInfo = () => {
+    setShowDebugInfo(!showDebugInfo);
+  };
+
+  // If schema or table is missing, show debug info instead of null
   if (!schema || !table) {
-    console.log("DatabaseTransformation not rendering - missing schema or table");
-    return null;
+    return (
+      <Card className="mt-6 border-amber-100">
+        <CardHeader className="bg-gradient-to-r from-amber-50 to-white">
+          <CardTitle className="flex items-center">
+            <AlertCircle className="h-5 w-5 mr-2 text-amber-600" />
+            Waiting for Table Selection
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-4">
+          <div className="text-amber-700 mb-4">
+            Please select a schema and table to enable data transformation.
+          </div>
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={toggleDebugInfo}
+            className="text-xs"
+          >
+            {showDebugInfo ? "Hide Debug Info" : "Show Debug Info"}
+          </Button>
+          
+          {showDebugInfo && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-md text-xs font-mono overflow-auto">
+              <p>Current props:</p>
+              <pre>schema: {JSON.stringify(schema)}</pre>
+              <pre>table: {JSON.stringify(table)}</pre>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
   }
 
   console.log("Rendering DatabaseTransformation for", { schema, table });

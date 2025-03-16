@@ -7,13 +7,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import ConnectionForm from "@/components/connections/ConnectionForm";
 import ConnectionList from "@/components/connections/ConnectionList";
-import { Database, HardDrive, Plus, FileDown, Table, Eye, Wand2 } from "lucide-react";
+import { Database, HardDrive, Plus, FileDown, Table, Eye, Wand2, Trash2 } from "lucide-react";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import { useDatabaseConnections } from "@/hooks/useDatabaseConnections";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import DatabaseTransformation from "@/components/connections/DatabaseTransformation";
 
 const ConnectionsPage = () => {
@@ -27,6 +28,8 @@ const ConnectionsPage = () => {
   const [selectedSchema, setSelectedSchema] = useState<string | null>(null);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [connectionToDelete, setConnectionToDelete] = useState<string | null>(null);
 
   const {
     connections,
@@ -34,7 +37,8 @@ const ConnectionsPage = () => {
     tableData,
     fetchSchemas,
     selectTable,
-    isLoading: isConnectionLoading
+    isLoading: isConnectionLoading,
+    removeConnection
   } = useDatabaseConnections();
 
   // Filter connections based on active tab
@@ -44,6 +48,7 @@ const ConnectionsPage = () => {
   const handleTableSelect = async (schema: string, table: string) => {
     if (!selectedConnectionId) return;
     
+    console.log(`Selecting table ${schema}.${table}`);
     setSelectedSchema(schema);
     setSelectedTable(table);
     await selectTable(schema, table);
@@ -53,6 +58,8 @@ const ConnectionsPage = () => {
   // Handle database selection
   const handleDatabaseSelect = async (connectionId: string) => {
     setSelectedConnectionId(connectionId);
+    setSelectedSchema(null);
+    setSelectedTable(null);
     
     // Check if the connection has a database selected
     const connection = connections.find(conn => conn.id === connectionId);
@@ -61,6 +68,28 @@ const ConnectionsPage = () => {
       setIsLoading(true);
       await fetchSchemas(connectionId);
       setIsLoading(false);
+    }
+  };
+
+  // Handle delete connection
+  const handleDeleteConnection = (connectionId: string) => {
+    setConnectionToDelete(connectionId);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteConnection = () => {
+    if (connectionToDelete) {
+      removeConnection(connectionToDelete);
+      
+      // Reset selected connection if it was deleted
+      if (selectedConnectionId === connectionToDelete) {
+        setSelectedConnectionId(null);
+        setSelectedSchema(null);
+        setSelectedTable(null);
+      }
+      
+      setConnectionToDelete(null);
+      setDeleteConfirmOpen(false);
     }
   };
 
@@ -97,6 +126,15 @@ const ConnectionsPage = () => {
       });
     }, 1000);
   };
+
+  // Log state changes for debugging
+  useEffect(() => {
+    console.log("Selected connection/schema/table changed:", {
+      connectionId: selectedConnectionId,
+      schema: selectedSchema,
+      table: selectedTable
+    });
+  }, [selectedConnectionId, selectedSchema, selectedTable]);
 
   return (
     <SidebarLayout title="Data Connections">
@@ -145,6 +183,7 @@ const ConnectionsPage = () => {
                   type="source" 
                   onSelectConnection={handleDatabaseSelect}
                   selectedConnectionId={selectedConnectionId}
+                  onDeleteConnection={handleDeleteConnection}
                 />
                 <div className="mt-8">
                   <Card className="border-indigo-100">
@@ -264,6 +303,7 @@ const ConnectionsPage = () => {
                   type="target" 
                   onSelectConnection={handleDatabaseSelect}
                   selectedConnectionId={selectedConnectionId}
+                  onDeleteConnection={handleDeleteConnection}
                 />
                 <div className="mt-8">
                   <Card className="border-indigo-100">
@@ -364,6 +404,12 @@ const ConnectionsPage = () => {
                         ))}
                       </div>
                     )}
+                    
+                    {/* Transformation component */}
+                    <DatabaseTransformation 
+                      schema={selectedSchema}
+                      table={selectedTable}
+                    />
                   </CardContent>
                 </Card>
               </div>
@@ -506,6 +552,24 @@ const ConnectionsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the database connection. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConnectionToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteConnection} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarLayout>
   );
 };
