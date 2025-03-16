@@ -86,6 +86,20 @@ export function useDatabaseConnections() {
 
   const removeConnection = (id: string) => {
     setConnections(prev => prev.filter(conn => conn.id !== id));
+    
+    // If the removed connection was the selected one, clear selection
+    if (selectedConnection?.id === id) {
+      setSelectedConnection(null);
+      setSelectedTable(null);
+      setSelectedSchema(null);
+      setTableData(null);
+      setSchemas([]);
+    }
+    
+    toast({
+      title: "Connection removed",
+      description: "The database connection has been successfully removed."
+    });
   };
 
   const testConnection = async (connectionId: string) => {

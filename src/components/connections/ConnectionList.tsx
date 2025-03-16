@@ -12,13 +12,15 @@ import {
   ChevronRight, 
   ExternalLink,
   Eye,
-  HardDrive
+  HardDrive,
+  Trash2
 } from "lucide-react";
 import { useDatabaseConnections } from "@/hooks/useDatabaseConnections";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface ConnectionListProps {
   type: "source" | "target";
@@ -31,7 +33,8 @@ const ConnectionList = ({ type, onSelectConnection, selectedConnectionId }: Conn
     connections, 
     testConnection, 
     availableDatabases, 
-    selectDatabaseForConnection 
+    selectDatabaseForConnection,
+    removeConnection
   } = useDatabaseConnections();
   
   const [testingId, setTestingId] = useState<string | null>(null);
@@ -40,6 +43,8 @@ const ConnectionList = ({ type, onSelectConnection, selectedConnectionId }: Conn
   const [isDatabaseDialogOpen, setIsDatabaseDialogOpen] = useState(false);
   const [customDatabase, setCustomDatabase] = useState("");
   const [isCustomInput, setIsCustomInput] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [connectionToDelete, setConnectionToDelete] = useState<string | null>(null);
 
   // Filter connections by type
   const filteredConnections = connections.filter(conn => conn.type === type);
@@ -87,6 +92,21 @@ const ConnectionList = ({ type, onSelectConnection, selectedConnectionId }: Conn
       if (onSelectConnection) {
         onSelectConnection(selectingDbId);
       }
+    }
+  };
+
+  // Handle delete connection
+  const handleOpenDeleteDialog = (e: React.MouseEvent, connectionId: string) => {
+    e.stopPropagation();
+    setConnectionToDelete(connectionId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConnection = () => {
+    if (connectionToDelete) {
+      removeConnection(connectionToDelete);
+      setDeleteDialogOpen(false);
+      setConnectionToDelete(null);
     }
   };
 
@@ -225,6 +245,15 @@ const ConnectionList = ({ type, onSelectConnection, selectedConnectionId }: Conn
                           Browse
                         </Button>
                       )}
+                      
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => handleOpenDeleteDialog(e, connection.id)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -248,7 +277,13 @@ const ConnectionList = ({ type, onSelectConnection, selectedConnectionId }: Conn
             {!isCustomInput ? (
               <div className="grid gap-2">
                 <Label htmlFor="database">Available Databases</Label>
-                <Select value={selectedDatabase} onValueChange={setSelectedDatabase}>
+                <Select value={selectedDatabase} onValueChange={(value) => {
+                  if (value === "_custom") {
+                    setIsCustomInput(true);
+                  } else {
+                    setSelectedDatabase(value);
+                  }
+                }}>
                   <SelectTrigger id="database">
                     <SelectValue placeholder="Select a database" />
                   </SelectTrigger>
@@ -303,6 +338,27 @@ const ConnectionList = ({ type, onSelectConnection, selectedConnectionId }: Conn
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this database connection. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteConnection}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
