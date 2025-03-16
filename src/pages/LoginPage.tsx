@@ -1,9 +1,9 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/App";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/use-toast";
 import { Eye, EyeOff } from "lucide-react";
 
@@ -32,7 +32,7 @@ const LoginPage = () => {
     // Simulate API call delay
     setTimeout(() => {
       login();
-      navigate("/agent-selection");
+      navigate("/dashboard");
       setIsLoading(false);
     }, 1000);
   };
@@ -144,7 +144,7 @@ const LoginPage = () => {
           
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="email" className="block text-sm font-medium">Email</label>
+              <Label htmlFor="email" className="block text-sm font-medium">Email</Label>
               <div className="relative">
                 <Input
                   id="email"
@@ -159,7 +159,7 @@ const LoginPage = () => {
             
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label htmlFor="password" className="block text-sm font-medium">Password</label>
+                <Label htmlFor="password" className="block text-sm font-medium">Password</Label>
               </div>
               <div className="relative">
                 <Input
