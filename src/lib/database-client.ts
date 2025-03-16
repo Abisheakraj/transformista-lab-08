@@ -1,3 +1,4 @@
+
 import { mockSchemas, mockTableData, DatabaseCredentials as DbCredentials, SchemaInfo } from "./database-utils";
 
 // Re-export types from database-utils
@@ -55,13 +56,41 @@ export const testDatabaseConnection = async (params: ConnectionParams): Promise<
     });
     
     if (!response.ok) {
+      // Check if the response is HTML (which would indicate an error page)
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('text/html')) {
+        return {
+          success: false,
+          message: `Server returned HTML instead of JSON. Status: ${response.status}`
+        };
+      }
+      
       return {
         success: false,
         message: `HTTP error: ${response.status} ${response.statusText}`
       };
     }
     
-    const result = await response.json();
+    // Try to safely parse the JSON response
+    let result;
+    try {
+      const text = await response.text();
+      // Check if the text starts with HTML markers
+      if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+        return {
+          success: false,
+          message: "Received HTML instead of JSON. The server might be returning an error page."
+        };
+      }
+      result = JSON.parse(text);
+    } catch (parseError) {
+      console.error("Error parsing JSON:", parseError);
+      return {
+        success: false,
+        message: "Invalid JSON response from server. Please check your connection settings."
+      };
+    }
+    
     console.log("Connection test result:", result);
     
     // Ensure we have a consistent response format with required message
