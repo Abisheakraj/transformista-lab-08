@@ -49,7 +49,7 @@ const SidebarLayout = ({ children, title, workspaceId }: SidebarLayoutProps) => 
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
       <div 
-        className={`fixed top-0 left-0 h-full bg-white border-r border-gray-200 shadow-sm transition-all duration-300 z-20 ${
+        className={`fixed top-0 left-0 h-full bg-white border-r border-gray-200 shadow-sm transition-all duration-300 z-20 flex flex-col ${
           isSidebarCollapsed ? 'w-16' : 'w-64'
         }`}
       >
@@ -70,6 +70,7 @@ const SidebarLayout = ({ children, title, workspaceId }: SidebarLayoutProps) => 
           </Link>
         </div>
         
+        {/* Main navigation items */}
         <div className="flex-1 py-6 overflow-y-auto">
           <ul className="space-y-1 px-2">
             <li>
@@ -114,7 +115,8 @@ const SidebarLayout = ({ children, title, workspaceId }: SidebarLayoutProps) => 
           </ul>
         </div>
         
-        <div className="p-4 border-t border-gray-200">
+        {/* Bottom items - Settings, Help, Logout - now in a fixed footer */}
+        <div className="mt-auto p-4 border-t border-gray-200">
           <ul className="space-y-1">
             <li>
               <button
