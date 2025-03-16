@@ -11,9 +11,16 @@ import {
   CheckCircle, 
   DatabaseIcon, 
   Code,
-  RefreshCcw
+  RefreshCcw,
+  InfoIcon
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface DatabaseTransformationProps {
   schema: string | null;
@@ -30,6 +37,14 @@ const DatabaseTransformation = ({ schema, table }: DatabaseTransformationProps) 
   useEffect(() => {
     // Log when component props change for debugging purposes
     console.log("DatabaseTransformation props changed:", { schema, table });
+  }, [schema, table]);
+
+  // Reset input when schema/table changes
+  useEffect(() => {
+    if (schema && table) {
+      // Prefill some SQL examples when schema and table are available
+      setCustomSQL(`SELECT * FROM ${schema}.${table} LIMIT 10;`);
+    }
   }, [schema, table]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,7 +82,7 @@ const DatabaseTransformation = ({ schema, table }: DatabaseTransformationProps) 
     setShowDebugInfo(!showDebugInfo);
   };
 
-  // If schema or table is missing, show debug info instead of null
+  // If schema or table is missing, show selection prompt
   if (!schema || !table) {
     return (
       <Card className="mt-6 border-amber-100">
@@ -110,7 +125,7 @@ const DatabaseTransformation = ({ schema, table }: DatabaseTransformationProps) 
       <CardHeader className="bg-gradient-to-r from-indigo-50 to-white">
         <CardTitle className="flex items-center">
           <Wand2 className="h-5 w-5 mr-2 text-indigo-600" />
-          Transform Table Data
+          Transform Table Data: <span className="ml-2 text-indigo-700 font-mono">{schema}.{table}</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-4">
@@ -129,8 +144,21 @@ const DatabaseTransformation = ({ schema, table }: DatabaseTransformationProps) 
           <form onSubmit={handleSubmit}>
             <TabsContent value="instructions">
               <div className="mb-4">
-                <p className="text-sm text-gray-500 mb-2">
-                  Enter instructions to transform the data in <span className="font-semibold">{schema}.{table}</span>
+                <p className="text-sm text-gray-500 mb-2 flex items-center">
+                  Enter instructions to transform the data in <span className="font-semibold mx-1">{schema}.{table}</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <InfoIcon className="h-3.5 w-3.5 ml-1.5 text-gray-400" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="max-w-xs">
+                          Describe what changes you want to make to the data in plain English.
+                          For example: "Convert all city names to uppercase" or "Remove duplicates from the code column"
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </p>
                 <Textarea
                   placeholder="e.g., 'Normalize the base_airport column' or 'Convert all country names to uppercase'"
@@ -143,11 +171,24 @@ const DatabaseTransformation = ({ schema, table }: DatabaseTransformationProps) 
             
             <TabsContent value="sql">
               <div className="mb-4">
-                <p className="text-sm text-gray-500 mb-2">
-                  Enter a custom SQL query to transform <span className="font-semibold">{schema}.{table}</span>
+                <p className="text-sm text-gray-500 mb-2 flex items-center">
+                  Enter a custom SQL query to transform <span className="font-semibold mx-1">{schema}.{table}</span>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <InfoIcon className="h-3.5 w-3.5 ml-1.5 text-gray-400" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="max-w-xs">
+                          Enter SQL commands like SELECT, UPDATE, INSERT, or ALTER TABLE.
+                          Your SQL will be executed directly against the database.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </p>
                 <Textarea
-                  placeholder="e.g., 'SELECT * FROM airline WHERE country = 'USA'' or 'UPDATE airline SET country = UPPER(country)'"
+                  placeholder={`e.g., 'SELECT * FROM ${schema}.${table} WHERE country = 'USA'' or 'UPDATE ${schema}.${table} SET country = UPPER(country)'`}
                   value={customSQL}
                   onChange={(e) => setCustomSQL(e.target.value)}
                   className="min-h-[100px] font-mono text-sm"
@@ -179,33 +220,51 @@ const DatabaseTransformation = ({ schema, table }: DatabaseTransformationProps) 
             )}
             
             <div className="flex justify-end space-x-2">
-              <Button 
-                type="button"
-                variant="outline"
-                onClick={() => setTransformationType(transformationType === "instructions" ? "sql" : "instructions")}
-                className="flex items-center"
-              >
-                <RefreshCcw className="h-4 w-4 mr-2" />
-                Switch to {transformationType === "instructions" ? "SQL" : "Natural Language"}
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      type="button"
+                      variant="outline"
+                      onClick={() => setTransformationType(transformationType === "instructions" ? "sql" : "instructions")}
+                      className="flex items-center"
+                    >
+                      <RefreshCcw className="h-4 w-4 mr-2" />
+                      Switch to {transformationType === "instructions" ? "SQL" : "Natural Language"}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Toggle between natural language instructions and custom SQL</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               
-              <Button 
-                type="submit" 
-                disabled={isLoading || (transformationType === "instructions" ? !instruction.trim() : !customSQL.trim())} 
-                className="flex items-center"
-              >
-                {isLoading ? (
-                  <>
-                    <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2"></div>
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="h-4 w-4 mr-2" />
-                    Process {transformationType === "instructions" ? "Transformation" : "SQL"}
-                  </>
-                )}
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      type="submit" 
+                      disabled={isLoading || (transformationType === "instructions" ? !instruction.trim() : !customSQL.trim())} 
+                      className="flex items-center"
+                    >
+                      {isLoading ? (
+                        <>
+                          <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2"></div>
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="h-4 w-4 mr-2" />
+                          Execute {transformationType === "instructions" ? "Transformation" : "SQL"}
+                        </>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Process and apply the transformation to the database</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </form>
         </Tabs>

@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,10 +13,20 @@ import {
   HardDrive, 
   Table,
   Server,
-  FileText
+  FileText,
+  ChevronDown
 } from "lucide-react";
 import { useDatabaseConnections } from "@/hooks/useDatabaseConnections";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface ConnectionListProps {
   type: "source" | "target";
@@ -34,12 +44,22 @@ const ConnectionList = ({
   const { 
     connections,
     availableDatabases,
+    schemas,
     selectDatabaseForConnection,
-    testConnection, 
+    testConnection,
+    fetchSchemas,
+    selectTable,
     isLoading 
   } = useDatabaseConnections();
 
+  const [expandedConnectionId, setExpandedConnectionId] = useState<string | null>(null);
+
   const filteredConnections = connections.filter(conn => conn.type === type);
+
+  // Function to toggle connection expanded state
+  const toggleConnectionExpanded = (connectionId: string) => {
+    setExpandedConnectionId(expandedConnectionId === connectionId ? null : connectionId);
+  };
 
   if (filteredConnections.length === 0) {
     return (
@@ -155,24 +175,71 @@ const ConnectionList = ({
             )}
             
             {connection.status === "selected" && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => onSelectConnection(connection.id)}
-                      className={selectedConnectionId === connection.id ? "bg-indigo-50" : ""}
-                    >
-                      <Table className="h-3.5 w-3.5 mr-1.5" />
-                      Browse Tables
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>View and browse tables in this database</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      fetchSchemas(connection.id);
+                      onSelectConnection(connection.id);
+                    }}
+                    className={selectedConnectionId === connection.id ? "bg-indigo-50" : ""}
+                  >
+                    <Table className="h-3.5 w-3.5 mr-1.5" />
+                    Browse Tables
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80" align="start">
+                  <div className="space-y-2">
+                    <h3 className="font-medium">Select Schema & Table</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Choose a schema and table to view or transform
+                    </p>
+                    {isLoading ? (
+                      <div className="flex justify-center py-4">
+                        <div className="animate-spin h-6 w-6 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
+                      </div>
+                    ) : schemas.length > 0 ? (
+                      <div className="max-h-[300px] overflow-y-auto space-y-2">
+                        {schemas.map(schema => (
+                          <div key={schema.name} className="space-y-1">
+                            <div className="font-medium text-sm flex items-center">
+                              <Database className="h-3.5 w-3.5 mr-1.5 text-indigo-600" />
+                              {schema.name}
+                            </div>
+                            <div className="pl-5 space-y-1">
+                              {schema.tables.slice(0, 8).map(table => (
+                                <Button 
+                                  key={table.name} 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="w-full justify-start text-xs"
+                                  onClick={() => {
+                                    selectTable(schema.name, table.name);
+                                  }}
+                                >
+                                  <Table className="h-3 w-3 mr-1.5 text-gray-500" />
+                                  {table.name}
+                                </Button>
+                              ))}
+                              {schema.tables.length > 8 && (
+                                <div className="text-xs text-center text-muted-foreground py-1">
+                                  + {schema.tables.length - 8} more tables
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-4 text-center text-muted-foreground">
+                        No schemas found
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
             )}
             
             <TooltipProvider>

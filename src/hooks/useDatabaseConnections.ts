@@ -119,7 +119,7 @@ export function useDatabaseConnections() {
         db_type: connection.connectionType.toLowerCase()
       };
       
-      console.log("Testing connection with credentials:", JSON.stringify(credentials));
+      console.log("Testing connection with credentials:", JSON.stringify(credentials, null, 2));
       const result = await testDatabaseConnection(credentials);
       console.log("Connection test result:", result);
       
@@ -134,9 +134,14 @@ export function useDatabaseConnections() {
           description: result.message || "Successfully connected to database server"
         });
         
-        // Mock list of databases for now
-        // In a real implementation, this would come from the API
-        setAvailableDatabases(["airportdb", "mysql", "information_schema", "sys", "performance_schema"]);
+        // Set available databases based on connection type
+        if (connection.connectionType.toLowerCase() === 'mysql') {
+          setAvailableDatabases(["airportdb", "mysql", "information_schema", "sys", "performance_schema"]);
+        } else if (connection.connectionType.toLowerCase() === 'postgresql') {
+          setAvailableDatabases(["postgres", "template1", "template0"]);
+        } else {
+          setAvailableDatabases(["main", "system", "information_schema"]);
+        }
       } else {
         toast({
           title: "Connection failed",
@@ -182,7 +187,7 @@ export function useDatabaseConnections() {
         db_type: connection.connectionType.toLowerCase()
       };
       
-      console.log("Selecting database with credentials:", JSON.stringify(credentials));
+      console.log("Selecting database with credentials:", JSON.stringify(credentials, null, 2));
       const result = await selectDatabase(credentials);
       console.log("Database selection result:", result);
       
@@ -196,6 +201,9 @@ export function useDatabaseConnections() {
           title: "Database selected",
           description: `Successfully selected database ${databaseName}`
         });
+        
+        // After selecting a database, automatically fetch its schemas
+        await fetchSchemas(connectionId);
         
         return true;
       } else {
@@ -247,7 +255,7 @@ export function useDatabaseConnections() {
         db_type: connection.connectionType.toLowerCase()
       };
       
-      console.log("Fetching schemas with credentials:", JSON.stringify(credentials));
+      console.log("Fetching schemas with credentials:", JSON.stringify(credentials, null, 2));
       const fetchedSchemas = await fetchDatabaseSchemas(credentials);
       console.log("Fetched schemas:", fetchedSchemas);
       
@@ -255,6 +263,18 @@ export function useDatabaseConnections() {
       const validSchemas = Array.isArray(fetchedSchemas) ? fetchedSchemas : [];
       setSchemas(validSchemas);
       setSelectedConnection(connection);
+      
+      if (validSchemas.length === 0) {
+        toast({
+          title: "No schemas found",
+          description: "No database schemas were found for the selected database.",
+        });
+      } else {
+        toast({
+          title: "Schemas loaded",
+          description: `Found ${validSchemas.length} schemas with ${validSchemas.reduce((sum, schema) => sum + schema.tables.length, 0)} tables.`
+        });
+      }
       
       return validSchemas;
     } catch (error) {
@@ -296,6 +316,13 @@ export function useDatabaseConnections() {
         
         console.log("Setting table data:", formattedData);
         setTableData(formattedData);
+        
+        // Show a toast notification that the table has been selected
+        toast({
+          title: "Table Selected",
+          description: `Selected table ${schema}.${table} with ${formattedData.columns.length} columns`
+        });
+        
         return formattedData;
       } else {
         console.error("Invalid table data format:", data);
