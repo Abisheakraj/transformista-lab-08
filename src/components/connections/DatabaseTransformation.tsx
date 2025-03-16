@@ -18,12 +18,27 @@ const DatabaseTransformation = ({ schema, table }: DatabaseTransformationProps) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!schema || !table || !instruction.trim()) return;
+    if (!schema || !table || !instruction.trim()) {
+      console.log("Missing required data for transformation:", { schema, table, instruction });
+      return;
+    }
     
-    await processTransformation(instruction, table, schema);
+    console.log("Submitting transformation:", { instruction, table, schema });
+    
+    try {
+      await processTransformation(instruction, table, schema);
+      console.log("Transformation completed");
+    } catch (error) {
+      console.error("Error during transformation:", error);
+    }
   };
 
-  if (!schema || !table) return null;
+  if (!schema || !table) {
+    console.log("DatabaseTransformation not rendering - missing schema or table");
+    return null;
+  }
+
+  console.log("Rendering DatabaseTransformation for", { schema, table });
 
   return (
     <Card className="mt-6 border-indigo-100">

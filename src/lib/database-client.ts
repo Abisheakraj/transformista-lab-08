@@ -58,21 +58,27 @@ export const testDatabaseConnection = async (credentials: DatabaseCredentials): 
   console.log("Testing connection:", credentials);
   
   try {
+    const requestBody = {
+      db_type: credentials.db_type || credentials.connectionType.toLowerCase(),
+      host: credentials.host,
+      port: credentials.port,
+      username: credentials.username,
+      password: credentials.password
+    };
+    
+    console.log(`Sending connection request to ${API_BASE_URL}/database/connect with:`, requestBody);
+    
     const response = await fetch(`${API_BASE_URL}/database/connect`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        db_type: credentials.db_type || credentials.connectionType.toLowerCase(),
-        host: credentials.host,
-        port: credentials.port,
-        username: credentials.username,
-        password: credentials.password
-      }),
+      body: JSON.stringify(requestBody),
     });
 
+    console.log("Connection response status:", response.status);
     const data = await response.json();
+    console.log("Connection response data:", data);
     
     if (response.ok) {
       return {
@@ -101,22 +107,28 @@ export const selectDatabase = async (credentials: DatabaseCredentials): Promise<
   console.log("Selecting database:", credentials.database);
   
   try {
+    const requestBody = {
+      db_type: credentials.db_type || credentials.connectionType.toLowerCase(),
+      host: credentials.host,
+      port: credentials.port,
+      username: credentials.username,
+      password: credentials.password,
+      database: credentials.database
+    };
+    
+    console.log(`Sending database selection request to ${API_BASE_URL}/database/select-database with:`, requestBody);
+    
     const response = await fetch(`${API_BASE_URL}/database/select-database`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        db_type: credentials.db_type || credentials.connectionType.toLowerCase(),
-        host: credentials.host,
-        port: credentials.port,
-        username: credentials.username,
-        password: credentials.password,
-        database: credentials.database
-      }),
+      body: JSON.stringify(requestBody),
     });
 
+    console.log("Database selection response status:", response.status);
     const data = await response.json();
+    console.log("Database selection response data:", data);
     
     if (response.ok) {
       return {
@@ -286,21 +298,29 @@ export const fetchTableSampleData = async (
   console.log(`Fetching sample data for ${schema}.${table}`, credentials);
   
   try {
+    const requestBody = {
+      table_name: table
+    };
+    
+    console.log(`Sending table preview request to ${API_BASE_URL}/database/preview-table with:`, requestBody);
+    
     const response = await fetch(`${API_BASE_URL}/database/preview-table`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        table_name: table
-      }),
+      body: JSON.stringify(requestBody),
     });
 
+    console.log("Table preview response status:", response.status);
+    
     if (!response.ok) {
+      console.error("Failed to fetch table data:", response.statusText);
       throw new Error('Failed to fetch table data');
     }
 
     const data = await response.json();
+    console.log("Table preview response data:", data);
     
     if (data && Array.isArray(data)) {
       // Extract columns from the first row
@@ -369,19 +389,25 @@ export const processDataTransformation = async (
   console.log(`Processing instruction for ${schema}.${tableName}:`, instruction);
   
   try {
+    const requestBody = {
+      instruction,
+      table_name: tableName,
+      schema
+    };
+    
+    console.log(`Sending process request to ${API_BASE_URL}/database/process with:`, requestBody);
+    
     const response = await fetch(`${API_BASE_URL}/database/process`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        instruction,
-        table_name: tableName,
-        schema
-      }),
+      body: JSON.stringify(requestBody),
     });
 
+    console.log("Process response status:", response.status);
     const data = await response.json();
+    console.log("Process response data:", data);
     
     if (response.ok) {
       return {
