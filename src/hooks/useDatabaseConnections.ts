@@ -150,6 +150,8 @@ export function useDatabaseConnections() {
     if (!connection) return;
     
     setIsLoading(true);
+    setTableData(null); // Reset table data when fetching new schemas
+    setSelectedTable(null); // Reset selected table
     
     try {
       const credentials: DatabaseCredentials = {
@@ -165,10 +167,6 @@ export function useDatabaseConnections() {
       setSchemas(fetchedSchemas);
       setSelectedConnection(connection);
       
-      // Reset selected table when schemas change
-      setSelectedTable(null);
-      setTableData(null);
-      
       return fetchedSchemas;
     } catch (error) {
       console.error('Error fetching schemas:', error);
@@ -177,6 +175,7 @@ export function useDatabaseConnections() {
         description: "Could not retrieve database schema information.",
         variant: "destructive"
       });
+      return [];
     } finally {
       setIsLoading(false);
     }
@@ -188,10 +187,12 @@ export function useDatabaseConnections() {
     setSelectedSchema(schema);
     setSelectedTable(table);
     setIsLoading(true);
+    setTableData(null); // Reset before loading new data
     
     try {
       const data = await fetchSampleData(selectedConnection.id, schema, table, 50);
       setTableData(data);
+      return data;
     } catch (error) {
       console.error('Error selecting table:', error);
       toast({
@@ -199,6 +200,7 @@ export function useDatabaseConnections() {
         description: "Could not load table data.",
         variant: "destructive"
       });
+      return null;
     } finally {
       setIsLoading(false);
     }

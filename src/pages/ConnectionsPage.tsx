@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,13 +7,89 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import ConnectionForm from "@/components/connections/ConnectionForm";
 import ConnectionList from "@/components/connections/ConnectionList";
-import { Database, HardDrive, Plus } from "lucide-react";
+import { Database, HardDrive, Plus, FileDown, Table, Eye } from "lucide-react";
 import SidebarLayout from "@/components/layout/SidebarLayout";
+import { useDatabaseConnections } from "@/hooks/useDatabaseConnections";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 const ConnectionsPage = () => {
   const [activeTab, setActiveTab] = useState<string>("sources");
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState("json");
+  const [isTablePreviewOpen, setIsTablePreviewOpen] = useState(false);
+  const [selectedConnectionId, setSelectedConnectionId] = useState<string | null>(null);
+  const [selectedSchema, setSelectedSchema] = useState<string | null>(null);
+  const [selectedTable, setSelectedTable] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const {
+    connections,
+    schemas,
+    tableData,
+    fetchSchemas,
+    selectTable,
+    isLoading: isConnectionLoading
+  } = useDatabaseConnections();
+
+  // Filter connections based on active tab
+  const filteredConnections = connections.filter(conn => conn.type === (activeTab === "sources" ? "source" : "target"));
+
+  // Handle table selection
+  const handleTableSelect = async (schema: string, table: string) => {
+    if (!selectedConnectionId) return;
+    
+    setSelectedSchema(schema);
+    setSelectedTable(table);
+    await selectTable(schema, table);
+    setIsTablePreviewOpen(true);
+  };
+
+  // Handle database selection
+  const handleDatabaseSelect = async (connectionId: string) => {
+    setSelectedConnectionId(connectionId);
+    setIsLoading(true);
+    await fetchSchemas(connectionId);
+    setIsLoading(false);
+  };
+
+  // Handle export
+  const handleExport = () => {
+    setIsExportOpen(true);
+  };
+
+  const handleExportSubmit = () => {
+    setIsLoading(true);
+
+    setTimeout(() => {
+      // Create a downloadable file with the connection data
+      const exportData = {
+        connections: connections.filter(conn => conn.type === (activeTab === "sources" ? "source" : "target")),
+        schemas: schemas,
+        exportedAt: new Date().toISOString()
+      };
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", `database-connections-${activeTab}.${exportFormat}`);
+      document.body.appendChild(downloadAnchorNode);
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+
+      setIsExportOpen(false);
+      setIsLoading(false);
+
+      toast({
+        title: "Export Successful",
+        description: `Connections exported as ${exportFormat.toUpperCase()} file.`
+      });
+    }, 1000);
+  };
 
   return (
     <SidebarLayout title="Data Connections">
@@ -25,12 +101,22 @@ const ConnectionsPage = () => {
               Connect to source and target databases to build your data transformation pipelines
             </p>
           </div>
-          <Button 
-            onClick={() => setActiveTab(activeTab === "sources" ? "targets" : "sources")}
-            variant="outline"
-          >
-            Switch to {activeTab === "sources" ? "Targets" : "Sources"}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleExport}
+              variant="outline"
+              disabled={filteredConnections.length === 0}
+            >
+              <FileDown className="h-4 w-4 mr-2" />
+              Export Connections
+            </Button>
+            <Button 
+              onClick={() => setActiveTab(activeTab === "sources" ? "targets" : "sources")}
+              variant="outline"
+            >
+              Switch to {activeTab === "sources" ? "Targets" : "Sources"}
+            </Button>
+          </div>
         </div>
 
         <Tabs defaultValue="sources" value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -46,58 +132,196 @@ const ConnectionsPage = () => {
           </TabsList>
           
           <TabsContent value="sources">
-            <ConnectionList type="source" />
-            <div className="mt-8">
-              <Card className="border-indigo-100">
-                <CardHeader className="bg-gradient-to-r from-indigo-50 to-white">
-                  <CardTitle className="flex items-center">
-                    <Database className="h-5 w-5 mr-2 text-indigo-600" />
-                    Add Source Connection
-                  </CardTitle>
-                  <CardDescription>
-                    Connect to a database system that you want to extract data from
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <ConnectionForm 
-                    type="source" 
-                    onSuccess={() => {
-                      toast({
-                        title: "Source Connection Added",
-                        description: "Your database connection has been successfully added.",
-                      });
-                    }}
-                  />
-                </CardContent>
-              </Card>
+            <div className="flex flex-col md:flex-row gap-6">
+              <div className="md:w-1/3">
+                <ConnectionList 
+                  type="source" 
+                  onSelectConnection={handleDatabaseSelect}
+                  selectedConnectionId={selectedConnectionId}
+                />
+                <div className="mt-8">
+                  <Card className="border-indigo-100">
+                    <CardHeader className="bg-gradient-to-r from-indigo-50 to-white">
+                      <CardTitle className="flex items-center">
+                        <Database className="h-5 w-5 mr-2 text-indigo-600" />
+                        Add Source Connection
+                      </CardTitle>
+                      <CardDescription>
+                        Connect to a database system that you want to extract data from
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <ConnectionForm 
+                        type="source" 
+                        onSuccess={() => {
+                          toast({
+                            title: "Source Connection Added",
+                            description: "Your database connection has been successfully added.",
+                          });
+                        }}
+                      />
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+              
+              <div className="md:w-2/3">
+                <Card>
+                  <CardHeader className="bg-gradient-to-r from-indigo-50 to-white">
+                    <CardTitle className="flex items-center">
+                      <Table className="h-5 w-5 mr-2 text-indigo-600" />
+                      Database Schema Browser
+                    </CardTitle>
+                    <CardDescription>
+                      Browse schemas and tables from your selected database connection
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    {!selectedConnectionId && (
+                      <div className="text-center py-10 border border-dashed rounded-md">
+                        <Database className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-500 mb-2">Select a connection to browse its schema</p>
+                      </div>
+                    )}
+                    
+                    {selectedConnectionId && isLoading && (
+                      <div className="flex justify-center items-center py-10">
+                        <div className="animate-spin w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
+                        <span className="ml-2">Loading schemas...</span>
+                      </div>
+                    )}
+                    
+                    {selectedConnectionId && !isLoading && schemas.length === 0 && (
+                      <div className="text-center py-10 border border-dashed rounded-md">
+                        <Table className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-500 mb-2">No schemas found in this database</p>
+                      </div>
+                    )}
+                    
+                    {selectedConnectionId && !isLoading && schemas.length > 0 && (
+                      <div className="space-y-4">
+                        {schemas.map((schema) => (
+                          <div key={schema.name} className="border rounded-md p-4">
+                            <h3 className="text-md font-medium mb-2">{schema.name}</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                              {schema.tables.map((table) => (
+                                <div 
+                                  key={`${schema.name}.${table.name}`}
+                                  className="border p-2 rounded hover:bg-gray-50 cursor-pointer flex items-center justify-between"
+                                  onClick={() => handleTableSelect(schema.name, table.name)}
+                                >
+                                  <div className="flex items-center">
+                                    <Table className="h-4 w-4 text-gray-500 mr-2" />
+                                    <span>{table.name}</span>
+                                  </div>
+                                  <Badge variant="outline" className="ml-2">{table.columns.length} cols</Badge>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </TabsContent>
           
           <TabsContent value="targets">
-            <ConnectionList type="target" />
-            <div className="mt-8">
-              <Card className="border-indigo-100">
-                <CardHeader className="bg-gradient-to-r from-indigo-50 to-white">
-                  <CardTitle className="flex items-center">
-                    <HardDrive className="h-5 w-5 mr-2 text-indigo-600" />
-                    Add Target Connection
-                  </CardTitle>
-                  <CardDescription>
-                    Connect to a database system where you want to load your transformed data
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <ConnectionForm 
-                    type="target" 
-                    onSuccess={() => {
-                      toast({
-                        title: "Target Connection Added",
-                        description: "Your database connection has been successfully added.",
-                      });
-                    }}
-                  />
-                </CardContent>
-              </Card>
+            <div className="flex flex-col md:flex-row gap-6">
+              <div className="md:w-1/3">
+                <ConnectionList 
+                  type="target" 
+                  onSelectConnection={handleDatabaseSelect}
+                  selectedConnectionId={selectedConnectionId}
+                />
+                <div className="mt-8">
+                  <Card className="border-indigo-100">
+                    <CardHeader className="bg-gradient-to-r from-indigo-50 to-white">
+                      <CardTitle className="flex items-center">
+                        <HardDrive className="h-5 w-5 mr-2 text-indigo-600" />
+                        Add Target Connection
+                      </CardTitle>
+                      <CardDescription>
+                        Connect to a database system where you want to load your transformed data
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <ConnectionForm 
+                        type="target" 
+                        onSuccess={() => {
+                          toast({
+                            title: "Target Connection Added",
+                            description: "Your database connection has been successfully added.",
+                          });
+                        }}
+                      />
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+              
+              <div className="md:w-2/3">
+                <Card>
+                  <CardHeader className="bg-gradient-to-r from-indigo-50 to-white">
+                    <CardTitle className="flex items-center">
+                      <Table className="h-5 w-5 mr-2 text-indigo-600" />
+                      Database Schema Browser
+                    </CardTitle>
+                    <CardDescription>
+                      Browse schemas and tables from your selected database connection
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    {!selectedConnectionId && (
+                      <div className="text-center py-10 border border-dashed rounded-md">
+                        <Database className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-500 mb-2">Select a connection to browse its schema</p>
+                      </div>
+                    )}
+                    
+                    {selectedConnectionId && isLoading && (
+                      <div className="flex justify-center items-center py-10">
+                        <div className="animate-spin w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
+                        <span className="ml-2">Loading schemas...</span>
+                      </div>
+                    )}
+                    
+                    {selectedConnectionId && !isLoading && schemas.length === 0 && (
+                      <div className="text-center py-10 border border-dashed rounded-md">
+                        <Table className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-500 mb-2">No schemas found in this database</p>
+                      </div>
+                    )}
+                    
+                    {selectedConnectionId && !isLoading && schemas.length > 0 && (
+                      <div className="space-y-4">
+                        {schemas.map((schema) => (
+                          <div key={schema.name} className="border rounded-md p-4">
+                            <h3 className="text-md font-medium mb-2">{schema.name}</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                              {schema.tables.map((table) => (
+                                <div 
+                                  key={`${schema.name}.${table.name}`}
+                                  className="border p-2 rounded hover:bg-gray-50 cursor-pointer flex items-center justify-between"
+                                  onClick={() => handleTableSelect(schema.name, table.name)}
+                                >
+                                  <div className="flex items-center">
+                                    <Table className="h-4 w-4 text-gray-500 mr-2" />
+                                    <span>{table.name}</span>
+                                  </div>
+                                  <Badge variant="outline" className="ml-2">{table.columns.length} cols</Badge>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </TabsContent>
         </Tabs>
@@ -131,6 +355,104 @@ const ConnectionsPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Export Dialog */}
+      <Dialog open={isExportOpen} onOpenChange={setIsExportOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Export Database Connections</DialogTitle>
+            <DialogDescription>
+              Export your {activeTab === "sources" ? "source" : "target"} database connections in various formats.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="export-format">Export Format</Label>
+              <Select value={exportFormat} onValueChange={setExportFormat}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Format" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="json">JSON</SelectItem>
+                  <SelectItem value="yaml">YAML</SelectItem>
+                  <SelectItem value="sql">SQL Script</SelectItem>
+                  <SelectItem value="csv">CSV</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsExportOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleExportSubmit} disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2"></div>
+                  Exporting...
+                </>
+              ) : (
+                "Export"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Table Preview Dialog */}
+      <Dialog open={isTablePreviewOpen} onOpenChange={setIsTablePreviewOpen}>
+        <DialogContent className="sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Table Preview: {selectedSchema}.{selectedTable}</DialogTitle>
+            <DialogDescription>
+              Preview data from the selected table
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            {isConnectionLoading ? (
+              <div className="flex justify-center items-center py-10">
+                <div className="animate-spin w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
+                <span className="ml-2">Loading data...</span>
+              </div>
+            ) : (
+              tableData && (
+                <div className="overflow-auto max-h-96">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        {tableData.columns.map((column, idx) => (
+                          <th key={idx} className="border px-4 py-2 text-left">{column}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tableData.rows.map((row, rowIdx) => (
+                        <tr key={rowIdx} className={rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                          {row.map((cell, cellIdx) => (
+                            <td key={cellIdx} className="border px-4 py-2">{cell?.toString() || ""}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+            {!isConnectionLoading && !tableData && (
+              <div className="text-center py-10 border border-dashed rounded-md">
+                <p className="text-gray-500">No data available for this table</p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button onClick={() => setIsTablePreviewOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SidebarLayout>
   );
 };
