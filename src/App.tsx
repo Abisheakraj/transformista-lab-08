@@ -4,11 +4,14 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Index from "./pages/Index";
+import { useState, createContext, useContext, ReactNode } from "react";
+import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 import Dashboard from "./pages/Dashboard";
 import ProjectDetail from "./pages/ProjectDetail";
-import { useState, createContext, useContext, ReactNode } from "react";
+import WorkspacePage from "./pages/WorkspacePage";
+import ConnectionsPage from "./pages/ConnectionsPage";
+import AgentSelectionPage from "./pages/AgentSelectionPage";
 
 // Create a simple auth context to simulate authentication
 interface AuthContextType {
@@ -53,7 +56,12 @@ const App = () => {
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Index />} />
+              <Route path="/" element={<LoginPage />} />
+              <Route path="/agent-selection" element={
+                <ProtectedRoute>
+                  <AgentSelectionPage />
+                </ProtectedRoute>
+              } />
               <Route path="/dashboard" element={
                 <ProtectedRoute>
                   <Dashboard />
@@ -62,6 +70,16 @@ const App = () => {
               <Route path="/projects/:projectId" element={
                 <ProtectedRoute>
                   <ProjectDetail />
+                </ProtectedRoute>
+              } />
+              <Route path="/workspace" element={
+                <ProtectedRoute>
+                  <WorkspacePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/connections" element={
+                <ProtectedRoute>
+                  <ConnectionsPage />
                 </ProtectedRoute>
               } />
               <Route path="*" element={<NotFound />} />
