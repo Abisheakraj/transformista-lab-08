@@ -9,7 +9,7 @@ import { useForm, Controller } from "react-hook-form";
 import { Link } from "react-router-dom";
 import { ExternalLink, Loader2, Database, CheckCircle2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { testDatabaseConnection } from "@/lib/database-client";
+import { testDatabaseConnection, ApiResponse } from "@/lib/database-client";
 
 interface AddDataSourceDialogProps {
   open: boolean;
@@ -97,7 +97,10 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
           description: testResult.message,
           variant: "destructive"
         });
-        setConnectionResult(testResult);
+        setConnectionResult({
+          success: testResult.success,
+          message: testResult.message
+        });
         setIsLoading(false);
         return;
       }
@@ -154,6 +157,7 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
       });
       
       console.log("Connection test result:", result);
+      // Create a new object with the required properties
       setConnectionResult({
         success: result.success,
         message: result.message

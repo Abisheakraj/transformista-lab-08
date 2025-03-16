@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Database } from "lucide-react";
-import { testDatabaseConnection } from "@/lib/database-client";
+import { testDatabaseConnection, ApiResponse } from "@/lib/database-client";
 import { useDatabaseConnections } from "@/hooks/useDatabaseConnections";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, CheckCircle } from "lucide-react";
@@ -78,7 +78,11 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
       });
       
       console.log("Connection test result:", result);
-      setConnectionResult(result);
+      // Explicitly create a new object with the required properties
+      setConnectionResult({
+        success: result.success,
+        message: result.message
+      });
       
       if (result.success) {
         toast({
@@ -142,7 +146,11 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
           description: testResult.message,
           variant: "destructive"
         });
-        setConnectionResult(testResult);
+        // Explicitly create a new object with the required properties
+        setConnectionResult({
+          success: testResult.success,
+          message: testResult.message
+        });
         setIsLoading(false);
         return;
       }

@@ -22,9 +22,9 @@ export interface SchemaInfo {
   tables: DatabaseTable[];
 }
 
-interface ApiResponse {
+export interface ApiResponse {
   success: boolean;
-  message?: string;
+  message: string; // Changed from optional to required
   data?: any;
 }
 
@@ -58,7 +58,7 @@ export async function testDatabaseConnection(credentials: DatabaseCredentials): 
     const result = await response.json();
     console.log("Connection test result:", result);
     
-    // Ensure we have a consistent response format
+    // Ensure we have a consistent response format with required message
     return {
       success: result.success === true,
       message: result.message || (result.success ? "Successfully connected" : "Connection failed"),
