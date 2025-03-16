@@ -7,7 +7,7 @@ export interface DatabaseCredentials {
   port?: string;
   database?: string;
   username?: string;
-  password: string; // Made required to match ConnectionParams
+  password: string; // Required to match ConnectionParams
   connectionType: string;
   db_type?: string;
 }
