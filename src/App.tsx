@@ -14,7 +14,7 @@ import ConnectionsPage from "./pages/ConnectionsPage";
 
 // Create a simple auth context to simulate authentication
 interface AuthContextType {
-  is Authenticated: boolean;
+  isAuthenticated: boolean;
   login: () => void;
   logout: () => void;
 }
