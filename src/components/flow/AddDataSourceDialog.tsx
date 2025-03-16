@@ -1,11 +1,10 @@
-
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useForm, Controller } from "react-hook-form";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Link } from "react-router-dom";
 import { ExternalLink, Loader2, Database, CheckCircle2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -14,85 +13,120 @@ import { testDatabaseConnection, ApiResponse } from "@/lib/database-client";
 interface AddDataSourceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (dataSource: {
-    name: string;
-    type: "source" | "target";
-    connectionType: string;
-    host: string;
-    port: string;
-    database: string;
-    username: string;
-    password: string;
-  }) => void;
+  onSubmit: (values: any) => void;
   type: "source" | "target";
 }
 
-interface FormData {
-  name: string;
-  connectionType: string;
-  host: string;
-  port: string;
-  database: string;
-  username: string;
-  password: string;
-}
-
-const connectionTypes = {
-  source: ["MySQL", "PostgreSQL", "SQLite", "MongoDB", "Oracle", "MSSQL", "Sybase"],
-  target: ["MySQL", "PostgreSQL", "BigQuery", "Snowflake", "Redshift"]
-};
-
 const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSourceDialogProps) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
   const [connectionResult, setConnectionResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [supabaseStatus, setSupabaseStatus] = useState<{ connected: boolean; project?: string }>({ connected: false });
+  const { toast } = useToast();
   
-  const { register, handleSubmit, reset, control, getValues, setValue, formState: { errors } } = useForm<FormData>({
-    defaultValues: {
-      connectionType: type === 'source' ? 'MySQL' : 'PostgreSQL',
-      host: 'localhost',
-      port: '3306',
-      database: 'airportdb',
-      username: 'root',
-      password: '9009'
-    }
+  const [formData, setFormData] = useState({
+    name: "",
+    connectionType: "mysql",
+    host: "localhost",
+    port: "3306",
+    database: "airportdb",
+    username: "root",
+    password: "9009",
+    type: type
   });
 
-  // Reset form when dialog opens/closes
-  useEffect(() => {
-    if (!open) {
-      reset();
-      setConnectionResult(null);
-    } else {
-      // Check Supabase status
-      const mockSupabaseStatus = { connected: false, project: undefined };
-      setSupabaseStatus(mockSupabaseStatus);
-      
-      // Pre-fill form if supabase is connected
-      if (mockSupabaseStatus.connected) {
-        setValue('name', `${mockSupabaseStatus.project || 'Supabase'} ${type === 'source' ? 'Source' : 'Target'}`);
-      }
-    }
-  }, [open, reset, type, setValue]);
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
-  const handleFormSubmit = async (data: FormData) => {
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleTestConnection = async () => {
+    if (!formData.host) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide at least host to test the connection.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsTesting(true);
+    setConnectionResult(null);
+    
     try {
-      setIsLoading(true);
+      console.log("Testing connection with data:", formData);
+      const result = await testDatabaseConnection({
+        host: formData.host,
+        port: formData.port,
+        database: formData.database,
+        username: formData.username,
+        password: formData.password,
+        connectionType: formData.connectionType.toLowerCase(),
+        db_type: formData.connectionType.toLowerCase()
+      });
       
-      // Test connection before submitting
+      console.log("Connection test result:", result);
+      // Create a new object with the required properties
+      setConnectionResult({
+        success: result.success,
+        message: result.message
+      });
+      
+      if (result.success) {
+        toast({
+          title: "Connection Successful",
+          description: result.message
+        });
+      } else {
+        toast({
+          title: "Connection Failed",
+          description: result.message,
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Connection test error:", error);
+      setConnectionResult({
+        success: false,
+        message: error instanceof Error ? error.message : "An unexpected error occurred"
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.name || !formData.connectionType || !formData.host) {
+      toast({
+        title: "Missing Required Fields",
+        description: "Please fill in all required fields to add this connection.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      // Test the connection before adding
+      console.log("Testing connection before adding...");
       const testResult = await testDatabaseConnection({
-        host: data.host,
-        port: data.port,
-        database: data.database,
-        username: data.username,
-        password: data.password,
-        connectionType: data.connectionType.toLowerCase(),
-        db_type: data.connectionType.toLowerCase()
+        host: formData.host,
+        port: formData.port,
+        database: formData.database,
+        username: formData.username,
+        password: formData.password,
+        connectionType: formData.connectionType.toLowerCase(),
+        db_type: formData.connectionType.toLowerCase()
       });
       
       if (!testResult.success) {
-        useToast().toast({
+        toast({
           title: "Connection Failed",
           description: testResult.message,
           variant: "destructive"
@@ -104,24 +138,29 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
         setIsLoading(false);
         return;
       }
+
+      // Submit the form data to parent component
+      onSubmit(formData);
       
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate API call
-      onSubmit({
-        ...data,
-        type,
+      // Reset form and close dialog
+      setFormData({
+        name: "",
+        connectionType: "mysql",
+        host: "localhost",
+        port: "3306",
+        database: "airportdb",
+        username: "root",
+        password: "9009",
+        type: type
       });
-      useToast().toast({
-        title: `${type === "source" ? "Source" : "Target"} connection added`,
-        description: `Successfully added ${data.name} connection.`
-      });
-      reset();
+      
       setConnectionResult(null);
-      onOpenChange(false);
+      
     } catch (error) {
-      console.error("Error adding data source:", error);
-      useToast().toast({
-        title: "Error adding connection",
-        description: "There was a problem adding your connection. Please try again.",
+      console.error("Error adding datasource:", error);
+      toast({
+        title: "Error Adding Data Source",
+        description: "There was a problem adding your data source. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -129,255 +168,135 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
     }
   };
 
-  const handleTestConnection = async () => {
-    const values = getValues();
-    
-    if (!values.host || !values.database) {
-      useToast().toast({
-        title: "Missing Information",
-        description: "Please provide at least host and database name to test the connection.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsTestingConnection(true);
-    setConnectionResult(null);
-    
-    try {
-      console.log("Testing connection with data:", values);
-      const result = await testDatabaseConnection({
-        host: values.host,
-        port: values.port,
-        database: values.database,
-        username: values.username,
-        password: values.password,
-        connectionType: values.connectionType.toLowerCase(),
-        db_type: values.connectionType.toLowerCase()
-      });
-      
-      console.log("Connection test result:", result);
-      // Create a new object with the required properties
-      setConnectionResult({
-        success: result.success,
-        message: result.message
-      });
-      
-      if (result.success) {
-        useToast().toast({
-          title: "Connection Successful",
-          description: result.message
-        });
-      } else {
-        useToast().toast({
-          title: "Connection Failed",
-          description: result.message,
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error("Connection test error:", error);
-      useToast().toast({
-        title: "Connection Error",
-        description: "An unexpected error occurred while testing the connection.",
-        variant: "destructive"
-      });
-      setConnectionResult({
-        success: false,
-        message: "An unexpected error occurred while testing the connection."
-      });
-    } finally {
-      setIsTestingConnection(false);
-    }
-  };
-
-  const handleDialogClose = (open: boolean) => {
-    if (!open) {
-      reset();
-      setConnectionResult(null);
-    }
-    onOpenChange(open);
-  };
+  const connectionTypes = type === "source" 
+    ? ["mysql", "postgresql", "oracle", "mssql"] 
+    : ["mysql", "postgresql", "bigquery", "snowflake", "redshift"];
 
   return (
-    <Dialog open={open} onOpenChange={handleDialogClose}>
-      <DialogContent className="sm:max-w-[500px]">
-        <form onSubmit={handleSubmit(handleFormSubmit)}>
-          <DialogHeader>
-            <DialogTitle>Add {type === "source" ? "Source" : "Target"} Database</DialogTitle>
-            <DialogDescription>
-              Configure your {type === "source" ? "source" : "target"} database connection details.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {supabaseStatus.connected && (
-            <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 flex items-start gap-3 mb-4">
-              <CheckCircle2 className="h-5 w-5 text-indigo-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-indigo-900">Supabase Integration Active</p>
-                <p className="text-xs text-indigo-700 mt-1">
-                  Connected to Supabase project: {supabaseStatus.project || 'Unknown'}. 
-                  Your database credentials will be securely stored.
-                </p>
-              </div>
-            </div>
-          )}
-          
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Connection Name</Label>
-              <Input
-                id="name"
-                placeholder="e.g., Production MySQL Database"
-                {...register("name", { required: "Connection name is required" })}
-              />
-              {errors.name && (
-                <p className="text-sm text-destructive">{errors.name.message}</p>
-              )}
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="connectionType">Database Type</Label>
-              <Controller
-                name="connectionType"
-                control={control}
-                rules={{ required: "Database type is required" }}
-                render={({ field }) => (
-                  <Select 
-                    onValueChange={field.onChange} 
-                    defaultValue={field.value}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select database type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {connectionTypes[type].map((dbType) => (
-                        <SelectItem key={dbType} value={dbType}>
-                          <div className="flex items-center">
-                            <Database className="w-4 h-4 mr-2 text-muted-foreground" />
-                            {dbType}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {errors.connectionType && (
-                <p className="text-sm text-destructive">{errors.connectionType.message}</p>
-              )}
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="host">Host / Endpoint</Label>
-                <Input
-                  id="host"
-                  placeholder="e.g., localhost or db.example.com"
-                  {...register("host", { required: "Host is required" })}
-                />
-                {errors.host && (
-                  <p className="text-sm text-destructive">{errors.host.message}</p>
-                )}
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="port">Port</Label>
-                <Input
-                  id="port"
-                  placeholder="e.g., 3306"
-                  {...register("port")}
-                />
-              </div>
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="database">Database Name</Label>
-              <Input
-                id="database"
-                placeholder="e.g., my_database"
-                {...register("database", { required: "Database name is required" })}
-              />
-              {errors.database && (
-                <p className="text-sm text-destructive">{errors.database.message}</p>
-              )}
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="username">Username</Label>
-                <Input
-                  id="username"
-                  placeholder="e.g., db_user"
-                  {...register("username")}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  {...register("password")}
-                />
-              </div>
-            </div>
-
-            {connectionResult && (
-              <div className={`p-3 rounded-lg flex items-start gap-3 ${
-                connectionResult.success ? 'bg-green-50 border border-green-100' : 'bg-red-50 border border-red-100'
-              }`}>
-                {connectionResult.success ? (
-                  <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
-                ) : (
-                  <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
-                )}
-                <div>
-                  <p className={`text-sm font-medium ${
-                    connectionResult.success ? 'text-green-900' : 'text-red-900'
-                  }`}>
-                    {connectionResult.success ? 'Connection Successful' : 'Connection Failed'}
-                  </p>
-                  <p className={`text-xs mt-1 ${
-                    connectionResult.success ? 'text-green-700' : 'text-red-700'
-                  }`}>
-                    {connectionResult.message}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div className="text-xs text-muted-foreground mt-2">
-              <p>Need to manage more connections? Go to 
-                <Button variant="link" className="h-auto p-0 ml-1" asChild>
-                  <Link to="/connections" className="inline-flex items-center">
-                    Connections Page
-                    <ExternalLink className="h-3 w-3 ml-1" />
-                  </Link>
-                </Button>
-              </p>
-            </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>{type === "source" ? "Add Source" : "Add Target"} Connection</DialogTitle>
+          <DialogDescription>
+            Configure your database connection settings.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid gap-2">
+            <Label htmlFor="name">Connection Name</Label>
+            <Input
+              id="name"
+              name="name"
+              placeholder="e.g. Production Database"
+              value={formData.name}
+              onChange={handleInputChange}
+            />
           </div>
-          <DialogFooter>
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={handleTestConnection}
-              disabled={isTestingConnection}
+          <div className="grid gap-2">
+            <Label htmlFor="connectionType">Database Type</Label>
+            <Select 
+              value={formData.connectionType} 
+              onValueChange={(value) => handleSelectChange("connectionType", value)}
             >
-              {isTestingConnection ? (
+              <SelectTrigger>
+                <SelectValue placeholder="Select a database type" />
+              </SelectTrigger>
+              <SelectContent>
+                {connectionTypes.map((dbType) => (
+                  <SelectItem key={dbType} value={dbType.toLowerCase()}>
+                    <div className="flex items-center">
+                      <Database className="w-4 h-4 mr-2 text-muted-foreground" />
+                      {dbType.toUpperCase()}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="host">Host</Label>
+            <Input
+              id="host"
+              name="host"
+              placeholder="localhost"
+              value={formData.host}
+              onChange={handleInputChange}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="port">Port</Label>
+            <Input
+              id="port"
+              name="port"
+              placeholder="3306"
+              value={formData.port}
+              onChange={handleInputChange}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="database">Database Name</Label>
+            <Input
+              id="database"
+              name="database"
+              placeholder="airportdb"
+              value={formData.database}
+              onChange={handleInputChange}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="username">Username</Label>
+            <Input
+              id="username"
+              name="username"
+              placeholder="root"
+              value={formData.username}
+              onChange={handleInputChange}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              placeholder="••••••••"
+              value={formData.password}
+              onChange={handleInputChange}
+            />
+          </div>
+
+          {connectionResult && (
+            <Alert 
+              className={`${
+                connectionResult.success 
+                  ? "border-green-200 bg-green-50 text-green-800" 
+                  : "border-red-200 bg-red-50 text-red-800"
+              }`}
+            >
+              <div className="flex">
+                {connectionResult.success 
+                  ? <CheckCircle2 className="h-5 w-5 text-green-500 mr-2" /> 
+                  : <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+                }
+                <AlertDescription>
+                  {connectionResult.message}
+                </AlertDescription>
+              </div>
+            </Alert>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={handleTestConnection} disabled={isTesting || !formData.host}>
+              {isTesting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Testing Connection
+                  Testing...
                 </>
               ) : (
                 "Test Connection"
               )}
             </Button>
-            <Button 
-              type="submit" 
-              disabled={isLoading}
-              className={connectionResult?.success ? "bg-green-600 hover:bg-green-700" : ""}
-            >
+            <Button type="submit" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -387,7 +306,7 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
                 "Add Connection"
               )}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>

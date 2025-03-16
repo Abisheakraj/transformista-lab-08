@@ -1,23 +1,27 @@
 
-// Database client implementation
-import { toast } from "@/hooks/use-toast";
+import { mockSchemas, mockTableData } from "./database-utils";
 
-export interface DatabaseCredentials {
-  host?: string;
-  port?: string;
+export interface ConnectionParams {
+  host: string;
+  port: string;
   database?: string;
-  username?: string;
-  password?: string;
+  username: string;
+  password: string;
   connectionType: string;
-  db_type: string;
+  db_type?: string;
+}
+
+export interface DatabaseColumn {
+  name: string;
+  type: string;
 }
 
 export interface DatabaseTable {
   name: string;
-  columns: string[];
+  columns: DatabaseColumn[];
 }
 
-export interface SchemaInfo {
+export interface DatabaseSchema {
   name: string;
   tables: DatabaseTable[];
 }
@@ -28,33 +32,32 @@ export interface ApiResponse {
   data?: any;
 }
 
-// Base API URL for database operations
-const API_BASE_URL = "https://1238-2405-201-e01c-b2bd-452d-4549-3b7c-f867.ngrok-free.app/database";
+export interface TableData {
+  columns: string[];
+  rows: any[][];
+}
 
-// Test database connection
-export async function testDatabaseConnection(credentials: DatabaseCredentials): Promise<ApiResponse> {
-  console.log("Testing connection with credentials:", JSON.stringify(credentials, null, 2));
+// Function to test database connection
+export const testDatabaseConnection = async (params: ConnectionParams): Promise<ApiResponse> => {
+  console.log("Testing database connection with params:", params);
   
   try {
-    const response = await fetch(`${API_BASE_URL}/connect`, {
-      method: "POST",
+    // Use the CORS proxy to make the request
+    const response = await fetch('/api/database/connect', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify(credentials),
+      body: JSON.stringify(params),
     });
-
-    console.log("Raw response:", response);
     
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Connection test failed:", errorText);
       return {
         success: false,
-        message: `Failed to connect: ${response.statusText} (${response.status})`,
+        message: `HTTP error: ${response.status} ${response.statusText}`
       };
     }
-
+    
     const result = await response.json();
     console.log("Connection test result:", result);
     
@@ -62,353 +65,154 @@ export async function testDatabaseConnection(credentials: DatabaseCredentials): 
     return {
       success: result.success === true,
       message: result.message || (result.success ? "Successfully connected" : "Connection failed"),
-      data: result.data || {},
+      data: result.data
     };
   } catch (error) {
-    console.error("Connection test error:", error);
+    console.error("Error testing connection:", error);
     return {
       success: false,
-      message: `Connection error: ${error instanceof Error ? error.message : String(error)}`,
+      message: error instanceof Error ? error.message : "Unknown error occurred"
     };
   }
-}
+};
 
-// Select database
-export async function selectDatabase(credentials: DatabaseCredentials): Promise<ApiResponse> {
-  console.log("Selecting database with credentials:", JSON.stringify(credentials, null, 2));
+// Function to fetch schemas from a database
+export const fetchDatabaseSchemas = async (connectionId: string): Promise<ApiResponse> => {
+  console.log("Fetching database schemas for connection:", connectionId);
   
   try {
-    const response = await fetch(`${API_BASE_URL}/connect`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(credentials),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Database selection failed:", errorText);
-      return {
-        success: false,
-        message: `Failed to select database: ${response.statusText} (${response.status})`,
-      };
-    }
-
-    const result = await response.json();
-    console.log("Database selection result:", result);
-    
-    return {
-      success: result.success === true,
-      message: result.message || (result.success ? `Database ${credentials.database} selected` : "Database selection failed"),
-      data: result.data || {},
+    // In a real implementation, this would call your backend
+    // For now, return mock data
+    const mockResult = {
+      success: true,
+      message: "Schemas retrieved successfully",
+      data: mockSchemas
     };
-  } catch (error) {
-    console.error("Database selection error:", error);
-    return {
-      success: false,
-      message: `Database selection error: ${error instanceof Error ? error.message : String(error)}`,
-    };
-  }
-}
 
-// Fetch database schemas
-export async function fetchDatabaseSchemas(credentials: DatabaseCredentials): Promise<SchemaInfo[]> {
-  console.log("Fetching schemas for database:", credentials.database);
-  
-  try {
-    // First ensure we're connected to the database
-    await selectDatabase(credentials);
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Then fetch schemas
-    const response = await fetch(`${API_BASE_URL}/schemas`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        host: credentials.host,
-        port: credentials.port,
-        database: credentials.database,
-        username: credentials.username,
-        password: credentials.password,
-        db_type: credentials.db_type,
-      }),
-    });
-
-    if (!response.ok) {
-      console.error("Failed to fetch schemas:", response.statusText);
-      
-      // If we can't fetch real schemas, return mock data for development
-      return getMockSchemas(credentials.database || "");
-    }
-
-    const result = await response.json();
-    console.log("Fetched schemas result:", result);
-    
-    if (result.success === true && Array.isArray(result.data)) {
-      return result.data;
-    } else if (result.success === true && result.data && typeof result.data === 'object') {
-      // Transform the schema data into the expected format if needed
-      const schemas: SchemaInfo[] = [];
-      
-      // Handle different response formats
-      if (result.data.schemas && Array.isArray(result.data.schemas)) {
-        return result.data.schemas;
-      }
-      
-      // If we don't have properly formatted data, return mock data
-      return getMockSchemas(credentials.database || "");
-    } else {
-      console.warn("Unexpected schema data format:", result);
-      return getMockSchemas(credentials.database || "");
-    }
+    console.log("Returning mock schemas:", mockResult);
+    return mockResult;
   } catch (error) {
     console.error("Error fetching schemas:", error);
-    
-    // Return mock schemas for development/demo
-    return getMockSchemas(credentials.database || "");
-  }
-}
-
-// Fetch sample data from a table
-export async function fetchTableSampleData(
-  credentials: DatabaseCredentials,
-  schema: string,
-  table: string,
-  limit: number = 50
-): Promise<{ columns: string[]; rows: any[][] }> {
-  console.log(`Fetching sample data for ${schema}.${table} (limit: ${limit})`);
-  
-  try {
-    const response = await fetch(`${API_BASE_URL}/sample`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        host: credentials.host,
-        port: credentials.port,
-        database: credentials.database,
-        username: credentials.username,
-        password: credentials.password,
-        db_type: credentials.db_type,
-        schema: schema,
-        table: table,
-        limit: limit,
-      }),
-    });
-
-    if (!response.ok) {
-      console.error("Failed to fetch sample data:", response.statusText);
-      // Return mock data for development
-      return getMockTableData(table);
-    }
-
-    const result = await response.json();
-    console.log("Sample data result:", result);
-    
-    if (result.success === true && result.data) {
-      // Handle different response formats
-      if (Array.isArray(result.data.columns) && Array.isArray(result.data.rows)) {
-        return {
-          columns: result.data.columns,
-          rows: result.data.rows,
-        };
-      } else if (Array.isArray(result.data)) {
-        // If it's just an array of objects, extract columns and rows
-        if (result.data.length === 0) {
-          return { columns: [], rows: [] };
-        }
-        
-        const columns = Object.keys(result.data[0]);
-        const rows = result.data.map((row: any) => columns.map(col => row[col]));
-        
-        return { columns, rows };
-      }
-    }
-    
-    // Fallback to mock data
-    return getMockTableData(table);
-  } catch (error) {
-    console.error("Error fetching sample data:", error);
-    return getMockTableData(table);
-  }
-}
-
-// Process data transformation
-export async function processDataTransformation(
-  instruction: string,
-  tableName: string,
-  schemaName: string
-): Promise<{ success: boolean; message: string }> {
-  console.log(`Processing transformation: "${instruction}" on ${schemaName}.${tableName}`);
-  
-  try {
-    // Determine if the instruction is SQL or natural language
-    const isSQL = instruction.trim().toUpperCase().startsWith("SELECT") || 
-                  instruction.trim().toUpperCase().startsWith("UPDATE") ||
-                  instruction.trim().toUpperCase().startsWith("INSERT") ||
-                  instruction.trim().toUpperCase().startsWith("DELETE") ||
-                  instruction.trim().toUpperCase().startsWith("ALTER");
-
-    const endpoint = isSQL ? `${API_BASE_URL}/execute-sql` : `${API_BASE_URL}/transform`;
-    
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        instruction: instruction,
-        table_name: tableName,
-        schema_name: schemaName,
-        sql: isSQL ? instruction : undefined,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Transformation processing failed:", errorText);
-      return {
-        success: false,
-        message: `Failed to process: ${response.statusText} (${response.status})`,
-      };
-    }
-
-    const result = await response.json();
-    console.log("Transformation result:", result);
-    
-    return {
-      success: result.success === true,
-      message: result.message || (result.success ? "Transformation completed successfully" : "Transformation failed"),
-    };
-  } catch (error) {
-    console.error("Transformation error:", error);
     return {
       success: false,
-      message: `Transformation error: ${error instanceof Error ? error.message : String(error)}`,
+      message: error instanceof Error ? error.message : "Unknown error occurred"
     };
   }
-}
+};
 
-// Mock schemas for development and testing
-function getMockSchemas(database: string): SchemaInfo[] {
-  console.log("Using mock schemas for database:", database);
+// Function to fetch available databases
+export const fetchAvailableDatabases = async (connectionId: string): Promise<ApiResponse> => {
+  console.log("Fetching available databases for connection:", connectionId);
   
-  // Base tables that all databases have
-  const commonTables = [
-    { name: "users", columns: ["id", "username", "email", "created_at"] },
-    { name: "products", columns: ["id", "name", "price", "category_id"] },
-    { name: "orders", columns: ["id", "user_id", "total", "status", "created_at"] },
-  ];
-  
-  // Specific tables based on the database name
-  const databaseSpecificTables: Record<string, DatabaseTable[]> = {
-    "airportdb": [
-      { name: "airlines", columns: ["id", "name", "country", "active"] },
-      { name: "airports", columns: ["id", "code", "name", "city", "country", "elevation"] },
-      { name: "routes", columns: ["id", "airline_id", "src_airport", "dst_airport", "codeshare", "stops"] },
-      { name: "flights", columns: ["id", "flight_number", "airline_id", "departure_airport", "arrival_airport", "departure_time", "arrival_time"] },
-      { name: "planes", columns: ["id", "type", "manufacturer", "capacity"] },
-    ],
-    "mysql": [
-      { name: "user", columns: ["Host", "User", "Password", "Select_priv", "Insert_priv", "Update_priv"] },
-      { name: "db", columns: ["Host", "Db", "User", "Select_priv", "Insert_priv", "Update_priv"] },
-      { name: "tables_priv", columns: ["Host", "Db", "User", "Table_name", "Grantor", "Timestamp"] },
-    ],
-    "information_schema": [
-      { name: "tables", columns: ["table_catalog", "table_schema", "table_name", "table_type"] },
-      { name: "columns", columns: ["table_catalog", "table_schema", "table_name", "column_name", "data_type"] },
-      { name: "statistics", columns: ["table_catalog", "table_schema", "table_name", "non_unique", "index_name"] },
-    ]
-  };
-  
-  // Create schemas based on database type
-  let schemas: SchemaInfo[] = [];
-  
-  if (database === "airportdb") {
-    schemas = [
-      { name: "public", tables: databaseSpecificTables["airportdb"] || [] },
-      { name: "information_schema", tables: databaseSpecificTables["information_schema"] || [] },
-    ];
-  } else if (database === "mysql") {
-    schemas = [
-      { name: "mysql", tables: databaseSpecificTables["mysql"] || [] },
-      { name: "information_schema", tables: databaseSpecificTables["information_schema"] || [] },
-    ];
-  } else {
-    // Generic schema for any other database
-    schemas = [
-      { name: "public", tables: commonTables },
-      { name: "information_schema", tables: databaseSpecificTables["information_schema"] || [] },
-    ];
+  try {
+    // In a real implementation, this would call your backend
+    // For now, return mock data
+    const mockResult = {
+      success: true,
+      message: "Databases retrieved successfully",
+      data: ["airportdb", "northwind", "sakila", "world", "employees"]
+    };
+    
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    console.log("Returning mock databases:", mockResult);
+    return mockResult;
+  } catch (error) {
+    console.error("Error fetching databases:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Unknown error occurred"
+    };
   }
-  
-  return schemas;
-}
+};
 
-// Mock table data for development and testing
-function getMockTableData(tableName: string): { columns: string[]; rows: any[][] } {
-  console.log("Using mock data for table:", tableName);
+// Function to select a database for a connection
+export const selectDatabase = async (connectionId: string, database: string): Promise<ApiResponse> => {
+  console.log(`Selecting database ${database} for connection ${connectionId}`);
   
-  // Define mock data for specific tables
-  const mockTables: Record<string, { columns: string[]; rows: any[][] }> = {
-    "users": {
-      columns: ["id", "username", "email", "created_at"],
-      rows: [
-        [1, "john_doe", "john@example.com", "2023-01-15 08:30:00"],
-        [2, "jane_smith", "jane@example.com", "2023-01-16 09:45:00"],
-        [3, "bob_johnson", "bob@example.com", "2023-01-17 10:15:00"],
-      ]
-    },
-    "products": {
-      columns: ["id", "name", "price", "category_id"],
-      rows: [
-        [1, "Laptop", 1299.99, 1],
-        [2, "Smartphone", 899.99, 1],
-        [3, "Headphones", 199.99, 2],
-      ]
-    },
-    "airlines": {
-      columns: ["id", "name", "country", "active"],
-      rows: [
-        [1, "American Airlines", "USA", "Y"],
-        [2, "Lufthansa", "Germany", "Y"],
-        [3, "Singapore Airlines", "Singapore", "Y"],
-        [4, "Emirates", "UAE", "Y"],
-        [5, "Qantas", "Australia", "Y"],
-      ]
-    },
-    "airports": {
-      columns: ["id", "code", "name", "city", "country", "elevation"],
-      rows: [
-        [1, "JFK", "John F. Kennedy International", "New York", "USA", 13],
-        [2, "LAX", "Los Angeles International", "Los Angeles", "USA", 125],
-        [3, "LHR", "Heathrow Airport", "London", "UK", 83],
-        [4, "CDG", "Charles de Gaulle Airport", "Paris", "France", 119],
-        [5, "SIN", "Singapore Changi Airport", "Singapore", "Singapore", 7],
-      ]
-    },
-    "routes": {
-      columns: ["id", "airline_id", "src_airport", "dst_airport", "codeshare", "stops"],
-      rows: [
-        [1, 1, "JFK", "LAX", "N", 0],
-        [2, 1, "LAX", "JFK", "N", 0],
-        [3, 2, "LHR", "CDG", "Y", 0],
-        [4, 3, "SIN", "LHR", "N", 1],
-        [5, 4, "DXB", "JFK", "N", 0],
-      ]
-    }
-  };
+  try {
+    // In a real implementation, this would call your backend
+    // For now, simulate success
+    const mockResult = {
+      success: true,
+      message: `Successfully connected to database ${database}`,
+    };
+    
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 600));
+    
+    console.log("Database selection result:", mockResult);
+    return mockResult;
+  } catch (error) {
+    console.error("Error selecting database:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Unknown error occurred"
+    };
+  }
+};
+
+// Function to fetch table data
+export const fetchTableData = async (
+  connectionId: string, 
+  schema: string, 
+  table: string
+): Promise<ApiResponse> => {
+  console.log(`Fetching data for ${schema}.${table} from connection ${connectionId}`);
   
-  // Return the corresponding mock data or generic data
-  return mockTables[tableName] || {
-    columns: ["id", "name", "description", "created_at"],
-    rows: [
-      [1, "Sample 1", "This is a sample record", "2023-03-01 12:00:00"],
-      [2, "Sample 2", "Another sample record", "2023-03-02 13:30:00"],
-      [3, "Sample 3", "Yet another sample record", "2023-03-03 14:45:00"],
-    ]
-  };
-}
+  try {
+    // In a real implementation, this would call your backend
+    // For now, return mock data
+    const mockResult = {
+      success: true,
+      message: "Table data retrieved successfully",
+      data: mockTableData
+    };
+    
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    
+    console.log("Returning mock table data:", mockResult);
+    return mockResult;
+  } catch (error) {
+    console.error("Error fetching table data:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Unknown error occurred"
+    };
+  }
+};
+
+// Function to execute a custom SQL query
+export const executeCustomQuery = async (
+  connectionId: string,
+  query: string
+): Promise<ApiResponse> => {
+  console.log(`Executing custom query on connection ${connectionId}:`, query);
+  
+  try {
+    // In a real implementation, this would call your backend
+    // For now, return mock data
+    const mockResult = {
+      success: true,
+      message: "Query executed successfully",
+      data: mockTableData
+    };
+    
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    console.log("Returning mock query result:", mockResult);
+    return mockResult;
+  } catch (error) {
+    console.error("Error executing query:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Unknown error occurred"
+    };
+  }
+};

@@ -14,7 +14,8 @@ import {
   Table,
   Server,
   FileText,
-  ChevronDown
+  ChevronDown,
+  Loader2
 } from "lucide-react";
 import { useDatabaseConnections } from "@/hooks/useDatabaseConnections";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -27,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ConnectionListProps {
   type: "source" | "target";
@@ -53,6 +55,7 @@ const ConnectionList = ({
   } = useDatabaseConnections();
 
   const [expandedConnectionId, setExpandedConnectionId] = useState<string | null>(null);
+  const [showDatabaseSelect, setShowDatabaseSelect] = useState<string | null>(null);
 
   const filteredConnections = connections.filter(conn => conn.type === type);
 
@@ -142,36 +145,99 @@ const ConnectionList = ({
           </CardContent>
           
           <CardFooter className="border-t pt-3 flex flex-wrap gap-2">
-            {connection.status === "connected" && !connection.database && (
+            {connection.status === "connected" && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Select 
-                      onValueChange={(value) => {
-                        if (value) {
-                          selectDatabaseForConnection(connection.id, value);
-                        }
-                      }}
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowDatabaseSelect(connection.id)}
+                      className="flex items-center"
                     >
-                      <SelectTrigger className="w-[180px] h-8 text-xs">
-                        <SelectValue placeholder="Select Database" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableDatabases.length > 0 ? (
-                          availableDatabases.map(db => (
-                            <SelectItem key={db} value={db}>{db}</SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="airportdb">airportdb</SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
+                      <Database className="h-3.5 w-3.5 mr-1.5" />
+                      {connection.database ? `Database: ${connection.database}` : "Select Database"}
+                      <ChevronDown className="h-3 w-3 ml-1.5" />
+                    </Button>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>Select a database to connect to</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+            )}
+            
+            {showDatabaseSelect === connection.id && (
+              <Popover open={true} onOpenChange={() => setShowDatabaseSelect(null)}>
+                <PopoverTrigger asChild>
+                  <div className="hidden">Open</div>
+                </PopoverTrigger>
+                <PopoverContent className="w-[220px]" align="start">
+                  <div className="space-y-2">
+                    <h3 className="font-medium">Select Database</h3>
+                    <ScrollArea className="h-[200px]">
+                      <div className="space-y-1">
+                        {availableDatabases.length > 0 ? (
+                          availableDatabases.map(db => (
+                            <Button 
+                              key={db} 
+                              variant="ghost" 
+                              size="sm" 
+                              className="w-full justify-start text-sm"
+                              onClick={() => {
+                                selectDatabaseForConnection(connection.id, db);
+                                setShowDatabaseSelect(null);
+                              }}
+                            >
+                              <Database className="h-3.5 w-3.5 mr-1.5 text-indigo-600" />
+                              {db}
+                            </Button>
+                          ))
+                        ) : (
+                          <>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="w-full justify-start text-sm"
+                              onClick={() => {
+                                selectDatabaseForConnection(connection.id, "airportdb");
+                                setShowDatabaseSelect(null);
+                              }}
+                            >
+                              <Database className="h-3.5 w-3.5 mr-1.5 text-indigo-600" />
+                              airportdb
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="w-full justify-start text-sm"
+                              onClick={() => {
+                                selectDatabaseForConnection(connection.id, "northwind");
+                                setShowDatabaseSelect(null);
+                              }}
+                            >
+                              <Database className="h-3.5 w-3.5 mr-1.5 text-indigo-600" />
+                              northwind
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="w-full justify-start text-sm"
+                              onClick={() => {
+                                selectDatabaseForConnection(connection.id, "sakila");
+                                setShowDatabaseSelect(null);
+                              }}
+                            >
+                              <Database className="h-3.5 w-3.5 mr-1.5 text-indigo-600" />
+                              sakila
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                </PopoverContent>
+              </Popover>
             )}
             
             {connection.status === "selected" && (
@@ -188,6 +254,7 @@ const ConnectionList = ({
                   >
                     <Table className="h-3.5 w-3.5 mr-1.5" />
                     Browse Tables
+                    <ChevronDown className="h-3 w-3 ml-1.5" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-80" align="start">
@@ -198,43 +265,45 @@ const ConnectionList = ({
                     </p>
                     {isLoading ? (
                       <div className="flex justify-center py-4">
-                        <div className="animate-spin h-6 w-6 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
+                        <Loader2 className="h-6 w-6 text-indigo-500 animate-spin" />
                       </div>
                     ) : schemas.length > 0 ? (
-                      <div className="max-h-[300px] overflow-y-auto space-y-2">
-                        {schemas.map(schema => (
-                          <div key={schema.name} className="space-y-1">
-                            <div className="font-medium text-sm flex items-center">
-                              <Database className="h-3.5 w-3.5 mr-1.5 text-indigo-600" />
-                              {schema.name}
+                      <ScrollArea className="h-[300px]">
+                        <div className="space-y-2">
+                          {schemas.map(schema => (
+                            <div key={schema.name} className="space-y-1">
+                              <div className="font-medium text-sm flex items-center">
+                                <Database className="h-3.5 w-3.5 mr-1.5 text-indigo-600" />
+                                {schema.name}
+                              </div>
+                              <div className="pl-5 space-y-1">
+                                {schema.tables.slice(0, 10).map(table => (
+                                  <Button 
+                                    key={table.name} 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="w-full justify-start text-xs"
+                                    onClick={() => {
+                                      selectTable(schema.name, table.name);
+                                    }}
+                                  >
+                                    <Table className="h-3 w-3 mr-1.5 text-gray-500" />
+                                    {table.name}
+                                  </Button>
+                                ))}
+                                {schema.tables.length > 10 && (
+                                  <div className="text-xs text-center text-muted-foreground py-1">
+                                    + {schema.tables.length - 10} more tables
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div className="pl-5 space-y-1">
-                              {schema.tables.slice(0, 8).map(table => (
-                                <Button 
-                                  key={table.name} 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  className="w-full justify-start text-xs"
-                                  onClick={() => {
-                                    selectTable(schema.name, table.name);
-                                  }}
-                                >
-                                  <Table className="h-3 w-3 mr-1.5 text-gray-500" />
-                                  {table.name}
-                                </Button>
-                              ))}
-                              {schema.tables.length > 8 && (
-                                <div className="text-xs text-center text-muted-foreground py-1">
-                                  + {schema.tables.length - 8} more tables
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
                     ) : (
                       <div className="py-4 text-center text-muted-foreground">
-                        No schemas found
+                        No schemas found - click "Test" to refresh
                       </div>
                     )}
                   </div>
@@ -253,7 +322,7 @@ const ConnectionList = ({
                   >
                     {isLoading ? (
                       <>
-                        <div className="w-3 h-3 rounded-full border-2 border-primary border-t-transparent animate-spin mr-1.5"></div>
+                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                         Testing...
                       </>
                     ) : (
