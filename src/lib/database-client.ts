@@ -7,7 +7,7 @@ export type { SchemaInfo };
 
 export interface ConnectionParams {
   host: string;
-  port: string;
+  port?: string; // Made optional to match DatabaseCredentials
   database?: string;
   username: string;
   password: string;
