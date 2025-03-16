@@ -105,7 +105,9 @@ export function useDatabaseConnections() {
         db_type: connection.connectionType.toLowerCase()
       };
       
+      console.log("Testing connection with credentials:", JSON.stringify(credentials));
       const result = await testDatabaseConnection(credentials);
+      console.log("Connection test result:", result);
       
       updateConnection(connectionId, { 
         status: result.success ? "connected" : "failed",
@@ -115,7 +117,7 @@ export function useDatabaseConnections() {
       if (result.success) {
         toast({
           title: "Connection successful",
-          description: result.message
+          description: result.message || "Successfully connected to database server"
         });
         
         // Mock list of databases for now
@@ -124,13 +126,14 @@ export function useDatabaseConnections() {
       } else {
         toast({
           title: "Connection failed",
-          description: result.message,
+          description: result.message || "Failed to connect to database server",
           variant: "destructive"
         });
       }
       
       return result.success;
     } catch (error) {
+      console.error("Connection test error:", error);
       toast({
         title: "Connection error",
         description: "An unexpected error occurred while testing the connection.",
@@ -165,7 +168,9 @@ export function useDatabaseConnections() {
         db_type: connection.connectionType.toLowerCase()
       };
       
+      console.log("Selecting database with credentials:", JSON.stringify(credentials));
       const result = await selectDatabase(credentials);
+      console.log("Database selection result:", result);
       
       if (result.success) {
         updateConnection(connectionId, { 
@@ -182,13 +187,14 @@ export function useDatabaseConnections() {
       } else {
         toast({
           title: "Database selection failed",
-          description: result.message,
+          description: result.message || "Failed to select database",
           variant: "destructive"
         });
         
         return false;
       }
     } catch (error) {
+      console.error("Database selection error:", error);
       toast({
         title: "Database selection error",
         description: "An unexpected error occurred while selecting the database.",
@@ -209,7 +215,7 @@ export function useDatabaseConnections() {
         description: "Please select a database first",
         variant: "destructive"
       });
-      return;
+      return [];
     }
     
     setIsLoading(true);
@@ -227,11 +233,16 @@ export function useDatabaseConnections() {
         db_type: connection.connectionType.toLowerCase()
       };
       
+      console.log("Fetching schemas with credentials:", JSON.stringify(credentials));
       const fetchedSchemas = await fetchDatabaseSchemas(credentials);
-      setSchemas(fetchedSchemas);
+      console.log("Fetched schemas:", fetchedSchemas);
+      
+      // Ensure schemas is an array, even if API returns something unexpected
+      const validSchemas = Array.isArray(fetchedSchemas) ? fetchedSchemas : [];
+      setSchemas(validSchemas);
       setSelectedConnection(connection);
       
-      return fetchedSchemas;
+      return validSchemas;
     } catch (error) {
       console.error('Error fetching schemas:', error);
       toast({
@@ -246,7 +257,7 @@ export function useDatabaseConnections() {
   };
 
   const selectTable = async (schema: string, table: string) => {
-    if (!selectedConnection) return;
+    if (!selectedConnection) return null;
     
     setSelectedSchema(schema);
     setSelectedTable(table);
@@ -254,9 +265,29 @@ export function useDatabaseConnections() {
     setTableData(null); // Reset before loading new data
     
     try {
+      console.log(`Selecting table ${schema}.${table}`);
       const data = await fetchSampleData(selectedConnection.id, schema, table, 50);
-      setTableData(data);
-      return data;
+      
+      // Ensure data has the correct structure
+      if (data && typeof data === 'object') {
+        // If API returns raw data, format it properly
+        let formattedData = data;
+        
+        if (!data.columns || !data.rows) {
+          console.log("Formatting table data to expected structure");
+          const columns = data.columns || [];
+          const rows = data.rows || [];
+          formattedData = { columns, rows };
+        }
+        
+        console.log("Setting table data:", formattedData);
+        setTableData(formattedData);
+        return formattedData;
+      } else {
+        console.error("Invalid table data format:", data);
+        setTableData({ columns: [], rows: [] });
+        return { columns: [], rows: [] };
+      }
     } catch (error) {
       console.error('Error selecting table:', error);
       toast({
@@ -264,6 +295,7 @@ export function useDatabaseConnections() {
         description: "Could not load table data.",
         variant: "destructive"
       });
+      setTableData({ columns: [], rows: [] });
       return null;
     } finally {
       setIsLoading(false);
@@ -290,7 +322,18 @@ export function useDatabaseConnections() {
         db_type: connection.connectionType.toLowerCase()
       };
       
-      return await fetchTableSampleData(credentials, schema, table, limit);
+      console.log("Fetching sample data with params:", { schema, table, limit });
+      const data = await fetchTableSampleData(credentials, schema, table, limit);
+      console.log("Sample data result:", data);
+      
+      // Ensure the data has the proper structure
+      if (data && typeof data === 'object') {
+        const columns = Array.isArray(data.columns) ? data.columns : [];
+        const rows = Array.isArray(data.rows) ? data.rows : [];
+        return { columns, rows };
+      }
+      
+      return { columns: [], rows: [] };
     } catch (error) {
       console.error('Error fetching sample data:', error);
       toast({
@@ -298,7 +341,7 @@ export function useDatabaseConnections() {
         description: "Could not retrieve sample data from the table.",
         variant: "destructive"
       });
-      return null;
+      return { columns: [], rows: [] };
     }
   };
 
@@ -311,37 +354,67 @@ export function useDatabaseConnections() {
     setProcessingResult(null);
     
     try {
+      console.log("Processing transformation:", { instruction, tableName, schemaName });
       const result = await processDataTransformation(instruction, tableName, schemaName);
+      console.log("Transformation result:", result);
       
-      setProcessingResult(result);
-      
-      if (result.success) {
-        toast({
-          title: "Processing complete",
-          description: result.message
-        });
+      // Ensure the result has the proper structure
+      if (result && typeof result === 'object') {
+        const successValue = result.success === true;
+        const messageValue = typeof result.message === 'string' ? result.message : 
+                            (successValue ? 'Transformation completed successfully' : 'Transformation failed');
         
-        // Refresh table data after processing
-        if (selectedConnection && selectedSchema && selectedTable) {
-          await selectTable(selectedSchema, selectedTable);
+        const formattedResult = {
+          success: successValue,
+          message: messageValue
+        };
+        
+        setProcessingResult(formattedResult);
+        
+        if (formattedResult.success) {
+          toast({
+            title: "Processing complete",
+            description: formattedResult.message
+          });
+          
+          // Refresh table data after processing
+          if (selectedConnection && selectedSchema && selectedTable) {
+            await selectTable(selectedSchema, selectedTable);
+          }
+        } else {
+          toast({
+            title: "Processing failed",
+            description: formattedResult.message,
+            variant: "destructive"
+          });
         }
+        
+        return formattedResult;
       } else {
+        const defaultResult = {
+          success: false,
+          message: 'Invalid response from server'
+        };
+        setProcessingResult(defaultResult);
+        
         toast({
-          title: "Processing failed",
-          description: result.message,
+          title: "Processing error",
+          description: defaultResult.message,
           variant: "destructive"
         });
+        
+        return defaultResult;
       }
-      
-      return result;
     } catch (error) {
       console.error('Error processing transformation:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
-      setProcessingResult({
+      const errorResult = {
         success: false,
         message: `Error: ${errorMessage}`
-      });
+      };
+      
+      setProcessingResult(errorResult);
       
       toast({
         title: "Processing error",
@@ -349,10 +422,7 @@ export function useDatabaseConnections() {
         variant: "destructive"
       });
       
-      return {
-        success: false,
-        message: errorMessage
-      };
+      return errorResult;
     } finally {
       setIsLoading(false);
     }
