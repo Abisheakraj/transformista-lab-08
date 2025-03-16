@@ -188,7 +188,7 @@ export function useDatabaseConnections() {
       };
       
       console.log("Selecting database with credentials:", JSON.stringify(credentials, null, 2));
-      const result = await selectDatabase(credentials);
+      const result = await selectDatabase(connectionId, databaseName);
       console.log("Database selection result:", result);
       
       if (result.success) {
@@ -245,38 +245,37 @@ export function useDatabaseConnections() {
     setSelectedTable(null); // Reset selected table
     
     try {
-      const credentials: DatabaseCredentials = {
-        host: connection.host,
-        port: connection.port,
-        database: connection.database,
-        username: connection.username,
-        password: connection.password,
-        connectionType: connection.connectionType,
-        db_type: connection.connectionType.toLowerCase()
-      };
+      console.log("Fetching schemas for connection:", connectionId);
+      const result = await fetchDatabaseSchemas(connectionId);
+      console.log("Fetched schemas result:", result);
       
-      console.log("Fetching schemas with credentials:", JSON.stringify(credentials, null, 2));
-      const fetchedSchemas = await fetchDatabaseSchemas(credentials);
-      console.log("Fetched schemas:", fetchedSchemas);
-      
-      // Ensure schemas is an array, even if API returns something unexpected
-      const validSchemas = Array.isArray(fetchedSchemas) ? fetchedSchemas : [];
-      setSchemas(validSchemas);
-      setSelectedConnection(connection);
-      
-      if (validSchemas.length === 0) {
-        toast({
-          title: "No schemas found",
-          description: "No database schemas were found for the selected database.",
-        });
+      if (result.success && result.data) {
+        // Ensure schemas is an array, even if API returns something unexpected
+        const validSchemas = Array.isArray(result.data) ? result.data : [];
+        setSchemas(validSchemas);
+        setSelectedConnection(connection);
+        
+        if (validSchemas.length === 0) {
+          toast({
+            title: "No schemas found",
+            description: "No database schemas were found for the selected database.",
+          });
+        } else {
+          toast({
+            title: "Schemas loaded",
+            description: `Found ${validSchemas.length} schemas with ${validSchemas.reduce((sum, schema) => sum + schema.tables.length, 0)} tables.`
+          });
+        }
+        
+        return validSchemas;
       } else {
         toast({
-          title: "Schemas loaded",
-          description: `Found ${validSchemas.length} schemas with ${validSchemas.reduce((sum, schema) => sum + schema.tables.length, 0)} tables.`
+          title: "Error fetching schemas",
+          description: result.message || "Failed to fetch database schemas",
+          variant: "destructive"
         });
+        return [];
       }
-      
-      return validSchemas;
     } catch (error) {
       console.error('Error fetching schemas:', error);
       toast({

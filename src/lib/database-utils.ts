@@ -2,37 +2,84 @@
 // These are mock utility functions for handling database operations
 // In a real application, these would make API calls to the backend
 
-interface DatabaseCredentials {
+export interface DatabaseCredentials {
   host: string;
   port?: string;
-  database: string;
+  database?: string;
   username?: string;
   password?: string;
+  connectionType: string;
+  db_type?: string;
 }
 
-interface SchemaInfo {
-  tables: string[];
-  views: string[];
-}
-
-interface TableInfo {
+export interface SchemaInfo {
   name: string;
-  columns: {
+  tables: {
     name: string;
-    type: string;
-    nullable: boolean;
-    isPrimaryKey: boolean;
-    isForeignKey: boolean;
-    references?: {
-      table: string;
-      column: string;
-    };
+    columns: {
+      name: string;
+      type: string;
+    }[];
   }[];
 }
 
+// Mock schema data
+export const mockSchemas: SchemaInfo[] = [
+  {
+    name: "public",
+    tables: [
+      {
+        name: "customers",
+        columns: [
+          { name: "id", type: "int" },
+          { name: "name", type: "varchar" },
+          { name: "email", type: "varchar" },
+          { name: "created_at", type: "timestamp" }
+        ]
+      },
+      {
+        name: "orders",
+        columns: [
+          { name: "id", type: "int" },
+          { name: "customer_id", type: "int" },
+          { name: "total", type: "decimal" },
+          { name: "status", type: "varchar" },
+          { name: "created_at", type: "timestamp" }
+        ]
+      }
+    ]
+  },
+  {
+    name: "sales",
+    tables: [
+      {
+        name: "transactions",
+        columns: [
+          { name: "id", type: "int" },
+          { name: "order_id", type: "int" },
+          { name: "amount", type: "decimal" },
+          { name: "payment_method", type: "varchar" },
+          { name: "created_at", type: "timestamp" }
+        ]
+      }
+    ]
+  }
+];
+
+// Mock table data
+export const mockTableData = {
+  columns: ["id", "name", "email", "created_at"],
+  rows: [
+    [1, "John Doe", "john@example.com", "2023-01-15 09:30:00"],
+    [2, "Jane Smith", "jane@example.com", "2023-01-16 14:45:00"],
+    [3, "Mike Johnson", "mike@example.com", "2023-01-17 11:20:00"],
+    [4, "Sarah Williams", "sarah@example.com", "2023-01-18 16:10:00"],
+    [5, "David Brown", "david@example.com", "2023-01-19 08:55:00"]
+  ]
+};
+
 // Mock function to test a database connection
 export const testDatabaseConnection = async (
-  connectionType: string,
   credentials: DatabaseCredentials
 ): Promise<{ success: boolean; message: string }> => {
   // This is a mock implementation - in a real app this would call an API
@@ -55,39 +102,11 @@ export const testDatabaseConnection = async (
   });
 };
 
-// Mock function to get schema information
-export const getDatabaseSchema = async (
-  connectionType: string,
-  credentials: DatabaseCredentials
-): Promise<SchemaInfo> => {
-  // This is a mock implementation - in a real app this would call an API
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        tables: [
-          "customers",
-          "orders",
-          "products",
-          "categories",
-          "employees",
-          "suppliers"
-        ],
-        views: [
-          "customer_orders",
-          "product_inventory",
-          "sales_summary"
-        ]
-      });
-    }, 1000);
-  });
-};
-
 // Mock function to get table information
 export const getTableInfo = async (
-  connectionType: string,
   credentials: DatabaseCredentials,
   tableName: string
-): Promise<TableInfo> => {
+): Promise<any> => {
   // This is a mock implementation - in a real app this would call an API
   return new Promise((resolve) => {
     setTimeout(() => {
@@ -98,8 +117,6 @@ export const getTableInfo = async (
             { name: "id", type: "int", nullable: false, isPrimaryKey: true, isForeignKey: false },
             { name: "name", type: "varchar(100)", nullable: false, isPrimaryKey: false, isForeignKey: false },
             { name: "email", type: "varchar(100)", nullable: true, isPrimaryKey: false, isForeignKey: false },
-            { name: "phone", type: "varchar(20)", nullable: true, isPrimaryKey: false, isForeignKey: false },
-            { name: "address", type: "varchar(200)", nullable: true, isPrimaryKey: false, isForeignKey: false },
             { name: "created_at", type: "timestamp", nullable: false, isPrimaryKey: false, isForeignKey: false }
           ]
         });
@@ -109,8 +126,7 @@ export const getTableInfo = async (
           columns: [
             { name: "id", type: "int", nullable: false, isPrimaryKey: true, isForeignKey: false },
             { name: "customer_id", type: "int", nullable: false, isPrimaryKey: false, isForeignKey: true, references: { table: "customers", column: "id" } },
-            { name: "order_date", type: "date", nullable: false, isPrimaryKey: false, isForeignKey: false },
-            { name: "total_amount", type: "decimal(10,2)", nullable: false, isPrimaryKey: false, isForeignKey: false },
+            { name: "total", type: "decimal(10,2)", nullable: false, isPrimaryKey: false, isForeignKey: false },
             { name: "status", type: "varchar(20)", nullable: false, isPrimaryKey: false, isForeignKey: false }
           ]
         });
@@ -126,5 +142,22 @@ export const getTableInfo = async (
         });
       }
     }, 800);
+  });
+};
+
+// Function to process data transformation
+export const processDataTransformation = async (
+  instruction: string,
+  tableName: string,
+  schemaName: string
+): Promise<{ success: boolean; message: string }> => {
+  // Mock implementation
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        success: true,
+        message: `Successfully processed transformation on ${schemaName}.${tableName} with instruction: ${instruction}`
+      });
+    }, 2000);
   });
 };

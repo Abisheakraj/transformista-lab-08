@@ -1,5 +1,9 @@
 
-import { mockSchemas, mockTableData } from "./database-utils";
+import { mockSchemas, mockTableData, DatabaseCredentials as DbCredentials, SchemaInfo } from "./database-utils";
+
+// Re-export types from database-utils
+export type DatabaseCredentials = DbCredentials;
+export type { SchemaInfo };
 
 export interface ConnectionParams {
   host: string;
@@ -187,6 +191,30 @@ export const fetchTableData = async (
   }
 };
 
+// Alias for fetchTableData with different parameter structure
+export const fetchTableSampleData = async (
+  credentials: DatabaseCredentials,
+  schema: string, 
+  table: string, 
+  limit: number = 50
+): Promise<TableData> => {
+  console.log(`Fetching sample data for ${schema}.${table} with limit ${limit}`);
+  
+  try {
+    // In a real implementation, this would call your backend
+    // For now, return mock data
+    
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    console.log("Returning mock sample data");
+    return mockTableData;
+  } catch (error) {
+    console.error("Error fetching sample data:", error);
+    return { columns: [], rows: [] };
+  }
+};
+
 // Function to execute a custom SQL query
 export const executeCustomQuery = async (
   connectionId: string,
@@ -216,3 +244,6 @@ export const executeCustomQuery = async (
     };
   }
 };
+
+// Re-export processDataTransformation from database-utils
+export { processDataTransformation } from './database-utils';
