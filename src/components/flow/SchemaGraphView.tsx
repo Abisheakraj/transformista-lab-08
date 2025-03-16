@@ -17,6 +17,7 @@ import {
   MarkerType,
   ConnectionLineType,
   ConnectionMode,
+  BackgroundVariant,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Download, Plus, Trash2 } from "lucide-react";
@@ -422,7 +423,7 @@ const SchemaGraphView = ({ schemas = [], onCreatePipeline, onTableMappingChange 
           <MiniMap nodeColor={(n) => {
             return n.type === 'tableNode' ? '#e5deff' : '#f1f5f9';
           }} />
-          <Background gap={16} size={1} color="#e5e7eb" pattern="dots" />
+          <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#e5e7eb" />
         </ReactFlow>
       </div>
     </div>

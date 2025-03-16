@@ -18,6 +18,7 @@ import {
   EdgeMouseHandler,
   ConnectionLineType,
   ConnectionMode,
+  BackgroundVariant,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
@@ -332,7 +333,7 @@ const FlowDesignerTab = ({ projectId, onSave, onRun }: FlowDesignerTabProps) => 
               default: return '#f1f5f9';
             }
           }} />
-          <Background pattern="dots" gap={16} size={1} color="#e5e7eb" />
+          <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#e5e7eb" />
           
           <Panel position="top-right" className="bg-white p-2 rounded-md shadow-md flex gap-2">
             <Button 
