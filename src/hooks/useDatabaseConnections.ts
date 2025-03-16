@@ -5,7 +5,9 @@ import {
   SchemaInfo, 
   testDatabaseConnection, 
   fetchDatabaseSchemas, 
-  fetchTableSampleData
+  fetchTableSampleData,
+  selectDatabase,
+  processDataTransformation
 } from "@/lib/database-client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -21,10 +23,10 @@ export interface DatabaseConnection {
   connectionType: string;
   host: string;
   port?: string;
-  database: string;
+  database?: string;
   username?: string;
   password?: string;
-  status: "connected" | "failed" | "pending";
+  status: "connected" | "pending" | "failed" | "selected";
   lastTested?: string;
 }
 
@@ -36,16 +38,13 @@ export function useDatabaseConnections() {
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [selectedSchema, setSelectedSchema] = useState<string | null>(null);
   const [tableData, setTableData] = useState<{columns: string[], rows: any[][]} | null>(null);
+  const [availableDatabases, setAvailableDatabases] = useState<string[]>([]);
+  const [processingResult, setProcessingResult] = useState<{success: boolean, message: string} | null>(null);
   const { toast } = useToast();
 
-  // Get Supabase status
+  // Get Supabase status - mock implementation
   const getSupabaseStatus = (): SupabaseStatus => {
-    // This is a mock implementation
-    // In a real app, this would check if Supabase is connected
-    return {
-      connected: false,
-      project: undefined
-    };
+    return { connected: false };
   };
 
   // Load connections from localStorage on mount
@@ -100,10 +99,10 @@ export function useDatabaseConnections() {
       const credentials: DatabaseCredentials = {
         host: connection.host,
         port: connection.port,
-        database: connection.database,
         username: connection.username,
         password: connection.password,
-        connectionType: connection.connectionType
+        connectionType: connection.connectionType,
+        db_type: connection.connectionType.toLowerCase()
       };
       
       const result = await testDatabaseConnection(credentials);
@@ -118,6 +117,10 @@ export function useDatabaseConnections() {
           title: "Connection successful",
           description: result.message
         });
+        
+        // Mock list of databases for now
+        // In a real implementation, this would come from the API
+        setAvailableDatabases(["airportdb", "mysql", "information_schema", "sys", "performance_schema"]);
       } else {
         toast({
           title: "Connection failed",
@@ -145,9 +148,69 @@ export function useDatabaseConnections() {
     }
   };
 
+  const selectDatabaseForConnection = async (connectionId: string, databaseName: string) => {
+    const connection = connections.find(conn => conn.id === connectionId);
+    if (!connection) return false;
+    
+    setIsLoading(true);
+    
+    try {
+      const credentials: DatabaseCredentials = {
+        host: connection.host,
+        port: connection.port,
+        username: connection.username,
+        password: connection.password,
+        connectionType: connection.connectionType,
+        database: databaseName,
+        db_type: connection.connectionType.toLowerCase()
+      };
+      
+      const result = await selectDatabase(credentials);
+      
+      if (result.success) {
+        updateConnection(connectionId, { 
+          status: "selected",
+          database: databaseName
+        });
+        
+        toast({
+          title: "Database selected",
+          description: `Successfully selected database ${databaseName}`
+        });
+        
+        return true;
+      } else {
+        toast({
+          title: "Database selection failed",
+          description: result.message,
+          variant: "destructive"
+        });
+        
+        return false;
+      }
+    } catch (error) {
+      toast({
+        title: "Database selection error",
+        description: "An unexpected error occurred while selecting the database.",
+        variant: "destructive"
+      });
+      
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const fetchSchemas = async (connectionId: string) => {
     const connection = connections.find(conn => conn.id === connectionId);
-    if (!connection) return;
+    if (!connection || !connection.database) {
+      toast({
+        title: "Database not selected",
+        description: "Please select a database first",
+        variant: "destructive"
+      });
+      return;
+    }
     
     setIsLoading(true);
     setTableData(null); // Reset table data when fetching new schemas
@@ -160,7 +223,8 @@ export function useDatabaseConnections() {
         database: connection.database,
         username: connection.username,
         password: connection.password,
-        connectionType: connection.connectionType
+        connectionType: connection.connectionType,
+        db_type: connection.connectionType.toLowerCase()
       };
       
       const fetchedSchemas = await fetchDatabaseSchemas(credentials);
@@ -222,7 +286,8 @@ export function useDatabaseConnections() {
         database: connection.database,
         username: connection.username,
         password: connection.password,
-        connectionType: connection.connectionType
+        connectionType: connection.connectionType,
+        db_type: connection.connectionType.toLowerCase()
       };
       
       return await fetchTableSampleData(credentials, schema, table, limit);
@@ -237,6 +302,62 @@ export function useDatabaseConnections() {
     }
   };
 
+  const processTransformation = async (
+    instruction: string,
+    tableName: string,
+    schemaName: string
+  ) => {
+    setIsLoading(true);
+    setProcessingResult(null);
+    
+    try {
+      const result = await processDataTransformation(instruction, tableName, schemaName);
+      
+      setProcessingResult(result);
+      
+      if (result.success) {
+        toast({
+          title: "Processing complete",
+          description: result.message
+        });
+        
+        // Refresh table data after processing
+        if (selectedConnection && selectedSchema && selectedTable) {
+          await selectTable(selectedSchema, selectedTable);
+        }
+      } else {
+        toast({
+          title: "Processing failed",
+          description: result.message,
+          variant: "destructive"
+        });
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Error processing transformation:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      setProcessingResult({
+        success: false,
+        message: `Error: ${errorMessage}`
+      });
+      
+      toast({
+        title: "Processing error",
+        description: `An error occurred during processing: ${errorMessage}`,
+        variant: "destructive"
+      });
+      
+      return {
+        success: false,
+        message: errorMessage
+      };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     connections,
     isLoading,
@@ -245,13 +366,17 @@ export function useDatabaseConnections() {
     selectedTable,
     selectedSchema,
     tableData,
+    availableDatabases,
+    processingResult,
     getSupabaseStatus,
     addConnection,
     updateConnection,
     removeConnection,
     testConnection,
+    selectDatabaseForConnection,
     fetchSchemas,
     fetchSampleData,
-    selectTable
+    selectTable,
+    processTransformation
   };
 }

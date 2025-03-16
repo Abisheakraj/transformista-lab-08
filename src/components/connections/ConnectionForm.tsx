@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Database } from "lucide-react";
 import { testDatabaseConnection } from "@/lib/database-client";
+import { useDatabaseConnections } from "@/hooks/useDatabaseConnections";
 
 interface ConnectionFormProps {
   type: "source" | "target";
@@ -27,6 +28,7 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const { toast } = useToast();
+  const { addConnection } = useDatabaseConnections();
   
   const [formData, setFormData] = useState<FormData>({
     name: "",
@@ -48,10 +50,10 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
   };
 
   const handleTestConnection = async () => {
-    if (!formData.host || !formData.database) {
+    if (!formData.host) {
       toast({
         title: "Missing Information",
-        description: "Please provide at least host and database name to test the connection.",
+        description: "Please provide at least host to test the connection.",
         variant: "destructive"
       });
       return;
@@ -66,7 +68,8 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
         database: formData.database,
         username: formData.username,
         password: formData.password,
-        connectionType: formData.connectionType.toLowerCase()
+        connectionType: formData.connectionType.toLowerCase(),
+        db_type: formData.connectionType.toLowerCase()
       });
       
       if (result.success) {
@@ -95,7 +98,7 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.connectionType || !formData.host || !formData.database) {
+    if (!formData.name || !formData.connectionType || !formData.host) {
       toast({
         title: "Missing Required Fields",
         description: "Please fill in all required fields to add this connection.",
@@ -106,9 +109,18 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
     
     setIsLoading(true);
     
-    // Simulate API call for adding the connection
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Add connection to the store
+      addConnection({
+        name: formData.name,
+        connectionType: formData.connectionType,
+        host: formData.host,
+        port: formData.port,
+        database: formData.database,
+        username: formData.username,
+        password: formData.password,
+        type
+      });
       
       // Success
       onSuccess();
@@ -140,7 +152,7 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
   };
 
   const connectionTypes = type === "source" 
-    ? ["MySQL", "PostgreSQL", "Oracle", "MSSQL", "Sybase"] 
+    ? ["MySQL", "PostgreSQL", "Oracle", "MSSQL"] 
     : ["MySQL", "PostgreSQL", "BigQuery", "Snowflake", "Redshift"];
 
   return (
@@ -206,14 +218,13 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="database">Database Name <span className="text-red-500">*</span></Label>
+          <Label htmlFor="database">Initial Database (Optional)</Label>
           <Input
             id="database"
             name="database"
             placeholder="e.g., my_database"
             value={formData.database}
             onChange={handleInputChange}
-            required
           />
         </div>
       </div>
@@ -248,7 +259,7 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
           type="button" 
           variant="outline" 
           onClick={handleTestConnection}
-          disabled={isTestingConnection || !formData.host || !formData.database}
+          disabled={isTestingConnection || !formData.host}
         >
           {isTestingConnection ? (
             <>
