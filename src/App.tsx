@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,8 +10,8 @@ import Dashboard from "./pages/Dashboard";
 import ProjectDetail from "./pages/ProjectDetail";
 import WorkspacePage from "./pages/WorkspacePage";
 import ConnectionsPage from "./pages/ConnectionsPage";
+import SettingsPage from "./pages/SettingsPage";
 
-// Create a simple auth context to simulate authentication
 interface AuthContextType {
   isAuthenticated: boolean;
   login: () => void;
@@ -27,7 +26,6 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-// Protected route component
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   const { isAuthenticated } = useAuth();
 
@@ -41,7 +39,6 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
 const queryClient = new QueryClient();
 
 const App = () => {
-  // Simple auth state for demonstration
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const login = () => setIsAuthenticated(true);
@@ -74,6 +71,11 @@ const App = () => {
               <Route path="/connections" element={
                 <ProtectedRoute>
                   <ConnectionsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/settings" element={
+                <ProtectedRoute>
+                  <SettingsPage />
                 </ProtectedRoute>
               } />
               <Route path="*" element={<NotFound />} />
