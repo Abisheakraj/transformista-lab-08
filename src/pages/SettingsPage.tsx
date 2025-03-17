@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/App";
 import SidebarLayout from "@/components/layout/SidebarLayout";
 import CorsProxy from "@/components/connections/CorsProxy";
+import ApiServerCheck from "@/components/connections/ApiServerCheck";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -59,6 +59,7 @@ const SettingsPage = () => {
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="account">Account</TabsTrigger>
             <TabsTrigger value="connections">Connections</TabsTrigger>
+            <TabsTrigger value="api">API Server</TabsTrigger>
           </TabsList>
           
           <TabsContent value="general" className="space-y-4">
@@ -143,6 +144,10 @@ const SettingsPage = () => {
           
           <TabsContent value="connections" className="space-y-4">
             <CorsProxy />
+          </TabsContent>
+          
+          <TabsContent value="api" className="space-y-4">
+            <ApiServerCheck />
           </TabsContent>
         </Tabs>
       </div>
