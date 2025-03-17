@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,6 +29,8 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import DatabaseSelectDialog from "./DatabaseSelectDialog";
+import DatabaseTablesView from "./DatabaseTablesView";
 
 interface ConnectionListProps {
   type: "source" | "target";
@@ -60,6 +61,8 @@ const ConnectionList = ({
   const [showDatabaseSelect, setShowDatabaseSelect] = useState<string | null>(null);
   const [connectionToDelete, setConnectionToDelete] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDatabaseSelectOpen, setIsDatabaseSelectOpen] = useState(false);
+  const [selectedDatabaseForTables, setSelectedDatabaseForTables] = useState<string | null>(null);
 
   const filteredConnections = connections.filter(conn => conn.type === type);
 
@@ -86,6 +89,29 @@ const ConnectionList = ({
     e.stopPropagation(); // Prevent other click handlers
     setConnectionToDelete(connectionId);
     setIsDeleteDialogOpen(true);
+  };
+
+  // Function to open database select dialog
+  const openDatabaseSelectDialog = (connectionId: string) => {
+    setShowDatabaseSelect(connectionId);
+    setIsDatabaseSelectOpen(true);
+  };
+
+  // Function to handle database selection
+  const handleDatabaseSelect = async (database: string) => {
+    if (!showDatabaseSelect) return;
+    
+    const connection = connections.find(conn => conn.id === showDatabaseSelect);
+    if (!connection) return;
+    
+    // Update the connection with the selected database
+    await selectDatabaseForConnection(showDatabaseSelect, database);
+    
+    // Set the selected database for showing tables
+    setSelectedDatabaseForTables(database);
+    
+    // Select the connection
+    onSelectConnection(showDatabaseSelect);
   };
 
   if (filteredConnections.length === 0) {
@@ -166,6 +192,17 @@ const ConnectionList = ({
             <div className="text-xs text-muted-foreground">
               Last tested: {connection.lastTested ? new Date(connection.lastTested).toLocaleString() : "Never"}
             </div>
+            
+            {selectedConnectionId === connection.id && 
+             selectedDatabaseForTables && 
+             connection.database === selectedDatabaseForTables && (
+              <div className="mt-4">
+                <DatabaseTablesView 
+                  connection={connection} 
+                  selectedDatabase={selectedDatabaseForTables} 
+                />
+              </div>
+            )}
           </CardContent>
           
           <CardFooter className="border-t pt-3 flex flex-wrap gap-2">
@@ -176,7 +213,7 @@ const ConnectionList = ({
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => setShowDatabaseSelect(connection.id)}
+                      onClick={() => openDatabaseSelectDialog(connection.id)}
                       className="flex items-center"
                     >
                       <Database className="h-3.5 w-3.5 mr-1.5" />
@@ -191,148 +228,19 @@ const ConnectionList = ({
               </TooltipProvider>
             )}
             
-            {showDatabaseSelect === connection.id && (
-              <Popover open={true} onOpenChange={() => setShowDatabaseSelect(null)}>
-                <PopoverTrigger asChild>
-                  <div className="hidden">Open</div>
-                </PopoverTrigger>
-                <PopoverContent className="w-[220px]" align="start">
-                  <div className="space-y-2">
-                    <h3 className="font-medium">Select Database</h3>
-                    <ScrollArea className="h-[200px]">
-                      <div className="space-y-1">
-                        {availableDatabases.length > 0 ? (
-                          availableDatabases.map(db => (
-                            <Button 
-                              key={db} 
-                              variant="ghost" 
-                              size="sm" 
-                              className="w-full justify-start text-sm"
-                              onClick={() => {
-                                selectDatabaseForConnection(connection.id, db);
-                                setShowDatabaseSelect(null);
-                              }}
-                            >
-                              <Database className="h-3.5 w-3.5 mr-1.5 text-indigo-600" />
-                              {db}
-                            </Button>
-                          ))
-                        ) : (
-                          <>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="w-full justify-start text-sm"
-                              onClick={() => {
-                                selectDatabaseForConnection(connection.id, "airportdb");
-                                setShowDatabaseSelect(null);
-                              }}
-                            >
-                              <Database className="h-3.5 w-3.5 mr-1.5 text-indigo-600" />
-                              airportdb
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="w-full justify-start text-sm"
-                              onClick={() => {
-                                selectDatabaseForConnection(connection.id, "northwind");
-                                setShowDatabaseSelect(null);
-                              }}
-                            >
-                              <Database className="h-3.5 w-3.5 mr-1.5 text-indigo-600" />
-                              northwind
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="w-full justify-start text-sm"
-                              onClick={() => {
-                                selectDatabaseForConnection(connection.id, "sakila");
-                                setShowDatabaseSelect(null);
-                              }}
-                            >
-                              <Database className="h-3.5 w-3.5 mr-1.5 text-indigo-600" />
-                              sakila
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            )}
-            
             {connection.status === "selected" && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      fetchSchemas(connection.id);
-                      onSelectConnection(connection.id);
-                    }}
-                    className={selectedConnectionId === connection.id ? "bg-indigo-50" : ""}
-                  >
-                    <Table className="h-3.5 w-3.5 mr-1.5" />
-                    Browse Tables
-                    <ChevronDown className="h-3 w-3 ml-1.5" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80" align="start">
-                  <div className="space-y-2">
-                    <h3 className="font-medium">Select Schema & Table</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Choose a schema and table to view or transform
-                    </p>
-                    {isLoading ? (
-                      <div className="flex justify-center py-4">
-                        <Loader2 className="h-6 w-6 text-indigo-500 animate-spin" />
-                      </div>
-                    ) : schemas.length > 0 ? (
-                      <ScrollArea className="h-[300px]">
-                        <div className="space-y-2">
-                          {schemas.map(schema => (
-                            <div key={schema.name} className="space-y-1">
-                              <div className="font-medium text-sm flex items-center">
-                                <Database className="h-3.5 w-3.5 mr-1.5 text-indigo-600" />
-                                {schema.name}
-                              </div>
-                              <div className="pl-5 space-y-1">
-                                {schema.tables.slice(0, 10).map(table => (
-                                  <Button 
-                                    key={table.name} 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className="w-full justify-start text-xs"
-                                    onClick={() => {
-                                      selectTable(schema.name, table.name);
-                                    }}
-                                  >
-                                    <Table className="h-3 w-3 mr-1.5 text-gray-500" />
-                                    {table.name}
-                                  </Button>
-                                ))}
-                                {schema.tables.length > 10 && (
-                                  <div className="text-xs text-center text-muted-foreground py-1">
-                                    + {schema.tables.length - 10} more tables
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                    ) : (
-                      <div className="py-4 text-center text-muted-foreground">
-                        No schemas found - click "Test" to refresh
-                      </div>
-                    )}
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  onSelectConnection(connection.id);
+                  setSelectedDatabaseForTables(connection.database || null);
+                }}
+                className={selectedConnectionId === connection.id ? "bg-indigo-50" : ""}
+              >
+                <Table className="h-3.5 w-3.5 mr-1.5" />
+                Browse Tables
+              </Button>
             )}
             
             <TooltipProvider>
@@ -385,7 +293,21 @@ const ConnectionList = ({
         </Card>
       ))}
 
-      {/* Delete confirmation dialog */}
+      {showDatabaseSelect && (
+        <DatabaseSelectDialog
+          open={isDatabaseSelectOpen}
+          onOpenChange={setIsDatabaseSelectOpen}
+          credentials={{
+            db_type: connections.find(c => c.id === showDatabaseSelect)?.connectionType || "mysql",
+            host: connections.find(c => c.id === showDatabaseSelect)?.host || "localhost",
+            port: connections.find(c => c.id === showDatabaseSelect)?.port || "3306",
+            username: connections.find(c => c.id === showDatabaseSelect)?.username || "",
+            password: connections.find(c => c.id === showDatabaseSelect)?.password || "",
+          }}
+          onDatabaseSelect={handleDatabaseSelect}
+        />
+      )}
+
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

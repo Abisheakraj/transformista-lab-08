@@ -1,4 +1,3 @@
-
 // Utility function to check API server availability and CORS configuration
 
 /**
@@ -11,13 +10,13 @@ export const checkApiServer = async (): Promise<{
   message: string;
 }> => {
   // API endpoint to check
-  const API_URL = "https://9574-2405-201-e01c-b2bd-d926-14ba-a311-6173.ngrok-free.app/api";
+  const API_URL = "https://9574-2405-201-e01c-b2bd-d926-14ba-a311-6173.ngrok-free.app";
   
   console.log("Checking API server accessibility...");
   
   try {
     // Simple OPTIONS request to check CORS preflight
-    const response = await fetch(`${API_URL}/health-check`, {
+    const response = await fetch(`${API_URL}/database/connect`, {
       method: 'OPTIONS',
       headers: {
         'Accept': 'application/json',
@@ -117,5 +116,144 @@ export const testCorsProxy = async (proxyUrl: string): Promise<{
       success: false,
       message: error instanceof Error ? error.message : "Unknown error testing CORS proxy"
     };
+  }
+};
+
+/**
+ * Get API base URL with CORS proxy if enabled
+ */
+export const getApiBaseUrl = (): string => {
+  const useProxy = localStorage.getItem('useCorsProxy') === 'true';
+  const proxyUrl = localStorage.getItem('corsProxyUrl') || '';
+  const apiBaseUrl = 'https://9574-2405-201-e01c-b2bd-d926-14ba-a311-6173.ngrok-free.app';
+  
+  if (useProxy && proxyUrl) {
+    return `${proxyUrl}${apiBaseUrl}`;
+  }
+  
+  return apiBaseUrl;
+};
+
+/**
+ * Function to fetch databases from the server
+ * @param credentials Database connection credentials
+ * @returns Promise with the list of databases
+ */
+export const fetchDatabases = async (credentials: {
+  db_type: string;
+  host: string;
+  port: string;
+  username: string;
+  password: string;
+}): Promise<string[]> => {
+  try {
+    const apiUrl = `${getApiBaseUrl()}/database/connect`;
+    console.log("Fetching databases from:", apiUrl);
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(credentials)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Server responded with status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log("Databases response:", data);
+    
+    if (data.status === 'success' && Array.isArray(data.databases)) {
+      return data.databases;
+    } else {
+      throw new Error('Invalid response format');
+    }
+  } catch (error) {
+    console.error("Error fetching databases:", error);
+    throw error;
+  }
+};
+
+/**
+ * Function to fetch tables from the selected database
+ * @param credentials Database connection credentials with selected database
+ * @returns Promise with the list of tables
+ */
+export const fetchTables = async (credentials: {
+  db_type: string;
+  host: string;
+  port: string;
+  username: string;
+  password: string;
+  database: string;
+}): Promise<string[]> => {
+  try {
+    const apiUrl = `${getApiBaseUrl()}/database/select-database`;
+    console.log("Fetching tables from:", apiUrl);
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(credentials)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Server responded with status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log("Tables response:", data);
+    
+    if (data.status === 'success' && Array.isArray(data.tables)) {
+      return data.tables;
+    } else {
+      throw new Error('Invalid response format');
+    }
+  } catch (error) {
+    console.error("Error fetching tables:", error);
+    throw error;
+  }
+};
+
+/**
+ * Function to preview table data
+ * @param tableName The name of the table to preview
+ * @returns Promise with the table data
+ */
+export const previewTable = async (tableName: string): Promise<any[]> => {
+  try {
+    const apiUrl = `${getApiBaseUrl()}/database/preview-table`;
+    console.log("Fetching table preview from:", apiUrl);
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ table_name: tableName })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Server responded with status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log("Table preview response:", data);
+    
+    if (data.data && Array.isArray(data.data)) {
+      return data.data;
+    } else {
+      throw new Error('Invalid response format');
+    }
+  } catch (error) {
+    console.error("Error fetching table preview:", error);
+    throw error;
   }
 };

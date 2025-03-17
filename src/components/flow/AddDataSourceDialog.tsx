@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Link } from "react-router-dom";
 import { ExternalLink, Loader2, Database, CheckCircle2, AlertCircle, AlertTriangle, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { testDatabaseConnection, ApiResponse } from "@/lib/database-client";
+import { fetchDatabases } from "@/lib/api-check";
 
 interface AddDataSourceDialogProps {
   open: boolean;
@@ -59,35 +58,26 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
     
     try {
       console.log("Testing connection with data:", formData);
-      const result = await testDatabaseConnection({
+      
+      // Use the fetchDatabases function to test the connection
+      await fetchDatabases({
+        db_type: formData.connectionType.toLowerCase(),
         host: formData.host,
         port: formData.port,
-        database: formData.database,
         username: formData.username,
-        password: formData.password,
-        connectionType: formData.connectionType.toLowerCase(),
-        db_type: formData.connectionType.toLowerCase()
+        password: formData.password
       });
       
-      console.log("Connection test result:", result);
-      
+      // If we get here, the connection was successful
       setConnectionResult({
-        success: result.success,
-        message: result.message
+        success: true,
+        message: "Connection successful! Database server is accessible."
       });
       
-      if (result.success) {
-        toast({
-          title: "Connection Successful",
-          description: result.message
-        });
-      } else {
-        toast({
-          title: "Connection Failed",
-          description: result.message,
-          variant: "destructive"
-        });
-      }
+      toast({
+        title: "Connection Successful",
+        description: "Successfully connected to the database server."
+      });
     } catch (error) {
       console.error("Connection test error:", error);
       setConnectionResult({
@@ -96,7 +86,7 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
       });
       
       toast({
-        title: "Connection Error",
+        title: "Connection Failed",
         description: error instanceof Error ? error.message : "An unexpected error occurred",
         variant: "destructive"
       });
@@ -122,25 +112,25 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
     try {
       // Only proceed if we can connect to the database
       console.log("Testing connection before adding...");
-      const testResult = await testDatabaseConnection({
-        host: formData.host,
-        port: formData.port,
-        database: formData.database,
-        username: formData.username,
-        password: formData.password,
-        connectionType: formData.connectionType.toLowerCase(),
-        db_type: formData.connectionType.toLowerCase()
-      });
       
-      if (!testResult.success) {
+      try {
+        // Use the fetchDatabases function to test the connection
+        await fetchDatabases({
+          db_type: formData.connectionType.toLowerCase(),
+          host: formData.host,
+          port: formData.port,
+          username: formData.username,
+          password: formData.password
+        });
+      } catch (error) {
         toast({
           title: "Connection Failed",
-          description: testResult.message,
+          description: error instanceof Error ? error.message : "An unexpected error occurred",
           variant: "destructive"
         });
         setConnectionResult({
-          success: testResult.success,
-          message: testResult.message
+          success: false,
+          message: error instanceof Error ? error.message : "An unexpected error occurred"
         });
         setIsLoading(false);
         return;
@@ -192,7 +182,8 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
   const getHelpText = () => {
     if (!connectionResult || connectionResult.success) return null;
     
-    if (connectionResult.message.includes("Backend server is unreachable")) {
+    if (connectionResult.message.includes("Backend server is unreachable") || 
+        connectionResult.message.includes("Failed to fetch")) {
       return (
         <div className="mt-4 text-sm text-amber-600">
           <p className="font-medium flex items-center">
@@ -200,8 +191,9 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
             API Server Connection Issue
           </p>
           <ul className="list-disc pl-5 mt-1 space-y-1">
-            <li>Make sure the API server is running at http://localhost:3001</li>
+            <li>Make sure the API server is running</li>
             <li>Check if any firewall is blocking connections to the API server</li>
+            <li>You might need to enable a CORS proxy in the Settings page</li>
           </ul>
         </div>
       );
