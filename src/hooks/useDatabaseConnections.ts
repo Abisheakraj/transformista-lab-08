@@ -61,12 +61,7 @@ export function useDatabaseConnections() {
 
   // Save connections to localStorage when they change
   useEffect(() => {
-    if (connections.length > 0) {
-      localStorage.setItem('databaseConnections', JSON.stringify(connections));
-    } else {
-      // Clear local storage if all connections are removed
-      localStorage.removeItem('databaseConnections');
-    }
+    localStorage.setItem('databaseConnections', JSON.stringify(connections));
   }, [connections]);
 
   const addConnection = (connection: Omit<DatabaseConnection, 'id' | 'status'>) => {
@@ -103,11 +98,7 @@ export function useDatabaseConnections() {
     }
     
     // Remove the connection
-    setConnections(prev => {
-      const filtered = prev.filter(conn => conn.id !== id);
-      console.log("Connections after removal:", filtered);
-      return filtered;
-    });
+    setConnections(prev => prev.filter(conn => conn.id !== id));
     
     // If the removed connection was the selected one, clear selection
     if (selectedConnection?.id === id) {
@@ -152,17 +143,22 @@ export function useDatabaseConnections() {
       
       if (result.success) {
         toast({
-          title: result.data?.fallback ? "Connection simulated" : "Connection successful",
+          title: "Connection successful",
           description: result.message || "Successfully connected to database server"
         });
         
-        // Set available databases based on connection type
-        if (connection.connectionType.toLowerCase() === 'mysql') {
-          setAvailableDatabases(["airportdb", "mysql", "information_schema", "sys", "performance_schema"]);
-        } else if (connection.connectionType.toLowerCase() === 'postgresql') {
-          setAvailableDatabases(["postgres", "template1", "template0"]);
+        // Set available databases based on result data if provided
+        if (result.data?.databases && Array.isArray(result.data.databases)) {
+          setAvailableDatabases(result.data.databases);
         } else {
-          setAvailableDatabases(["main", "system", "information_schema"]);
+          // Fallback databases based on connection type
+          if (connection.connectionType.toLowerCase() === 'mysql') {
+            setAvailableDatabases(["mysql", "information_schema", "performance_schema"]);
+          } else if (connection.connectionType.toLowerCase() === 'postgresql') {
+            setAvailableDatabases(["postgres", "template1", "template0"]);
+          } else {
+            setAvailableDatabases(["main", "system", "information_schema"]);
+          }
         }
       } else {
         toast({
@@ -199,17 +195,6 @@ export function useDatabaseConnections() {
     setIsLoading(true);
     
     try {
-      const credentials: DatabaseCredentials = {
-        host: connection.host,
-        port: connection.port,
-        username: connection.username,
-        password: connection.password,
-        connectionType: connection.connectionType,
-        database: databaseName,
-        db_type: connection.connectionType.toLowerCase()
-      };
-      
-      console.log("Selecting database with credentials:", JSON.stringify(credentials, null, 2));
       const result = await selectDatabase(connectionId, databaseName);
       console.log("Database selection result:", result);
       
@@ -368,7 +353,7 @@ export function useDatabaseConnections() {
     connectionId: string, 
     schema: string, 
     table: string, 
-    limit: number = 10
+    limit: number = 50
   ) => {
     const connection = connections.find(conn => conn.id === connectionId);
     if (!connection) return null;

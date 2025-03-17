@@ -25,8 +25,10 @@ export interface SchemaInfo {
   }[];
 }
 
+// Use a configurable API URL that defaults to localhost but can be changed
+// for different environments
 const API_URL = "http://localhost:3001/api";
-const API_TIMEOUT = 5000; // 5 seconds timeout
+const API_TIMEOUT = 10000; // 10 seconds timeout
 
 // Helper function to detect if response is HTML instead of JSON
 const isHtmlResponse = (text: string): boolean => {
@@ -59,24 +61,30 @@ export const testDatabaseConnection = async (credentials: DatabaseCredentials): 
         'Accept': 'application/json',
       },
       body: JSON.stringify(credentials),
+      // Include credentials for CORS requests
+      credentials: 'include',
     });
     
     // Race between fetch and timeout
     const response = await Promise.race([fetchPromise, timeoutPromise(API_TIMEOUT)]);
+    
+    if (!response.ok) {
+      console.error(`HTTP error: ${response.status} ${response.statusText}`);
+      return {
+        success: false,
+        message: `Server error: ${response.status} ${response.statusText}. Please check your database credentials and ensure the server is running.`
+      };
+    }
     
     // Get response as text first to check for HTML
     const responseText = await response.text();
     
     // Check if we got HTML instead of JSON
     if (isHtmlResponse(responseText)) {
-      console.warn("Received HTML instead of JSON:", responseText.substring(0, 100));
-      
-      // Provide a fallback success response for development/testing
-      console.log("Using fallback mock data for connection test");
+      console.error("Received HTML instead of JSON:", responseText.substring(0, 200));
       return {
-        success: true,
-        message: "Connection simulated successfully. Using development mode.",
-        data: { fallback: true }
+        success: false,
+        message: "Server returned HTML instead of JSON. Please check your API server configuration."
       };
     }
     
@@ -97,17 +105,15 @@ export const testDatabaseConnection = async (credentials: DatabaseCredentials): 
     // If it's a timeout error, provide a specific message
     if (error instanceof Error && error.message.includes('timed out')) {
       return {
-        success: true, // Return success true with fallback data
-        message: "Connection timed out, but using simulated data for development.",
-        data: { fallback: true }
+        success: false,
+        message: "Connection timed out. Please check if your database server is running and accessible."
       };
     }
     
-    // For other errors, also use fallback data in development
+    // For other errors
     return {
-      success: true, // Return success true with fallback data
-      message: "Using simulated connection for development.",
-      data: { fallback: true }
+      success: false,
+      message: error instanceof Error ? error.message : "Unknown error occurred while connecting to the database."
     };
   }
 };
@@ -121,18 +127,26 @@ export const selectDatabase = async (connectionId: string, databaseName: string)
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
       body: JSON.stringify({ connectionId, databaseName }),
+      credentials: 'include',
     });
+
+    if (!response.ok) {
+      return {
+        success: false,
+        message: `Server error: ${response.status} ${response.statusText}. Failed to select database.`
+      };
+    }
 
     const responseText = await response.text();
     
     if (isHtmlResponse(responseText)) {
-      console.warn("Received HTML instead of JSON when selecting database");
+      console.error("Received HTML instead of JSON when selecting database");
       return {
-        success: true,
-        message: `Simulated database selection for "${databaseName}"`,
-        data: { fallback: true }
+        success: false,
+        message: "Server returned HTML instead of JSON. Please check your API server configuration."
       };
     }
     
@@ -141,17 +155,15 @@ export const selectDatabase = async (connectionId: string, databaseName: string)
     } catch (e) {
       console.error("Error parsing selectDatabase response:", e);
       return {
-        success: true,
-        message: `Simulated database selection for "${databaseName}"`,
-        data: { fallback: true }
+        success: false,
+        message: "Invalid response format when selecting database."
       };
     }
   } catch (error) {
     console.error("Database selection error:", error);
     return {
-      success: true,
-      message: `Simulated database selection for "${databaseName}"`,
-      data: { fallback: true }
+      success: false,
+      message: error instanceof Error ? error.message : "Failed to select database."
     };
   }
 };
@@ -162,51 +174,30 @@ export const selectDatabase = async (connectionId: string, databaseName: string)
 export const fetchDatabaseSchemas = async (connectionId: string): Promise<ApiResponse> => {
   try {
     const response = await Promise.race([
-      fetch(`${API_URL}/schemas/${connectionId}`),
+      fetch(`${API_URL}/schemas/${connectionId}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+        credentials: 'include',
+      }),
       timeoutPromise(API_TIMEOUT)
     ]);
+    
+    if (!response.ok) {
+      return {
+        success: false,
+        message: `Server error: ${response.status} ${response.statusText}. Failed to fetch schemas.`
+      };
+    }
     
     const responseText = await response.text();
     
     if (isHtmlResponse(responseText)) {
-      console.warn("Received HTML instead of JSON when fetching schemas");
-      
-      // Return fallback schema data
+      console.error("Received HTML instead of JSON when fetching schemas");
       return {
-        success: true,
-        message: "Using simulated schema data for development",
-        data: [
-          {
-            name: "main",
-            tables: [
-              { 
-                name: "users", 
-                columns: ["id", "username", "email", "created_at"]
-              },
-              { 
-                name: "products", 
-                columns: ["id", "name", "price", "description", "category"]
-              },
-              { 
-                name: "orders", 
-                columns: ["id", "user_id", "product_id", "quantity", "order_date"]
-              }
-            ]
-          },
-          {
-            name: "information_schema",
-            tables: [
-              { 
-                name: "tables", 
-                columns: ["table_catalog", "table_schema", "table_name", "table_type"]
-              },
-              { 
-                name: "columns", 
-                columns: ["table_catalog", "table_schema", "table_name", "column_name", "data_type"]
-              }
-            ]
-          }
-        ]
+        success: false,
+        message: "Server returned HTML instead of JSON. Please check your API server configuration."
       };
     }
     
@@ -216,48 +207,14 @@ export const fetchDatabaseSchemas = async (connectionId: string): Promise<ApiRes
       console.error("Error parsing fetchDatabaseSchemas response:", e);
       return {
         success: false,
-        message: "Failed to parse schema data response"
+        message: "Failed to parse schema data response."
       };
     }
   } catch (error) {
     console.error("Fetch schemas error:", error);
-    
-    // Return fallback schema data
     return {
-      success: true,
-      message: "Using simulated schema data for development",
-      data: [
-        {
-          name: "main",
-          tables: [
-            { 
-              name: "users", 
-              columns: ["id", "username", "email", "created_at"]
-            },
-            { 
-              name: "products", 
-              columns: ["id", "name", "price", "description", "category"]
-            },
-            { 
-              name: "orders", 
-              columns: ["id", "user_id", "product_id", "quantity", "order_date"]
-            }
-          ]
-        },
-        {
-          name: "information_schema",
-          tables: [
-            { 
-              name: "tables", 
-              columns: ["table_catalog", "table_schema", "table_name", "table_type"]
-            },
-            { 
-              name: "columns", 
-              columns: ["table_catalog", "table_schema", "table_name", "column_name", "data_type"]
-            }
-          ]
-        }
-      ]
+      success: false,
+      message: error instanceof Error ? error.message : "Failed to fetch database schemas."
     };
   }
 };
@@ -269,7 +226,7 @@ export const fetchTableSampleData = async (
   credentials: DatabaseCredentials,
   schema: string,
   table: string,
-  limit: number = 10
+  limit: number = 50
 ): Promise<{ columns: string[], rows: any[][] }> => {
   try {
     const response = await Promise.race([
@@ -277,20 +234,23 @@ export const fetchTableSampleData = async (
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({ credentials, schema, table, limit }),
+        credentials: 'include',
       }),
       timeoutPromise(API_TIMEOUT)
     ]);
     
+    if (!response.ok) {
+      throw new Error(`Server error: ${response.status} ${response.statusText}`);
+    }
+    
     const responseText = await response.text();
     
     if (isHtmlResponse(responseText)) {
-      console.warn("Received HTML instead of JSON when fetching table data");
-      
-      // Return fallback data based on the table name
-      const mockData = generateMockTableData(table, limit);
-      return mockData;
+      console.error("Received HTML instead of JSON when fetching table data");
+      throw new Error("Server returned HTML instead of JSON. Please check your API configuration.");
     }
     
     try {
@@ -302,65 +262,15 @@ export const fetchTableSampleData = async (
       }
     } catch (e) {
       console.error("Error parsing fetchTableSampleData response:", e);
-      const mockData = generateMockTableData(table, limit);
-      return mockData;
+      throw new Error("Failed to parse table data response");
     }
   } catch (error) {
     console.error("Fetch table data error:", error);
-    const mockData = generateMockTableData(table, limit);
-    return mockData;
-  }
-};
-
-/**
- * Generate mock data for development and testing
- */
-const generateMockTableData = (table: string, limit: number = 10): { columns: string[], rows: any[][] } => {
-  // Different mock data based on table name
-  switch (table.toLowerCase()) {
-    case 'users':
-      return {
-        columns: ['id', 'username', 'email', 'created_at'],
-        rows: Array.from({ length: limit }, (_, i) => [
-          i + 1,
-          `user${i + 1}`,
-          `user${i + 1}@example.com`,
-          new Date(Date.now() - Math.random() * 10000000000).toISOString()
-        ])
-      };
-    case 'products':
-      return {
-        columns: ['id', 'name', 'price', 'category', 'in_stock'],
-        rows: Array.from({ length: limit }, (_, i) => [
-          i + 1,
-          `Product ${i + 1}`,
-          (Math.random() * 100 + 10).toFixed(2),
-          ['Electronics', 'Clothing', 'Home', 'Books', 'Food'][Math.floor(Math.random() * 5)],
-          Math.random() > 0.3 ? 'Yes' : 'No'
-        ])
-      };
-    case 'orders':
-      return {
-        columns: ['id', 'user_id', 'total', 'status', 'order_date'],
-        rows: Array.from({ length: limit }, (_, i) => [
-          i + 1,
-          Math.floor(Math.random() * 20) + 1,
-          (Math.random() * 200 + 20).toFixed(2),
-          ['Pending', 'Processing', 'Shipped', 'Delivered', 'Canceled'][Math.floor(Math.random() * 5)],
-          new Date(Date.now() - Math.random() * 30000000000).toISOString()
-        ])
-      };
-    default:
-      // Generic table data
-      return {
-        columns: ['id', 'name', 'value', 'date'],
-        rows: Array.from({ length: limit }, (_, i) => [
-          i + 1,
-          `Item ${i + 1}`,
-          Math.floor(Math.random() * 1000),
-          new Date(Date.now() - Math.random() * 10000000000).toISOString()
-        ])
-      };
+    // Return empty data structure on error
+    return {
+      columns: [],
+      rows: []
+    };
   }
 };
 
@@ -377,18 +287,26 @@ export const processDataTransformation = async (
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
       },
       body: JSON.stringify({ instruction, tableName, schemaName }),
+      credentials: 'include',
     });
+    
+    if (!response.ok) {
+      return {
+        success: false,
+        message: `Server error: ${response.status} ${response.statusText}. Failed to process transformation.`
+      };
+    }
     
     const responseText = await response.text();
     
     if (isHtmlResponse(responseText)) {
-      console.warn("Received HTML instead of JSON when processing transformation");
+      console.error("Received HTML instead of JSON when processing transformation");
       return {
-        success: true,
-        message: "Transformation simulation completed successfully",
-        data: { fallback: true }
+        success: false,
+        message: "Server returned HTML instead of JSON. Please check your API configuration."
       };
     }
     
@@ -404,9 +322,8 @@ export const processDataTransformation = async (
   } catch (error) {
     console.error("Processing transformation error:", error);
     return {
-      success: true,
-      message: "Transformation simulation completed (development mode)",
-      data: { fallback: true }
+      success: false,
+      message: error instanceof Error ? error.message : "Unknown error occurred during transformation."
     };
   }
 };

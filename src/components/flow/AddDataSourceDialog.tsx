@@ -21,7 +21,7 @@ interface AddDataSourceDialogProps {
 const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSourceDialogProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
-  const [connectionResult, setConnectionResult] = useState<{ success: boolean; message: string; isFallback?: boolean } | null>(null);
+  const [connectionResult, setConnectionResult] = useState<{ success: boolean; message: string; } | null>(null);
   const { toast } = useToast();
   
   const [formData, setFormData] = useState({
@@ -29,9 +29,9 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
     connectionType: "mysql",
     host: "localhost",
     port: "3306",
-    database: "airportdb",
+    database: "",
     username: "root",
-    password: "9009",
+    password: "",
     type: type
   });
 
@@ -45,10 +45,10 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
   };
 
   const handleTestConnection = async () => {
-    if (!formData.host) {
+    if (!formData.host || !formData.username) {
       toast({
         title: "Missing Information",
-        description: "Please provide at least host to test the connection.",
+        description: "Please provide at least host and username to test the connection.",
         variant: "destructive"
       });
       return;
@@ -71,17 +71,14 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
       
       console.log("Connection test result:", result);
       
-      const isFallback = result.data?.fallback === true;
-      
       setConnectionResult({
         success: result.success,
-        message: result.message,
-        isFallback
+        message: result.message
       });
       
       if (result.success) {
         toast({
-          title: isFallback ? "Connection Simulated" : "Connection Successful",
+          title: "Connection Successful",
           description: result.message
         });
       } else {
@@ -111,7 +108,7 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.connectionType || !formData.host) {
+    if (!formData.name || !formData.connectionType || !formData.host || !formData.username) {
       toast({
         title: "Missing Required Fields",
         description: "Please fill in all required fields to add this connection.",
@@ -134,8 +131,7 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
         db_type: formData.connectionType.toLowerCase()
       });
       
-      // Allow both actual successful connections and fallback/simulated connections
-      if (!testResult.success && !testResult.data?.fallback) {
+      if (!testResult.success) {
         toast({
           title: "Connection Failed",
           description: testResult.message,
@@ -158,9 +154,9 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
         connectionType: "mysql",
         host: "localhost",
         port: "3306",
-        database: "airportdb",
+        database: "",
         username: "root",
-        password: "9009",
+        password: "",
         type: type
       });
       
@@ -169,7 +165,7 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
       // Show success message
       toast({
         title: `${type === "source" ? "Source" : "Target"} Connection Added`,
-        description: `The connection has been added successfully${testResult.data?.fallback ? " in development mode" : ""}.`
+        description: "The connection has been added successfully."
       });
       
     } catch (error) {
@@ -199,20 +195,22 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-2">
-            <Label htmlFor="name">Connection Name</Label>
+            <Label htmlFor="name">Connection Name <span className="text-red-500">*</span></Label>
             <Input
               id="name"
               name="name"
               placeholder="e.g. Production Database"
               value={formData.name}
               onChange={handleInputChange}
+              required
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="connectionType">Database Type</Label>
+            <Label htmlFor="connectionType">Database Type <span className="text-red-500">*</span></Label>
             <Select 
               value={formData.connectionType} 
               onValueChange={(value) => handleSelectChange("connectionType", value)}
+              required
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select a database type" />
@@ -230,23 +228,25 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="host">Host</Label>
+            <Label htmlFor="host">Host <span className="text-red-500">*</span></Label>
             <Input
               id="host"
               name="host"
               placeholder="localhost"
               value={formData.host}
               onChange={handleInputChange}
+              required
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="port">Port</Label>
+            <Label htmlFor="port">Port <span className="text-red-500">*</span></Label>
             <Input
               id="port"
               name="port"
               placeholder="3306"
               value={formData.port}
               onChange={handleInputChange}
+              required
             />
           </div>
           <div className="grid gap-2">
@@ -254,23 +254,24 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
             <Input
               id="database"
               name="database"
-              placeholder="airportdb"
+              placeholder="(Optional - can select after connection)"
               value={formData.database}
               onChange={handleInputChange}
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username">Username <span className="text-red-500">*</span></Label>
             <Input
               id="username"
               name="username"
               placeholder="root"
               value={formData.username}
               onChange={handleInputChange}
+              required
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Password <span className="text-red-500">*</span></Label>
             <Input
               id="password"
               name="password"
@@ -278,6 +279,7 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
               placeholder="••••••••"
               value={formData.password}
               onChange={handleInputChange}
+              required
             />
           </div>
 
@@ -285,34 +287,24 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
             <Alert 
               className={`${
                 connectionResult.success 
-                  ? connectionResult.isFallback
-                    ? "border-yellow-200 bg-yellow-50 text-yellow-800"
-                    : "border-green-200 bg-green-50 text-green-800" 
+                  ? "border-green-200 bg-green-50 text-green-800" 
                   : "border-red-200 bg-red-50 text-red-800"
               }`}
             >
               <div className="flex">
                 {connectionResult.success 
-                  ? connectionResult.isFallback
-                    ? <AlertTriangle className="h-5 w-5 text-yellow-500 mr-2" />
-                    : <CheckCircle2 className="h-5 w-5 text-green-500 mr-2" /> 
+                  ? <CheckCircle2 className="h-5 w-5 text-green-500 mr-2" /> 
                   : <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
                 }
                 <AlertDescription>
                   {connectionResult.message}
-                  {connectionResult.isFallback && (
-                    <div className="mt-2 text-sm">
-                      <Info className="h-4 w-4 inline mr-1" />
-                      Using simulated connection because the backend server may be unavailable.
-                    </div>
-                  )}
                 </AlertDescription>
               </div>
             </Alert>
           )}
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={handleTestConnection} disabled={isTesting || !formData.host}>
+            <Button type="button" variant="outline" onClick={handleTestConnection} disabled={isTesting || !formData.host || !formData.username}>
               {isTesting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
