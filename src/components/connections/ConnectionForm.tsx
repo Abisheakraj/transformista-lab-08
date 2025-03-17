@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Database, AlertTriangle } from "lucide-react";
+import { Loader2, Database, AlertTriangle, Settings } from "lucide-react";
 import { testDatabaseConnection, ApiResponse } from "@/lib/database-client";
 import { useDatabaseConnections } from "@/hooks/useDatabaseConnections";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -36,12 +36,12 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
   
   const [formData, setFormData] = useState<FormData>({
     name: "",
-    connectionType: "mysql",  // Default to MySQL as per the API
-    host: "localhost", // Default value from your curl commands
-    port: "3306",      // Default value from your curl commands
-    database: "airportdb", // Default value from your curl commands
-    username: "root",  // Default value from your curl commands
-    password: "9009"   // Default value from your curl commands
+    connectionType: "mysql",
+    host: "localhost",
+    port: "3306",
+    database: "airportdb",
+    username: "root",
+    password: "9009"
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -268,6 +268,7 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
         </div>
       </div>
 
+      {/* Database connection fields */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="space-y-2">
           <Label htmlFor="host">Host / Endpoint <span className="text-red-500">*</span></Label>
@@ -304,6 +305,7 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
         </div>
       </div>
 
+      {/* Authentication fields */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <Label htmlFor="username">Username</Label>
@@ -329,6 +331,7 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
         </div>
       </div>
 
+      {/* Connection result alerts */}
       {connectionResult && (
         <Alert 
           className={`${
@@ -368,12 +371,12 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
               <p className="font-medium">CORS Issue Detected</p>
               <p className="mt-1">Your browser is blocking cross-origin requests to the API server. Try these solutions:</p>
               <ol className="list-decimal ml-5 mt-2">
-                <li className="mb-1">
-                  <Link to="/settings" className="text-blue-600 hover:underline">
-                    Enable the CORS proxy in the Settings menu
+                <li className="mb-2">
+                  <Link to="/settings" className="text-blue-600 hover:underline flex items-center gap-1 inline-flex">
+                    <Settings className="h-3 w-3" /> Enable the CORS proxy in the Settings menu
                   </Link>
                 </li>
-                <li>Install a CORS browser extension like CORS Unblock</li>
+                <li className="mb-1">Install a CORS browser extension like CORS Unblock</li>
                 <li>Your backend developer can also enable CORS on the server</li>
               </ol>
             </AlertDescription>
@@ -381,6 +384,7 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
         </Alert>
       )}
 
+      {/* Form buttons */}
       <div className="flex justify-end gap-3">
         <Button 
           type="button" 

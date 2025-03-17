@@ -51,11 +51,22 @@ const getEffectiveApiUrl = (endpoint: string): string => {
   
   if (corsProxyUrl) {
     // Use CORS proxy
+    console.log(`Using CORS proxy: ${corsProxyUrl}${API_URL}${endpoint}`);
     return `${corsProxyUrl}${API_URL}${endpoint}`;
   }
   
   // Use direct API URL
+  console.log(`Using direct API URL: ${API_URL}${endpoint}`);
   return `${API_URL}${endpoint}`;
+};
+
+// Helper function to detect CORS errors
+const isCorsError = (error: Error): boolean => {
+  const errorMsg = error.message.toLowerCase();
+  return errorMsg.includes('cors') || 
+         errorMsg.includes('cross-origin') || 
+         errorMsg.includes('access-control-allow-origin') ||
+         errorMsg.includes('blocked by cors');
 };
 
 /**
@@ -79,7 +90,8 @@ export const testDatabaseConnection = async (credentials: DatabaseCredentials): 
         'Origin': window.location.origin
       },
       body: JSON.stringify(credentials),
-      // Don't include credentials for initial test to avoid CORS preflight issues
+      // Explicitly set mode to cors to handle CORS properly
+      mode: 'cors'
     });
     
     // Race between fetch and timeout
@@ -124,7 +136,7 @@ export const testDatabaseConnection = async (credentials: DatabaseCredentials): 
       console.error("Received HTML instead of JSON:", responseText.substring(0, 200));
       return {
         success: false,
-        message: "Received HTML instead of JSON response. This usually indicates a CORS issue or network problem. Please check your API server configuration."
+        message: "Received HTML instead of JSON response. This usually indicates a CORS issue or network problem. Please enable the CORS proxy in Settings."
       };
     }
     
@@ -151,13 +163,10 @@ export const testDatabaseConnection = async (credentials: DatabaseCredentials): 
     }
     
     // For CORS errors
-    if (error instanceof Error && 
-        (error.message.includes('CORS') || 
-        error.message.includes('blocked by CORS') || 
-        error.message.includes('cross-origin'))) {
+    if (error instanceof Error && isCorsError(error)) {
       return {
         success: false,
-        message: "CORS error: Cross-origin request blocked. Try enabling the CORS proxy in Settings to resolve this issue."
+        message: "CORS error: Cross-origin request blocked. Please enable the CORS proxy in Settings to resolve this issue."
       };
     }
     

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle, AlertCircle, Globe, Info } from 'lucide-react';
+import { CheckCircle, AlertCircle, Globe, Info, ExternalLink } from 'lucide-react';
 
 const CorsProxy = () => {
   const [proxyUrl, setProxyUrl] = useState('');
@@ -21,8 +21,8 @@ const CorsProxy = () => {
       setProxyUrl(savedProxyUrl);
       setIsEnabled(true);
     } else {
-      // Default proxy URL is empty now since we have a direct ngrok URL
-      setProxyUrl('');
+      // Default proxy URL suggestion
+      setProxyUrl('https://corsproxy.io/?');
     }
   }, []);
 
@@ -104,31 +104,41 @@ const CorsProxy = () => {
       <CardContent className="pt-6">
         <div className="space-y-4">
           {!isEnabled && (
-            <Alert className="border-blue-200 bg-blue-50 text-blue-800">
+            <Alert className="border-red-200 bg-red-50 text-red-800">
               <div className="flex">
-                <Info className="h-5 w-5 text-blue-500 mr-2" />
+                <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
                 <AlertDescription>
-                  <p>The application is currently using the direct ngrok URL: </p>
-                  <code className="font-mono bg-blue-100 px-1 py-0.5 rounded text-sm">
-                    https://9574-2405-201-e01c-b2bd-d926-14ba-a311-6173.ngrok-free.app/api
-                  </code>
-                  <p className="mt-1">You only need to enable a CORS proxy if you experience connection issues.</p>
+                  <p className="font-medium">CORS Error Detected</p>
+                  <p className="mt-1">Your browser is blocking cross-origin requests to the API server. To fix this, enable a CORS proxy below.</p>
                 </AlertDescription>
               </div>
             </Alert>
           )}
           
+          <Alert className="border-blue-200 bg-blue-50 text-blue-800">
+            <div className="flex">
+              <Info className="h-5 w-5 text-blue-500 mr-2" />
+              <AlertDescription>
+                <p>The application is currently using the direct ngrok URL: </p>
+                <code className="font-mono bg-blue-100 px-1 py-0.5 rounded text-sm">
+                  https://9574-2405-201-e01c-b2bd-d926-14ba-a311-6173.ngrok-free.app/api
+                </code>
+                <p className="mt-1">{isEnabled ? 'The CORS proxy is active and helping bypass cross-origin issues.' : 'You need to enable a CORS proxy to resolve connection issues.'}</p>
+              </AlertDescription>
+            </div>
+          </Alert>
+          
           <div className="space-y-2">
             <Label htmlFor="proxy-url">CORS Proxy URL</Label>
             <Input
               id="proxy-url"
-              placeholder="e.g., https://cors-anywhere.herokuapp.com/"
+              placeholder="e.g., https://corsproxy.io/?"
               value={proxyUrl}
               onChange={(e) => setProxyUrl(e.target.value)}
               disabled={isEnabled}
             />
             <p className="text-xs text-muted-foreground">
-              Enter the URL of a CORS proxy service that will forward API requests
+              Enter the URL of a CORS proxy service that will forward API requests. Recommended: <a href="https://corsproxy.io/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center inline-flex">corsproxy.io <ExternalLink className="h-3 w-3 ml-1" /></a>
             </p>
           </div>
           
@@ -137,11 +147,27 @@ const CorsProxy = () => {
               <div className="flex">
                 <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
                 <AlertDescription>
-                  CORS Proxy is currently enabled and configured to use: {proxyUrl}
+                  <p className="font-medium">CORS Proxy is enabled</p>
+                  <p>Currently using: {proxyUrl}</p>
+                  <p className="mt-1 text-sm">All API requests will be routed through this proxy to avoid CORS issues.</p>
                 </AlertDescription>
               </div>
             </Alert>
           )}
+          
+          <Alert className="border-amber-200 bg-amber-50 text-amber-800">
+            <div className="flex">
+              <Info className="h-5 w-5 text-amber-500 mr-2" />
+              <AlertDescription>
+                <p className="font-medium">Recommended Free CORS Proxies:</p>
+                <ul className="list-disc ml-5 mt-1 space-y-1">
+                  <li><a href="https://corsproxy.io/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">corsproxy.io</a> (use URL: <code className="bg-amber-100 px-1 rounded">https://corsproxy.io/?</code>)</li>
+                  <li><a href="https://cors-anywhere.herokuapp.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">CORS Anywhere</a> (may require activation)</li>
+                  <li>Or use a browser extension like <a href="https://chrome.google.com/webstore/detail/cors-unblock/lfhmikememgdcahcdlaciloancbhjino" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">CORS Unblock</a></li>
+                </ul>
+              </AlertDescription>
+            </div>
+          </Alert>
         </div>
       </CardContent>
       <CardFooter className="flex justify-end gap-3">
