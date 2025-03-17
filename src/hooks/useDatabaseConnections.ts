@@ -52,16 +52,30 @@ export function useDatabaseConnections() {
     const savedConnections = localStorage.getItem('databaseConnections');
     if (savedConnections) {
       try {
-        setConnections(JSON.parse(savedConnections));
+        const parsed = JSON.parse(savedConnections);
+        if (Array.isArray(parsed)) {
+          setConnections(parsed);
+          console.log("Loaded connections from localStorage:", parsed);
+        } else {
+          console.error('Invalid connections data format in localStorage');
+          localStorage.removeItem('databaseConnections');
+        }
       } catch (error) {
         console.error('Error loading saved connections:', error);
+        localStorage.removeItem('databaseConnections');
       }
     }
   }, []);
 
   // Save connections to localStorage when they change
   useEffect(() => {
-    localStorage.setItem('databaseConnections', JSON.stringify(connections));
+    if (connections.length > 0) {
+      localStorage.setItem('databaseConnections', JSON.stringify(connections));
+      console.log("Saved connections to localStorage:", connections);
+    } else {
+      localStorage.removeItem('databaseConnections');
+      console.log("Cleared connections from localStorage");
+    }
   }, [connections]);
 
   const addConnection = (connection: Omit<DatabaseConnection, 'id' | 'status'>) => {
@@ -72,6 +86,7 @@ export function useDatabaseConnections() {
     };
     
     setConnections(prev => [...prev, newConnection]);
+    console.log("Added new connection:", newConnection);
     
     return newConnection.id;
   };
@@ -80,6 +95,7 @@ export function useDatabaseConnections() {
     setConnections(prev => 
       prev.map(conn => conn.id === id ? { ...conn, ...updates } : conn)
     );
+    console.log("Updated connection:", id, updates);
   };
 
   const removeConnection = (id: string) => {
@@ -98,7 +114,11 @@ export function useDatabaseConnections() {
     }
     
     // Remove the connection
-    setConnections(prev => prev.filter(conn => conn.id !== id));
+    setConnections(prev => {
+      const filtered = prev.filter(conn => conn.id !== id);
+      console.log("Filtered connections after removal:", filtered);
+      return filtered;
+    });
     
     // If the removed connection was the selected one, clear selection
     if (selectedConnection?.id === id) {

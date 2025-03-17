@@ -1,4 +1,3 @@
-
 // This file contains functions for interacting with database services
 
 export interface DatabaseCredentials {
@@ -28,7 +27,7 @@ export interface SchemaInfo {
 // Use a configurable API URL that defaults to localhost but can be changed
 // for different environments
 const API_URL = "http://localhost:3001/api";
-const API_TIMEOUT = 30000; // Increase timeout to 30 seconds for slower networks
+const API_TIMEOUT = 15000; // 15 seconds timeout for network requests
 
 // Helper function to detect if response is HTML instead of JSON
 const isHtmlResponse = (text: string): boolean => {
@@ -59,13 +58,9 @@ export const testDatabaseConnection = async (credentials: DatabaseCredentials): 
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization'
       },
       body: JSON.stringify(credentials),
-      // Include credentials for CORS requests
-      credentials: 'include',
+      // Don't include credentials for initial test to avoid CORS preflight issues
     });
     
     // Race between fetch and timeout
@@ -144,8 +139,11 @@ export const testDatabaseConnection = async (credentials: DatabaseCredentials): 
       };
     }
     
-    // For network errors
-    if (error instanceof Error && (error.message.includes('network') || error.message.includes('fetch'))) {
+    // For network errors like ECONNREFUSED
+    if (error instanceof Error && 
+        (error.message.includes('network') || 
+         error.message.includes('fetch') || 
+         error.message.includes('connection refused'))) {
       return {
         success: false,
         message: "Network error: Unable to reach the database server. Please check your network connection and server status."

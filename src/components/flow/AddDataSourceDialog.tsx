@@ -120,6 +120,7 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
     setIsLoading(true);
     
     try {
+      // Only proceed if we can connect to the database
       console.log("Testing connection before adding...");
       const testResult = await testDatabaseConnection({
         host: formData.host,
@@ -168,6 +169,9 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
         description: "The connection has been added successfully."
       });
       
+      // Close the dialog
+      onOpenChange(false);
+      
     } catch (error) {
       console.error("Error adding datasource:", error);
       toast({
@@ -183,6 +187,45 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
   const connectionTypes = type === "source" 
     ? ["mysql", "postgresql", "oracle", "mssql"] 
     : ["mysql", "postgresql", "bigquery", "snowflake", "redshift"];
+
+  // Help text to explain connection issues
+  const getHelpText = () => {
+    if (!connectionResult || connectionResult.success) return null;
+    
+    if (connectionResult.message.includes("Backend server is unreachable")) {
+      return (
+        <div className="mt-4 text-sm text-amber-600">
+          <p className="font-medium flex items-center">
+            <Info className="h-4 w-4 mr-1" />
+            API Server Connection Issue
+          </p>
+          <ul className="list-disc pl-5 mt-1 space-y-1">
+            <li>Make sure the API server is running at http://localhost:3001</li>
+            <li>Check if any firewall is blocking connections to the API server</li>
+          </ul>
+        </div>
+      );
+    }
+    
+    if (connectionResult.message.includes("Unable to reach the database server")) {
+      return (
+        <div className="mt-4 text-sm text-amber-600">
+          <p className="font-medium flex items-center">
+            <Info className="h-4 w-4 mr-1" />
+            Database Connection Issue
+          </p>
+          <ul className="list-disc pl-5 mt-1 space-y-1">
+            <li>Ensure your database server is running (MySQL, PostgreSQL, etc.)</li>
+            <li>Verify the host and port are correct</li>
+            <li>Check if your database allows remote connections</li>
+            <li>Verify your credentials (username/password)</li>
+          </ul>
+        </div>
+      );
+    }
+    
+    return null;
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -302,6 +345,8 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
               </div>
             </Alert>
           )}
+          
+          {getHelpText()}
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={handleTestConnection} disabled={isTesting || !formData.host || !formData.username}>
