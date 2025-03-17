@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,24 +72,21 @@ const ConnectionsPage = () => {
 
   // Handle delete connection
   const handleDeleteConnection = (connectionId: string) => {
-    setConnectionToDelete(connectionId);
-    setDeleteConfirmOpen(true);
-  };
-
-  const confirmDeleteConnection = () => {
-    if (connectionToDelete) {
-      removeConnection(connectionToDelete);
-      
-      // Reset selected connection if it was deleted
-      if (selectedConnectionId === connectionToDelete) {
-        setSelectedConnectionId(null);
-        setSelectedSchema(null);
-        setSelectedTable(null);
-      }
-      
-      setConnectionToDelete(null);
-      setDeleteConfirmOpen(false);
+    console.log("Handling delete connection with id:", connectionId);
+    
+    removeConnection(connectionId);
+    
+    // Reset selected connection if it was deleted
+    if (selectedConnectionId === connectionId) {
+      setSelectedConnectionId(null);
+      setSelectedSchema(null);
+      setSelectedTable(null);
     }
+    
+    toast({
+      title: "Connection Deleted",
+      description: "The database connection has been successfully removed."
+    });
   };
 
   // Handle export
@@ -135,6 +131,11 @@ const ConnectionsPage = () => {
       table: selectedTable
     });
   }, [selectedConnectionId, selectedSchema, selectedTable]);
+
+  // Log connections updates for debugging
+  useEffect(() => {
+    console.log("Connections updated:", connections);
+  }, [connections]);
 
   return (
     <SidebarLayout title="Data Connections">
@@ -552,24 +553,6 @@ const ConnectionsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete the database connection. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConnectionToDelete(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteConnection} className="bg-red-600 hover:bg-red-700">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </SidebarLayout>
   );
 };

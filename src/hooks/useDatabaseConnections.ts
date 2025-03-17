@@ -63,6 +63,9 @@ export function useDatabaseConnections() {
   useEffect(() => {
     if (connections.length > 0) {
       localStorage.setItem('databaseConnections', JSON.stringify(connections));
+    } else {
+      // Clear local storage if all connections are removed
+      localStorage.removeItem('databaseConnections');
     }
   }, [connections]);
 
@@ -85,7 +88,26 @@ export function useDatabaseConnections() {
   };
 
   const removeConnection = (id: string) => {
-    setConnections(prev => prev.filter(conn => conn.id !== id));
+    console.log("Removing connection with id:", id);
+    
+    // First check if connection exists
+    const connectionExists = connections.some(conn => conn.id === id);
+    if (!connectionExists) {
+      console.warn(`Connection with id ${id} not found`);
+      toast({
+        title: "Connection not found",
+        description: "The database connection you're trying to remove doesn't exist.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Remove the connection
+    setConnections(prev => {
+      const filtered = prev.filter(conn => conn.id !== id);
+      console.log("Connections after removal:", filtered);
+      return filtered;
+    });
     
     // If the removed connection was the selected one, clear selection
     if (selectedConnection?.id === id) {
@@ -130,7 +152,7 @@ export function useDatabaseConnections() {
       
       if (result.success) {
         toast({
-          title: "Connection successful",
+          title: result.data?.fallback ? "Connection simulated" : "Connection successful",
           description: result.message || "Successfully connected to database server"
         });
         

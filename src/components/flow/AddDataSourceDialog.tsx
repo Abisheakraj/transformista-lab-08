@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -96,6 +97,12 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
         success: false,
         message: error instanceof Error ? error.message : "An unexpected error occurred"
       });
+      
+      toast({
+        title: "Connection Error",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive"
+      });
     } finally {
       setIsTesting(false);
     }
@@ -127,7 +134,8 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
         db_type: formData.connectionType.toLowerCase()
       });
       
-      if (!testResult.success) {
+      // Allow both actual successful connections and fallback/simulated connections
+      if (!testResult.success && !testResult.data?.fallback) {
         toast({
           title: "Connection Failed",
           description: testResult.message,
@@ -141,8 +149,10 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
         return;
       }
 
+      // Proceed with adding the connection
       onSubmit(formData);
       
+      // Reset form after successful submission
       setFormData({
         name: "",
         connectionType: "mysql",
@@ -155,6 +165,12 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
       });
       
       setConnectionResult(null);
+      
+      // Show success message
+      toast({
+        title: `${type === "source" ? "Source" : "Target"} Connection Added`,
+        description: `The connection has been added successfully${testResult.data?.fallback ? " in development mode" : ""}.`
+      });
       
     } catch (error) {
       console.error("Error adding datasource:", error);

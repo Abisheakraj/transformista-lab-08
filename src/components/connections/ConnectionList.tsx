@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface ConnectionListProps {
   type: "source" | "target";
@@ -51,17 +52,40 @@ const ConnectionList = ({
     testConnection,
     fetchSchemas,
     selectTable,
-    isLoading 
+    isLoading,
+    removeConnection 
   } = useDatabaseConnections();
 
   const [expandedConnectionId, setExpandedConnectionId] = useState<string | null>(null);
   const [showDatabaseSelect, setShowDatabaseSelect] = useState<string | null>(null);
+  const [connectionToDelete, setConnectionToDelete] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const filteredConnections = connections.filter(conn => conn.type === type);
 
   // Function to toggle connection expanded state
   const toggleConnectionExpanded = (connectionId: string) => {
     setExpandedConnectionId(expandedConnectionId === connectionId ? null : connectionId);
+  };
+
+  // Function to handle delete confirmation
+  const handleDeleteConfirm = () => {
+    if (connectionToDelete) {
+      if (onDeleteConnection) {
+        onDeleteConnection(connectionToDelete);
+      } else {
+        removeConnection(connectionToDelete);
+      }
+      setConnectionToDelete(null);
+      setIsDeleteDialogOpen(false);
+    }
+  };
+
+  // Function to open delete confirmation
+  const openDeleteConfirmation = (connectionId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent other click handlers
+    setConnectionToDelete(connectionId);
+    setIsDeleteDialogOpen(true);
   };
 
   if (filteredConnections.length === 0) {
@@ -339,29 +363,48 @@ const ConnectionList = ({
               </Tooltip>
             </TooltipProvider>
             
-            {onDeleteConnection && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onDeleteConnection(connection.id)}
-                      className="text-red-600 border-red-200 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                      Delete
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Delete this connection</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => openDeleteConfirmation(connection.id, e)}
+                    className="text-red-600 border-red-200 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                    Delete
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Delete this connection</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </CardFooter>
         </Card>
       ))}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Connection</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this connection? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConnectionToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
