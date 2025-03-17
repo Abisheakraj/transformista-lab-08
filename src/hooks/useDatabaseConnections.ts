@@ -208,37 +208,34 @@ export function useDatabaseConnections() {
     try {
       console.log(`Selecting database ${databaseName} for connection ${connectionId}`);
       
-      const result = {
-        success: true,
-        message: `Database ${databaseName} selected successfully`
+      const credentials: DatabaseCredentials = {
+        host: connection.host,
+        port: connection.port,
+        username: connection.username,
+        password: connection.password,
+        connectionType: connection.connectionType,
+        db_type: connection.connectionType.toLowerCase(),
+        database: databaseName
       };
       
-      if (result.success) {
-        updateConnection(connectionId, { 
-          status: "selected",
-          database: databaseName
-        });
-        
-        toast({
-          title: "Database selected",
-          description: `Successfully selected database ${databaseName}`
-        });
-        
-        return true;
-      } else {
-        toast({
-          title: "Database selection failed",
-          description: result.message || "Failed to select database",
-          variant: "destructive"
-        });
-        
-        return false;
-      }
+      await selectDatabase(credentials);
+      
+      updateConnection(connectionId, { 
+        status: "selected",
+        database: databaseName
+      });
+      
+      toast({
+        title: "Database selected",
+        description: `Successfully selected database ${databaseName}`
+      });
+      
+      return true;
     } catch (error) {
       console.error("Database selection error:", error);
       toast({
         title: "Database selection error",
-        description: "An unexpected error occurred while selecting the database.",
+        description: error instanceof Error ? error.message : "An unexpected error occurred while selecting the database.",
         variant: "destructive"
       });
       

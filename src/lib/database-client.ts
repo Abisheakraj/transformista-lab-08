@@ -1,521 +1,236 @@
-// This file contains functions for interacting with database services
+import { createClient } from '@supabase/supabase-js';
 
-export interface DatabaseCredentials {
+// Define types for database credentials and schema information
+export type DatabaseCredentials = {
   host?: string;
   port?: string;
   database?: string;
   username?: string;
   password?: string;
-  connectionType?: string;
-  db_type?: string;
-}
+  connectionType: string;
+  db_type: string;
+};
 
-export interface ApiResponse {
-  success: boolean;
-  message: string;
-  data?: any;
-}
-
-export interface SchemaInfo {
+export type SchemaInfo = {
   name: string;
   tables: {
     name: string;
-    columns: string[];
+    columns: {
+      name: string;
+      type: string;
+    }[];
   }[];
-}
-
-// Update API_URL to use the new ngrok URL provided by the backend developer
-const API_URL = "https://9574-2405-201-e01c-b2bd-d926-14ba-a311-6173.ngrok-free.app";
-const API_TIMEOUT = 15000; // 15 seconds timeout for network requests
-
-// Helper function to detect if response is HTML instead of JSON
-const isHtmlResponse = (text: string): boolean => {
-  return text.trim().startsWith('<!DOCTYPE html') || 
-         text.trim().startsWith('<html') || 
-         (text.includes('<body') && text.includes('</body>'));
 };
 
-// Helper function to create a timeout promise
-const timeoutPromise = (ms: number): Promise<never> => {
-  return new Promise((_, reject) => {
-    setTimeout(() => {
-      reject(new Error(`Request timed out after ${ms}ms`));
-    }, ms);
-  });
-};
+const apiUrl = "https://9574-2405-201-e01c-b2bd-d926-14ba-a311-6173.ngrok-free.app";
 
-// Helper function to get the effective API URL, considering CORS proxy if enabled
-const getEffectiveApiUrl = (endpoint: string): string => {
-  const corsProxyUrl = localStorage.getItem('corsProxyUrl');
-  
-  if (corsProxyUrl) {
-    // Use CORS proxy
-    console.log(`Using CORS proxy: ${corsProxyUrl}${API_URL}${endpoint}`);
-    return `${corsProxyUrl}${API_URL}${endpoint}`;
-  }
-  
-  // Use direct API URL
-  console.log(`Using direct API URL: ${API_URL}${endpoint}`);
-  return `${API_URL}${endpoint}`;
-};
-
-// Helper function to detect CORS errors
-const isCorsError = (error: Error): boolean => {
-  const errorMsg = error.message.toLowerCase();
-  return errorMsg.includes('cors') || 
-         errorMsg.includes('cross-origin') || 
-         errorMsg.includes('blocked by cors') ||
-         errorMsg.includes('access-control-allow-origin');
-};
-
-/**
- * Test a database connection with the provided credentials
- */
-export const testDatabaseConnection = async (credentials: DatabaseCredentials): Promise<ApiResponse> => {
-  console.log("Testing connection with credentials:", JSON.stringify(credentials, null, 2));
-  
+// Function to test database connection
+export const testDatabaseConnection = async (credentials: DatabaseCredentials): Promise<{ success: boolean; message?: string; data?: any }> => {
   try {
-    // Get the effective API URL (with or without proxy)
-    const effectiveUrl = getEffectiveApiUrl('/api/test-connection');
-    console.log("Using API URL:", effectiveUrl);
-    
-    // Create a fetch request with timeout
-    const fetchPromise = fetch(effectiveUrl, {
+    const response = await fetch(`${apiUrl}/database/test-connection`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-        'Origin': window.location.origin
       },
-      body: JSON.stringify(credentials),
-      // Explicitly set mode to cors to handle CORS properly
-      mode: 'cors'
+      body: JSON.stringify({
+        db_type: credentials.db_type || credentials.connectionType,
+        host: credentials.host,
+        port: credentials.port,
+        username: credentials.username,
+        password: credentials.password,
+        database: credentials.database
+      }),
     });
-    
-    // Race between fetch and timeout
-    const response = await Promise.race([fetchPromise, timeoutPromise(API_TIMEOUT)]);
-    
+
     if (!response.ok) {
-      console.error(`HTTP error: ${response.status} ${response.statusText}`);
-      
-      // Handle specific HTTP errors
-      if (response.status === 0 || response.status === 404) {
-        return {
-          success: false,
-          message: "Connection failed: Backend server is unreachable. Please check if the API server is running."
-        };
-      }
-      
-      if (response.status === 401 || response.status === 403) {
-        return {
-          success: false,
-          message: "Authentication error: Invalid credentials or insufficient permissions."
-        };
-      }
-      
-      if (response.status === 500) {
-        return {
-          success: false,
-          message: "Server error: The database server encountered an error. Please check your database credentials."
-        };
-      }
-      
-      return {
-        success: false,
-        message: `Connection error (${response.status}): ${response.statusText}. Please verify your database credentials and server status.`
-      };
+      const errorText = await response.text();
+      throw new Error(`Failed to connect: ${errorText}`);
     }
-    
-    // Get response as text first to check for HTML
-    const responseText = await response.text();
-    
-    // Check if we got HTML instead of JSON
-    if (isHtmlResponse(responseText)) {
-      console.error("Received HTML instead of JSON:", responseText.substring(0, 200));
-      return {
-        success: false,
-        message: "Received HTML instead of JSON response. This usually indicates a CORS issue or network problem. Please enable the CORS proxy in Settings."
-      };
-    }
-    
-    // Try to parse as JSON
-    try {
-      const data = JSON.parse(responseText);
-      return data;
-    } catch (parseError) {
-      console.error("Failed to parse JSON response:", parseError);
-      return {
-        success: false,
-        message: `Invalid response format: ${responseText.substring(0, 100)}...`
-      };
-    }
-  } catch (error) {
-    console.error("Connection test error:", error);
-    
-    // If it's a timeout error, provide a specific message
-    if (error instanceof Error && error.message.includes('timed out')) {
-      return {
-        success: false,
-        message: "Connection timed out. Please check if your database server is running and accessible."
-      };
-    }
-    
-    // For CORS errors
-    if (error instanceof Error && isCorsError(error)) {
-      return {
-        success: false,
-        message: "CORS error: Cross-origin request blocked. Please enable the CORS proxy in Settings to resolve this issue."
-      };
-    }
-    
-    // For network errors like ECONNREFUSED
-    if (error instanceof Error && 
-        (error.message.includes('network') || 
-         error.message.includes('fetch') || 
-         error.message.includes('connection refused'))) {
-      return {
-        success: false,
-        message: "Network error: Unable to reach the database server. Please check your network connection and server status."
-      };
-    }
-    
-    // For other errors
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : "Unknown error occurred while connecting to the database."
-    };
+
+    const data = await response.json();
+    return { success: data.status === "success", message: data.message, data: data.data };
+  } catch (error: any) {
+    console.error("Connection test failed:", error);
+    return { success: false, message: error.message || "Connection test failed" };
   }
 };
 
-/**
- * Select a database and get tables
- */
+// Function to fetch database schemas
+export const fetchDatabaseSchemas = async (connectionId: string): Promise<{ success: boolean; message?: string; data?: SchemaInfo[] }> => {
+  try {
+    const response = await fetch(`${apiUrl}/database/get-schema`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ connection_id: connectionId }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch schema: ${errorText}`);
+    }
+
+    const data = await response.json();
+    if (data.status === "success" && Array.isArray(data.schema)) {
+      return { success: true, data: data.schema };
+    } else {
+      return { success: false, message: data.message || "Failed to fetch database schema", data: [] };
+    }
+  } catch (error: any) {
+    console.error("Schema fetch failed:", error);
+    return { success: false, message: error.message || "Failed to fetch database schema", data: [] };
+  }
+};
+
+// Function to fetch sample data from a table
+export const fetchTableSampleData = async (credentials: DatabaseCredentials, schema: string, table: string, limit: number): Promise<{ columns: string[]; rows: any[][] } | null> => {
+  try {
+    const response = await fetch(`${apiUrl}/database/get-table-data`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        db_type: credentials.db_type || credentials.connectionType,
+        host: credentials.host,
+        port: credentials.port,
+        username: credentials.username,
+        password: credentials.password,
+        database: credentials.database,
+        schema: schema,
+        table: table,
+        limit: limit
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch table data: ${errorText}`);
+    }
+
+    const data = await response.json();
+    if (data.status === "success" && data.data) {
+      return data.data;
+    } else {
+      console.warn("Failed to fetch table data:", data.message);
+      return null;
+    }
+  } catch (error: any) {
+    console.error("Table data fetch failed:", error);
+    return null;
+  }
+};
+
+// Function to process data transformation
+export const processDataTransformation = async (instruction: string, tableName: string, schemaName: string): Promise<{ success: boolean; message: string } | null> => {
+    try {
+        const response = await fetch(`${apiUrl}/database/transform-data`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                instruction: instruction,
+                table_name: tableName,
+                schema_name: schemaName
+            }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Transformation failed: ${errorText}`);
+        }
+
+        const data = await response.json();
+        if (data.status === "success") {
+            return { success: true, message: data.message };
+        } else {
+            return { success: false, message: data.message || "Transformation failed" };
+        }
+    } catch (error: any) {
+        console.error("Transformation error:", error);
+        return { success: false, message: error.message || "Transformation failed" };
+    }
+};
+
 export const selectDatabaseAndGetTables = async (credentials: DatabaseCredentials): Promise<string[]> => {
+  const apiUrl = "https://9574-2405-201-e01c-b2bd-d926-14ba-a311-6173.ngrok-free.app";
+  
+  console.log("Selecting database and fetching tables:", credentials.database);
+  
   try {
-    const effectiveUrl = getEffectiveApiUrl('/database/select-database');
-    
-    console.log("Selecting database with credentials:", JSON.stringify(credentials, null, 2));
-    
-    const response = await Promise.race([
-      fetch(effectiveUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-          'Origin': window.location.origin
-        },
-        body: JSON.stringify(credentials),
+    const response = await fetch(`${apiUrl}/database/select-database`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        db_type: credentials.db_type || credentials.connectionType,
+        host: credentials.host,
+        port: credentials.port,
+        username: credentials.username,
+        password: credentials.password,
+        database: credentials.database
       }),
-      timeoutPromise(API_TIMEOUT)
-    ]);
+    });
 
     if (!response.ok) {
-      console.error(`HTTP error: ${response.status} ${response.statusText}`);
-      throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Failed to select database: ${errorText}`);
     }
 
-    const responseText = await response.text();
+    const data = await response.json();
+    console.log("Select database response:", data);
     
-    if (isHtmlResponse(responseText)) {
-      console.error("Received HTML instead of JSON when selecting database");
-      throw new Error("Server returned HTML instead of JSON. Please check your API server configuration.");
-    }
-    
-    try {
-      const data = JSON.parse(responseText);
-      console.log("Database selection response:", data);
-      
-      // Return the tables array or an empty array if not found
-      if (data && Array.isArray(data)) {
-        return data;
-      } else if (data && data.tables && Array.isArray(data.tables)) {
-        return data.tables;
-      } else {
-        console.warn("No tables found in response", data);
-        return [];
-      }
-    } catch (e) {
-      console.error("Error parsing selectDatabase response:", e);
-      throw new Error("Invalid response format when selecting database.");
+    if (data.tables && Array.isArray(data.tables)) {
+      return data.tables;
+    } else if (data.status === "success") {
+      // If no tables field but success, return empty array
+      return [];
+    } else {
+      throw new Error("Invalid response format from server");
     }
   } catch (error) {
-    console.error("Database selection error:", error);
+    console.error("Error selecting database:", error);
     throw error;
   }
 };
 
-/**
- * Fetch table preview data
- */
 export const fetchTablePreview = async (tableName: string): Promise<{ columns: string[], rows: any[][] }> => {
+  const apiUrl = "https://9574-2405-201-e01c-b2bd-d926-14ba-a311-6173.ngrok-free.app";
+  
+  console.log("Fetching table preview for:", tableName);
+  
   try {
-    const effectiveUrl = getEffectiveApiUrl('/database/preview-table');
-    
-    console.log("Fetching preview for table:", tableName);
-    
-    const response = await Promise.race([
-      fetch(effectiveUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-          'Origin': window.location.origin
-        },
-        body: JSON.stringify({ table_name: tableName }),
+    const response = await fetch(`${apiUrl}/database/preview-table`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        table_name: tableName
       }),
-      timeoutPromise(API_TIMEOUT)
-    ]);
-    
+    });
+
     if (!response.ok) {
-      console.error(`HTTP error: ${response.status} ${response.statusText}`);
-      throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Failed to fetch table preview: ${errorText}`);
     }
+
+    const data = await response.json();
+    console.log("Table preview response:", data);
     
-    const responseText = await response.text();
-    
-    if (isHtmlResponse(responseText)) {
-      console.error("Received HTML instead of JSON when fetching table preview");
-      throw new Error("Server returned HTML instead of JSON. Please check your API configuration.");
-    }
-    
-    try {
-      const data = JSON.parse(responseText);
-      console.log("Table preview response:", data);
-      
-      // Normalize the response to match our expected format
-      if (data && typeof data === 'object') {
-        const columns = data.columns || [];
-        const rows = data.rows || [];
-        return { columns, rows };
-      }
-      
-      throw new Error("Invalid response format for table preview");
-    } catch (e) {
-      console.error("Error parsing table preview response:", e);
-      throw new Error("Failed to parse table preview data");
+    if (data.columns && data.rows && Array.isArray(data.columns) && Array.isArray(data.rows)) {
+      return {
+        columns: data.columns,
+        rows: data.rows
+      };
+    } else {
+      throw new Error("Invalid preview data format from server");
     }
   } catch (error) {
-    console.error("Fetch table preview error:", error);
+    console.error("Error fetching table preview:", error);
     throw error;
   }
 };
-
-/**
- * Fetch database schemas for a connection
- */
-export const fetchDatabaseSchemas = async (connectionId: string): Promise<ApiResponse> => {
-  try {
-    const effectiveUrl = getEffectiveApiUrl(`/schemas/${connectionId}`);
-    
-    const response = await Promise.race([
-      fetch(effectiveUrl, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-          'Origin': window.location.origin
-        },
-      }),
-      timeoutPromise(API_TIMEOUT)
-    ]);
-    
-    if (!response.ok) {
-      return {
-        success: false,
-        message: `Server error: ${response.status} ${response.statusText}. Failed to fetch schemas.`
-      };
-    }
-    
-    const responseText = await response.text();
-    
-    if (isHtmlResponse(responseText)) {
-      console.error("Received HTML instead of JSON when fetching schemas");
-      return {
-        success: false,
-        message: "Server returned HTML instead of JSON. Please check your API server configuration."
-      };
-    }
-    
-    try {
-      return JSON.parse(responseText);
-    } catch (e) {
-      console.error("Error parsing fetchDatabaseSchemas response:", e);
-      return {
-        success: false,
-        message: "Failed to parse schema data response."
-      };
-    }
-  } catch (error) {
-    console.error("Fetch schemas error:", error);
-    
-    if (error instanceof Error && error.message.includes('timed out')) {
-      return {
-        success: false,
-        message: "Connection timed out while fetching schemas. Please check your network and server status."
-      };
-    }
-    
-    if (error instanceof Error && 
-        (error.message.includes('CORS') || 
-        error.message.includes('blocked by CORS') || 
-        error.message.includes('cross-origin'))) {
-      return {
-        success: false,
-        message: "CORS error: Cross-origin request blocked. Try enabling the CORS proxy in Settings to resolve this issue."
-      };
-    }
-    
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : "Failed to fetch database schemas."
-    };
-  }
-};
-
-/**
- * Fetch sample data from a table
- */
-export const fetchTableSampleData = async (
-  credentials: DatabaseCredentials,
-  schema: string,
-  table: string,
-  limit: number = 50
-): Promise<{ columns: string[], rows: any[][] }> => {
-  try {
-    const effectiveUrl = getEffectiveApiUrl('/table-data');
-    
-    const response = await Promise.race([
-      fetch(effectiveUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-          'Origin': window.location.origin
-        },
-        body: JSON.stringify({ credentials, schema, table, limit }),
-      }),
-      timeoutPromise(API_TIMEOUT)
-    ]);
-    
-    if (!response.ok) {
-      throw new Error(`Server error: ${response.status} ${response.statusText}`);
-    }
-    
-    const responseText = await response.text();
-    
-    if (isHtmlResponse(responseText)) {
-      console.error("Received HTML instead of JSON when fetching table data");
-      throw new Error("Server returned HTML instead of JSON. Please check your API configuration.");
-    }
-    
-    try {
-      const data = JSON.parse(responseText);
-      if (data.success && data.data) {
-        return data.data;
-      } else {
-        throw new Error(data.message || "Failed to fetch table data");
-      }
-    } catch (e) {
-      console.error("Error parsing fetchTableSampleData response:", e);
-      throw new Error("Failed to parse table data response");
-    }
-  } catch (error) {
-    console.error("Fetch table data error:", error);
-    
-    if (error instanceof Error && 
-        (error.message.includes('CORS') || 
-        error.message.includes('blocked by CORS') || 
-        error.message.includes('cross-origin'))) {
-      console.error("CORS error when fetching table data");
-    }
-    
-    // Return empty data structure on error
-    return {
-      columns: [],
-      rows: []
-    };
-  }
-};
-
-/**
- * Process data transformation
- */
-export const processDataTransformation = async (
-  instruction: string,
-  tableName: string,
-  schemaName: string
-): Promise<ApiResponse> => {
-  try {
-    const effectiveUrl = getEffectiveApiUrl('/transform');
-    
-    const response = await Promise.race([
-      fetch(effectiveUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-          'Origin': window.location.origin
-        },
-        body: JSON.stringify({ instruction, tableName, schemaName }),
-      }),
-      timeoutPromise(API_TIMEOUT)
-    ]);
-    
-    if (!response.ok) {
-      return {
-        success: false,
-        message: `Server error: ${response.status} ${response.statusText}. Failed to process transformation.`
-      };
-    }
-    
-    const responseText = await response.text();
-    
-    if (isHtmlResponse(responseText)) {
-      console.error("Received HTML instead of JSON when processing transformation");
-      return {
-        success: false,
-        message: "Server returned HTML instead of JSON. Please check your API configuration."
-      };
-    }
-    
-    try {
-      return JSON.parse(responseText);
-    } catch (e) {
-      console.error("Error parsing processDataTransformation response:", e);
-      return {
-        success: false,
-        message: "Failed to parse transformation response"
-      };
-    }
-  } catch (error) {
-    console.error("Processing transformation error:", error);
-    
-    if (error instanceof Error && error.message.includes('timed out')) {
-      return {
-        success: false,
-        message: "Connection timed out while processing transformation. Please check your network and server status."
-      };
-    }
-    
-    if (error instanceof Error && 
-        (error.message.includes('CORS') || 
-        error.message.includes('blocked by CORS') || 
-        error.message.includes('cross-origin'))) {
-      return {
-        success: false,
-        message: "CORS error: Cross-origin request blocked. Try enabling the CORS proxy in Settings to resolve this issue."
-      };
-    }
-    
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : "Unknown error occurred during transformation."
-    };
-  }
-};
-

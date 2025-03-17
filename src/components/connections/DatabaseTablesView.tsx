@@ -5,8 +5,6 @@ import { Button } from "@/components/ui/button";
 import { DatabaseConnection } from "@/hooks/useDatabaseConnections";
 import { Table, Database, Loader2, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Badge } from "@/components/ui/badge";
-import TablePreviewDialog from "./TablePreviewDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { selectDatabaseAndGetTables, fetchTablePreview } from "@/lib/database-client";
 import { 
@@ -32,7 +30,6 @@ const DatabaseTablesView = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
-  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [previewData, setPreviewData] = useState<{ columns: string[], rows: any[][] } | null>(null);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const { toast } = useToast();
@@ -46,6 +43,9 @@ const DatabaseTablesView = ({
   const loadTables = async () => {
     setIsLoading(true);
     setError(null);
+    setSelectedTable(null);
+    setPreviewData(null);
+    
     try {
       const credentials = {
         db_type: connection.connectionType,
@@ -59,10 +59,16 @@ const DatabaseTablesView = ({
       console.log("Fetching tables for database:", selectedDatabase);
       const tableList = await selectDatabaseAndGetTables(credentials);
       setTables(tableList);
+      
       toast({
         title: "Tables loaded",
         description: `Successfully loaded ${tableList.length} tables from database ${selectedDatabase}`
       });
+      
+      // If tables are available, select the first one automatically to show preview
+      if (tableList.length > 0) {
+        handleTableSelect(tableList[0]);
+      }
     } catch (err) {
       console.error("Failed to fetch tables:", err);
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
