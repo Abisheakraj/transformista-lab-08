@@ -1,6 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
 
-// Define types for database credentials and schema information
+// Remove unused imports
 export type DatabaseCredentials = {
   host?: string;
   port?: string;
@@ -155,9 +154,10 @@ export const processDataTransformation = async (instruction: string, tableName: 
 };
 
 export const selectDatabaseAndGetTables = async (credentials: DatabaseCredentials): Promise<string[]> => {
-  const apiUrl = "https://9574-2405-201-e01c-b2bd-d926-14ba-a311-6173.ngrok-free.app";
-  
-  console.log("Selecting database and fetching tables:", credentials.database);
+  console.log("SENDING API CALL: Selecting database and fetching tables:", {
+    database: credentials.database,
+    connectionType: credentials.connectionType 
+  });
   
   try {
     const response = await fetch(`${apiUrl}/database/select-database`, {
@@ -175,18 +175,21 @@ export const selectDatabaseAndGetTables = async (credentials: DatabaseCredential
       }),
     });
 
+    console.log("Select database response status:", response.status);
+
     if (!response.ok) {
       const errorText = await response.text();
+      console.error("Database selection failed:", errorText);
       throw new Error(`Failed to select database: ${errorText}`);
     }
 
     const data = await response.json();
-    console.log("Select database response:", data);
+    console.log("Select database full response:", data);
     
     if (data.tables && Array.isArray(data.tables)) {
       return data.tables;
     } else if (data.status === "success") {
-      // If no tables field but success, return empty array
+      console.warn("Success status but no tables array in response");
       return [];
     } else {
       throw new Error("Invalid response format from server");
@@ -198,9 +201,7 @@ export const selectDatabaseAndGetTables = async (credentials: DatabaseCredential
 };
 
 export const fetchTablePreview = async (tableName: string): Promise<{ columns: string[], rows: any[][] }> => {
-  const apiUrl = "https://9574-2405-201-e01c-b2bd-d926-14ba-a311-6173.ngrok-free.app";
-  
-  console.log("Fetching table preview for:", tableName);
+  console.log("SENDING API CALL: Fetching table preview for:", tableName);
   
   try {
     const response = await fetch(`${apiUrl}/database/preview-table`, {
@@ -213,13 +214,16 @@ export const fetchTablePreview = async (tableName: string): Promise<{ columns: s
       }),
     });
 
+    console.log("Table preview response status:", response.status);
+
     if (!response.ok) {
       const errorText = await response.text();
+      console.error("Table preview fetch failed:", errorText);
       throw new Error(`Failed to fetch table preview: ${errorText}`);
     }
 
     const data = await response.json();
-    console.log("Table preview response:", data);
+    console.log("Table preview full response:", data);
     
     if (data.columns && data.rows && Array.isArray(data.columns) && Array.isArray(data.rows)) {
       return {

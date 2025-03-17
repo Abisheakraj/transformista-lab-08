@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,10 @@ const DatabaseTablesView = ({
 
   useEffect(() => {
     if (connection && selectedDatabase) {
+      console.log("Connection and database detected, loading tables...", {
+        connection: connection.id,
+        database: selectedDatabase
+      });
       loadTables();
     }
   }, [connection, selectedDatabase]);
@@ -47,7 +52,7 @@ const DatabaseTablesView = ({
     
     try {
       const credentials = {
-        connectionType: connection.connectionType, // Added missing property
+        connectionType: connection.connectionType,
         db_type: connection.connectionType,
         host: connection.host,
         port: connection.port || "3306",
@@ -56,8 +61,14 @@ const DatabaseTablesView = ({
         database: selectedDatabase
       };
       
-      console.log("Fetching tables for database:", selectedDatabase);
+      console.log("Fetching tables for database with credentials:", {
+        type: credentials.connectionType,
+        host: credentials.host,
+        database: credentials.database
+      });
+      
       const tableList = await selectDatabaseAndGetTables(credentials);
+      console.log("Tables loaded successfully:", tableList);
       setTables(tableList);
       
       toast({
@@ -67,6 +78,7 @@ const DatabaseTablesView = ({
       
       // If tables are available, select the first one automatically to show preview
       if (tableList.length > 0) {
+        console.log("Auto-selecting first table:", tableList[0]);
         handleTableSelect(tableList[0]);
       }
     } catch (err) {
@@ -84,6 +96,7 @@ const DatabaseTablesView = ({
   };
 
   const handleTableSelect = async (tableName: string) => {
+    console.log("Table selected:", tableName);
     setSelectedTable(tableName);
     loadTablePreview(tableName);
   };
@@ -93,7 +106,9 @@ const DatabaseTablesView = ({
     setPreviewData(null);
     
     try {
+      console.log("Loading preview for table:", tableName);
       const data = await fetchTablePreview(tableName);
+      console.log("Preview data received:", data);
       setPreviewData(data);
     } catch (err) {
       console.error("Failed to fetch table preview:", err);

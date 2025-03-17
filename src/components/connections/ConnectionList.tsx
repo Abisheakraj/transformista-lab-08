@@ -81,14 +81,22 @@ const ConnectionList = ({
     const connection = connections.find(conn => conn.id === showDatabaseSelect);
     if (!connection) return;
     
+    console.log("Handling database selection:", {
+      connectionId: showDatabaseSelect,
+      database: database
+    });
+    
     // Update the connection with the selected database
-    await selectDatabaseForConnection(showDatabaseSelect, database);
+    const success = await selectDatabaseForConnection(showDatabaseSelect, database);
+    console.log("Database selection result:", success);
     
-    // Set the selected database for showing tables
-    setSelectedDatabaseForTables(database);
-    
-    // Select the connection
-    onSelectConnection(showDatabaseSelect);
+    if (success) {
+      // Set the selected database for showing tables
+      setSelectedDatabaseForTables(database);
+      
+      // Select the connection
+      onSelectConnection(showDatabaseSelect);
+    }
     
     // Close the dialog
     setIsDatabaseSelectOpen(false);
