@@ -8,7 +8,6 @@ import {
   processDataTransformation
 } from "@/lib/database-client";
 import { useToast } from "@/hooks/use-toast";
-import { selectDatabase } from "@/lib/api-check";
 
 interface SupabaseStatus {
   connected: boolean;
@@ -200,23 +199,17 @@ export function useDatabaseConnections() {
   };
 
   const selectDatabaseForConnection = async (connectionId: string, databaseName: string) => {
+    console.log("selectDatabaseForConnection called with:", connectionId, databaseName);
     const connection = connections.find(conn => conn.id === connectionId);
-    if (!connection) return false;
+    if (!connection) {
+      console.error("Connection not found:", connectionId);
+      return false;
+    }
     
     setIsLoading(true);
     
     try {
       console.log(`Selecting database ${databaseName} for connection ${connectionId}`);
-      
-      const credentials: DatabaseCredentials = {
-        host: connection.host,
-        port: connection.port,
-        username: connection.username,
-        password: connection.password,
-        connectionType: connection.connectionType,
-        db_type: connection.connectionType.toLowerCase(),
-        database: databaseName
-      };
       
       updateConnection(connectionId, { 
         status: "selected",

@@ -41,7 +41,9 @@ const DatabaseSelectDialog = ({
     setIsLoading(true);
     setError(null);
     try {
+      console.log("Fetching databases with credentials:", credentials);
       const dbs = await fetchDatabases(credentials);
+      console.log("Databases fetched successfully:", dbs);
       setDatabases(dbs);
     } catch (err) {
       console.error("Failed to fetch databases:", err);
@@ -58,6 +60,7 @@ const DatabaseSelectDialog = ({
   };
 
   const handleSelectDatabase = (database: string) => {
+    console.log("Database selected from dialog:", database);
     onDatabaseSelect(database);
     onOpenChange(false);
   };

@@ -36,7 +36,7 @@ const DatabaseTablesView = ({
 
   useEffect(() => {
     if (connection && selectedDatabase) {
-      console.log("Connection and database detected, loading tables...", {
+      console.log("Connection and database detected in DatabaseTablesView, loading tables...", {
         connection: connection.id,
         database: selectedDatabase
       });
@@ -61,14 +61,14 @@ const DatabaseTablesView = ({
         database: selectedDatabase
       };
       
-      console.log("Fetching tables for database with credentials:", {
+      console.log("DatabaseTablesView: Fetching tables for database with credentials:", {
         type: credentials.connectionType,
         host: credentials.host,
         database: credentials.database
       });
       
       const tableList = await selectDatabaseAndGetTables(credentials);
-      console.log("Tables loaded successfully:", tableList);
+      console.log("DatabaseTablesView: Tables loaded successfully:", tableList);
       setTables(tableList);
       
       toast({

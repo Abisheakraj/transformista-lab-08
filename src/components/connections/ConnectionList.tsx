@@ -70,6 +70,7 @@ const ConnectionList = ({
 
   // Function to open database select dialog
   const openDatabaseSelectDialog = (connectionId: string) => {
+    console.log("Opening database select dialog for connection:", connectionId);
     setShowDatabaseSelect(connectionId);
     setIsDatabaseSelectOpen(true);
   };
@@ -81,12 +82,13 @@ const ConnectionList = ({
     const connection = connections.find(conn => conn.id === showDatabaseSelect);
     if (!connection) return;
     
-    console.log("Handling database selection:", {
+    console.log("Handling database selection in ConnectionList:", {
       connectionId: showDatabaseSelect,
       database: database
     });
     
     // Update the connection with the selected database
+    console.log("About to call selectDatabaseForConnection with:", showDatabaseSelect, database);
     const success = await selectDatabaseForConnection(showDatabaseSelect, database);
     console.log("Database selection result:", success);
     

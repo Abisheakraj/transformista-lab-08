@@ -160,6 +160,16 @@ export const selectDatabaseAndGetTables = async (credentials: DatabaseCredential
   });
   
   try {
+    console.log("Making API call to:", `${apiUrl}/database/select-database`);
+    console.log("With request body:", JSON.stringify({
+      db_type: credentials.db_type || credentials.connectionType,
+      host: credentials.host,
+      port: credentials.port,
+      username: credentials.username,
+      password: credentials.password,
+      database: credentials.database
+    }, null, 2));
+    
     const response = await fetch(`${apiUrl}/database/select-database`, {
       method: 'POST',
       headers: {
@@ -187,6 +197,7 @@ export const selectDatabaseAndGetTables = async (credentials: DatabaseCredential
     console.log("Select database full response:", data);
     
     if (data.tables && Array.isArray(data.tables)) {
+      console.log("Found tables in response:", data.tables);
       return data.tables;
     } else if (data.status === "success") {
       console.warn("Success status but no tables array in response");
@@ -204,6 +215,9 @@ export const fetchTablePreview = async (tableName: string): Promise<{ columns: s
   console.log("SENDING API CALL: Fetching table preview for:", tableName);
   
   try {
+    console.log("API URL for preview:", `${apiUrl}/database/preview-table`);
+    console.log("Request body:", JSON.stringify({ table_name: tableName }, null, 2));
+    
     const response = await fetch(`${apiUrl}/database/preview-table`, {
       method: 'POST',
       headers: {
@@ -231,6 +245,7 @@ export const fetchTablePreview = async (tableName: string): Promise<{ columns: s
         rows: data.rows
       };
     } else {
+      console.error("Invalid data format received:", data);
       throw new Error("Invalid preview data format from server");
     }
   } catch (error) {
