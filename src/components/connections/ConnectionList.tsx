@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -329,6 +330,26 @@ const ConnectionList = ({
       </AlertDialog>
     </div>
   );
+};
+
+// Get the appropriate icon based on database type
+const getDbIcon = (connectionType: string) => {
+  switch(connectionType.toLowerCase()) {
+    case 'mysql':
+      return <Database className="h-4 w-4 text-blue-600 mr-2" />;
+    case 'postgresql':
+      return <Database className="h-4 w-4 text-indigo-600 mr-2" />;
+    case 'oracle':
+      return <Server className="h-4 w-4 text-red-600 mr-2" />;
+    case 'mssql':
+      return <Database className="h-4 w-4 text-blue-500 mr-2" />;
+    case 'bigquery':
+      return <FileText className="h-4 w-4 text-green-600 mr-2" />;
+    case 'snowflake':
+      return <Server className="h-4 w-4 text-cyan-600 mr-2" />;
+    default:
+      return <Database className="h-4 w-4 text-indigo-600 mr-2" />;
+  }
 };
 
 export default ConnectionList;

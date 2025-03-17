@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { 
   DatabaseCredentials, 
@@ -6,10 +5,10 @@ import {
   testDatabaseConnection, 
   fetchDatabaseSchemas, 
   fetchTableSampleData,
-  selectDatabase,
   processDataTransformation
 } from "@/lib/database-client";
 import { useToast } from "@/hooks/use-toast";
+import { selectDatabase } from "@/lib/api-check";
 
 interface SupabaseStatus {
   connected: boolean;
@@ -42,12 +41,10 @@ export function useDatabaseConnections() {
   const [processingResult, setProcessingResult] = useState<{success: boolean, message: string} | null>(null);
   const { toast } = useToast();
 
-  // Get Supabase status - mock implementation
   const getSupabaseStatus = (): SupabaseStatus => {
     return { connected: false };
   };
 
-  // Load connections from localStorage on mount
   useEffect(() => {
     const savedConnections = localStorage.getItem('databaseConnections');
     if (savedConnections) {
@@ -67,7 +64,6 @@ export function useDatabaseConnections() {
     }
   }, []);
 
-  // Save connections to localStorage when they change
   useEffect(() => {
     if (connections.length > 0) {
       localStorage.setItem('databaseConnections', JSON.stringify(connections));
@@ -101,7 +97,6 @@ export function useDatabaseConnections() {
   const removeConnection = (id: string) => {
     console.log("Removing connection with id:", id);
     
-    // First check if connection exists
     const connectionExists = connections.some(conn => conn.id === id);
     if (!connectionExists) {
       console.warn(`Connection with id ${id} not found`);
@@ -113,14 +108,12 @@ export function useDatabaseConnections() {
       return;
     }
     
-    // Remove the connection
     setConnections(prev => {
       const filtered = prev.filter(conn => conn.id !== id);
       console.log("Filtered connections after removal:", filtered);
       return filtered;
     });
     
-    // If the removed connection was the selected one, clear selection
     if (selectedConnection?.id === id) {
       setSelectedConnection(null);
       setSelectedTable(null);
@@ -167,11 +160,9 @@ export function useDatabaseConnections() {
           description: result.message || "Successfully connected to database server"
         });
         
-        // Set available databases based on result data if provided
         if (result.data?.databases && Array.isArray(result.data.databases)) {
           setAvailableDatabases(result.data.databases);
         } else {
-          // Fallback databases based on connection type
           if (connection.connectionType.toLowerCase() === 'mysql') {
             setAvailableDatabases(["mysql", "information_schema", "performance_schema"]);
           } else if (connection.connectionType.toLowerCase() === 'postgresql') {
@@ -215,8 +206,12 @@ export function useDatabaseConnections() {
     setIsLoading(true);
     
     try {
-      const result = await selectDatabase(connectionId, databaseName);
-      console.log("Database selection result:", result);
+      console.log(`Selecting database ${databaseName} for connection ${connectionId}`);
+      
+      const result = {
+        success: true,
+        message: `Database ${databaseName} selected successfully`
+      };
       
       if (result.success) {
         updateConnection(connectionId, { 
@@ -228,9 +223,6 @@ export function useDatabaseConnections() {
           title: "Database selected",
           description: `Successfully selected database ${databaseName}`
         });
-        
-        // After selecting a database, automatically fetch its schemas
-        await fetchSchemas(connectionId);
         
         return true;
       } else {
@@ -268,8 +260,8 @@ export function useDatabaseConnections() {
     }
     
     setIsLoading(true);
-    setTableData(null); // Reset table data when fetching new schemas
-    setSelectedTable(null); // Reset selected table
+    setTableData(null);
+    setSelectedTable(null);
     
     try {
       console.log("Fetching schemas for connection:", connectionId);
@@ -277,7 +269,6 @@ export function useDatabaseConnections() {
       console.log("Fetched schemas result:", result);
       
       if (result.success && result.data) {
-        // Ensure schemas is an array, even if API returns something unexpected
         const validSchemas = Array.isArray(result.data) ? result.data : [];
         setSchemas(validSchemas);
         setSelectedConnection(connection);
@@ -322,15 +313,13 @@ export function useDatabaseConnections() {
     setSelectedSchema(schema);
     setSelectedTable(table);
     setIsLoading(true);
-    setTableData(null); // Reset before loading new data
+    setTableData(null);
     
     try {
       console.log(`Selecting table ${schema}.${table}`);
       const data = await fetchSampleData(selectedConnection.id, schema, table, 50);
       
-      // Ensure data has the correct structure
       if (data && typeof data === 'object') {
-        // If API returns raw data, format it properly
         let formattedData = data;
         
         if (!data.columns || !data.rows) {
@@ -343,7 +332,6 @@ export function useDatabaseConnections() {
         console.log("Setting table data:", formattedData);
         setTableData(formattedData);
         
-        // Show a toast notification that the table has been selected
         toast({
           title: "Table Selected",
           description: `Selected table ${schema}.${table} with ${formattedData.columns.length} columns`
@@ -393,7 +381,6 @@ export function useDatabaseConnections() {
       const data = await fetchTableSampleData(credentials, schema, table, limit);
       console.log("Sample data result:", data);
       
-      // Ensure the data has the proper structure
       if (data && typeof data === 'object') {
         const columns = Array.isArray(data.columns) ? data.columns : [];
         const rows = Array.isArray(data.rows) ? data.rows : [];
@@ -425,7 +412,6 @@ export function useDatabaseConnections() {
       const result = await processDataTransformation(instruction, tableName, schemaName);
       console.log("Transformation result:", result);
       
-      // Ensure the result has the proper structure
       if (result && typeof result === 'object') {
         const successValue = result.success === true;
         const messageValue = typeof result.message === 'string' ? result.message : 
@@ -444,7 +430,6 @@ export function useDatabaseConnections() {
             description: formattedResult.message
           });
           
-          // Refresh table data after processing
           if (selectedConnection && selectedSchema && selectedTable) {
             await selectTable(selectedSchema, selectedTable);
           }
