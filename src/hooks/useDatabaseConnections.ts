@@ -218,7 +218,8 @@ export function useDatabaseConnections() {
         database: databaseName
       };
       
-      await selectDatabase(credentials);
+      // Fix: Pass the correct parameters to selectDatabase
+      await selectDatabase(credentials, databaseName);
       
       updateConnection(connectionId, { 
         status: "selected",

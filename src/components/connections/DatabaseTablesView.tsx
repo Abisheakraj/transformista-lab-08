@@ -48,6 +48,7 @@ const DatabaseTablesView = ({
     
     try {
       const credentials = {
+        connectionType: connection.connectionType, // Added missing property
         db_type: connection.connectionType,
         host: connection.host,
         port: connection.port || "3306",
