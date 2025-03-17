@@ -15,9 +15,9 @@ export function Toaster() {
   return (
     <ToastProvider>
       {toasts.map(function ({ id, title, description, action, ...props }) {
-        // Make error toasts stay longer
+        // Make error toasts stay longer (increased from 8 seconds to 15 seconds)
         if (props.variant === 'destructive' && !props.duration) {
-          props.duration = 8000; // 8 seconds for error messages
+          props.duration = 15000; // 15 seconds for error messages
         }
         
         return (

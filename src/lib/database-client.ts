@@ -1,3 +1,4 @@
+
 // This file contains functions for interacting with database services
 
 export interface DatabaseCredentials {
@@ -24,9 +25,8 @@ export interface SchemaInfo {
   }[];
 }
 
-// Use a configurable API URL that defaults to localhost but can be changed
-// for different environments
-const API_URL = "http://localhost:3001/api";
+// Update API_URL to use the new ngrok URL provided by the backend developer
+const API_URL = "https://9574-2405-201-e01c-b2bd-d926-14ba-a311-6173.ngrok-free.app/api";
 const API_TIMEOUT = 15000; // 15 seconds timeout for network requests
 
 // Helper function to detect if response is HTML instead of JSON

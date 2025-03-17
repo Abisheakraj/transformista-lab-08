@@ -1,18 +1,30 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle, AlertCircle, Globe } from 'lucide-react';
+import { CheckCircle, AlertCircle, Globe, Info } from 'lucide-react';
 
 const CorsProxy = () => {
-  const [proxyUrl, setProxyUrl] = useState('https://cors-anywhere.herokuapp.com/');
+  const [proxyUrl, setProxyUrl] = useState('');
   const [isEnabled, setIsEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  // Check if proxy is already enabled in localStorage on component mount
+  useEffect(() => {
+    const savedProxyUrl = localStorage.getItem('corsProxyUrl');
+    if (savedProxyUrl) {
+      setProxyUrl(savedProxyUrl);
+      setIsEnabled(true);
+    } else {
+      // Default proxy URL is empty now since we have a direct ngrok URL
+      setProxyUrl('');
+    }
+  }, []);
 
   const enableProxy = async () => {
     try {
@@ -91,6 +103,21 @@ const CorsProxy = () => {
       </CardHeader>
       <CardContent className="pt-6">
         <div className="space-y-4">
+          {!isEnabled && (
+            <Alert className="border-blue-200 bg-blue-50 text-blue-800">
+              <div className="flex">
+                <Info className="h-5 w-5 text-blue-500 mr-2" />
+                <AlertDescription>
+                  <p>The application is currently using the direct ngrok URL: </p>
+                  <code className="font-mono bg-blue-100 px-1 py-0.5 rounded text-sm">
+                    https://9574-2405-201-e01c-b2bd-d926-14ba-a311-6173.ngrok-free.app/api
+                  </code>
+                  <p className="mt-1">You only need to enable a CORS proxy if you experience connection issues.</p>
+                </AlertDescription>
+              </div>
+            </Alert>
+          )}
+          
           <div className="space-y-2">
             <Label htmlFor="proxy-url">CORS Proxy URL</Label>
             <Input
