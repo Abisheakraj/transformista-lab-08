@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Link } from "react-router-dom";
-import { ExternalLink, Loader2, Database, CheckCircle2, AlertCircle } from "lucide-react";
+import { ExternalLink, Loader2, Database, CheckCircle2, AlertCircle, AlertTriangle, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { testDatabaseConnection, ApiResponse } from "@/lib/database-client";
 
@@ -20,7 +20,7 @@ interface AddDataSourceDialogProps {
 const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSourceDialogProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
-  const [connectionResult, setConnectionResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [connectionResult, setConnectionResult] = useState<{ success: boolean; message: string; isFallback?: boolean } | null>(null);
   const { toast } = useToast();
   
   const [formData, setFormData] = useState({
@@ -69,15 +69,18 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
       });
       
       console.log("Connection test result:", result);
-      // Create a new object with the required properties
+      
+      const isFallback = result.data?.fallback === true;
+      
       setConnectionResult({
         success: result.success,
-        message: result.message
+        message: result.message,
+        isFallback
       });
       
       if (result.success) {
         toast({
-          title: "Connection Successful",
+          title: isFallback ? "Connection Simulated" : "Connection Successful",
           description: result.message
         });
       } else {
@@ -113,7 +116,6 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
     setIsLoading(true);
     
     try {
-      // Test the connection before adding
       console.log("Testing connection before adding...");
       const testResult = await testDatabaseConnection({
         host: formData.host,
@@ -139,10 +141,8 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
         return;
       }
 
-      // Submit the form data to parent component
       onSubmit(formData);
       
-      // Reset form and close dialog
       setFormData({
         name: "",
         connectionType: "mysql",
@@ -269,17 +269,27 @@ const AddDataSourceDialog = ({ open, onOpenChange, onSubmit, type }: AddDataSour
             <Alert 
               className={`${
                 connectionResult.success 
-                  ? "border-green-200 bg-green-50 text-green-800" 
+                  ? connectionResult.isFallback
+                    ? "border-yellow-200 bg-yellow-50 text-yellow-800"
+                    : "border-green-200 bg-green-50 text-green-800" 
                   : "border-red-200 bg-red-50 text-red-800"
               }`}
             >
               <div className="flex">
                 {connectionResult.success 
-                  ? <CheckCircle2 className="h-5 w-5 text-green-500 mr-2" /> 
+                  ? connectionResult.isFallback
+                    ? <AlertTriangle className="h-5 w-5 text-yellow-500 mr-2" />
+                    : <CheckCircle2 className="h-5 w-5 text-green-500 mr-2" /> 
                   : <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
                 }
                 <AlertDescription>
                   {connectionResult.message}
+                  {connectionResult.isFallback && (
+                    <div className="mt-2 text-sm">
+                      <Info className="h-4 w-4 inline mr-1" />
+                      Using simulated connection because the backend server may be unavailable.
+                    </div>
+                  )}
                 </AlertDescription>
               </div>
             </Alert>
