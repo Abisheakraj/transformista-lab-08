@@ -3,33 +3,19 @@ import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Database, 
   RefreshCcw, 
   Trash2, 
-  Check, 
-  AlertCircle, 
-  HardDrive, 
-  Table,
   Server,
   FileText,
   ChevronDown,
-  Loader2
+  Loader2,
+  HardDrive
 } from "lucide-react";
 import { useDatabaseConnections } from "@/hooks/useDatabaseConnections";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import DatabaseSelectDialog from "./DatabaseSelectDialog";
 import DatabaseTablesView from "./DatabaseTablesView";
 
@@ -48,17 +34,12 @@ const ConnectionList = ({
 }: ConnectionListProps) => {
   const { 
     connections,
-    availableDatabases,
-    schemas,
-    selectDatabaseForConnection,
     testConnection,
-    fetchSchemas,
-    selectTable,
+    selectDatabaseForConnection,
     isLoading,
     removeConnection 
   } = useDatabaseConnections();
 
-  const [expandedConnectionId, setExpandedConnectionId] = useState<string | null>(null);
   const [showDatabaseSelect, setShowDatabaseSelect] = useState<string | null>(null);
   const [connectionToDelete, setConnectionToDelete] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -66,11 +47,6 @@ const ConnectionList = ({
   const [selectedDatabaseForTables, setSelectedDatabaseForTables] = useState<string | null>(null);
 
   const filteredConnections = connections.filter(conn => conn.type === type);
-
-  // Function to toggle connection expanded state
-  const toggleConnectionExpanded = (connectionId: string) => {
-    setExpandedConnectionId(expandedConnectionId === connectionId ? null : connectionId);
-  };
 
   // Function to handle delete confirmation
   const handleDeleteConfirm = () => {
@@ -113,6 +89,9 @@ const ConnectionList = ({
     
     // Select the connection
     onSelectConnection(showDatabaseSelect);
+    
+    // Close the dialog
+    setIsDatabaseSelectOpen(false);
   };
 
   if (filteredConnections.length === 0) {
@@ -195,12 +174,12 @@ const ConnectionList = ({
             </div>
             
             {selectedConnectionId === connection.id && 
-             selectedDatabaseForTables && 
-             connection.database === selectedDatabaseForTables && (
+             connection.database && 
+             connection.status === "selected" && (
               <div className="mt-4">
                 <DatabaseTablesView 
                   connection={connection} 
-                  selectedDatabase={selectedDatabaseForTables} 
+                  selectedDatabase={connection.database} 
                 />
               </div>
             )}
@@ -227,21 +206,6 @@ const ConnectionList = ({
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-            )}
-            
-            {connection.status === "selected" && (
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => {
-                  onSelectConnection(connection.id);
-                  setSelectedDatabaseForTables(connection.database || null);
-                }}
-                className={selectedConnectionId === connection.id ? "bg-indigo-50" : ""}
-              >
-                <Table className="h-3.5 w-3.5 mr-1.5" />
-                Browse Tables
-              </Button>
             )}
             
             <TooltipProvider>
@@ -330,26 +294,6 @@ const ConnectionList = ({
       </AlertDialog>
     </div>
   );
-};
-
-// Get the appropriate icon based on database type
-const getDbIcon = (connectionType: string) => {
-  switch(connectionType.toLowerCase()) {
-    case 'mysql':
-      return <Database className="h-4 w-4 text-blue-600 mr-2" />;
-    case 'postgresql':
-      return <Database className="h-4 w-4 text-indigo-600 mr-2" />;
-    case 'oracle':
-      return <Server className="h-4 w-4 text-red-600 mr-2" />;
-    case 'mssql':
-      return <Database className="h-4 w-4 text-blue-500 mr-2" />;
-    case 'bigquery':
-      return <FileText className="h-4 w-4 text-green-600 mr-2" />;
-    case 'snowflake':
-      return <Server className="h-4 w-4 text-cyan-600 mr-2" />;
-    default:
-      return <Database className="h-4 w-4 text-indigo-600 mr-2" />;
-  }
 };
 
 export default ConnectionList;

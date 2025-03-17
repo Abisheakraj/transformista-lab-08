@@ -1,4 +1,3 @@
-
 // This file contains functions for interacting with database services
 
 export interface DatabaseCredentials {
@@ -26,7 +25,7 @@ export interface SchemaInfo {
 }
 
 // Update API_URL to use the new ngrok URL provided by the backend developer
-const API_URL = "https://9574-2405-201-e01c-b2bd-d926-14ba-a311-6173.ngrok-free.app/api";
+const API_URL = "https://9574-2405-201-e01c-b2bd-d926-14ba-a311-6173.ngrok-free.app";
 const API_TIMEOUT = 15000; // 15 seconds timeout for network requests
 
 // Helper function to detect if response is HTML instead of JSON
@@ -65,8 +64,8 @@ const isCorsError = (error: Error): boolean => {
   const errorMsg = error.message.toLowerCase();
   return errorMsg.includes('cors') || 
          errorMsg.includes('cross-origin') || 
-         errorMsg.includes('access-control-allow-origin') ||
-         errorMsg.includes('blocked by cors');
+         errorMsg.includes('blocked by cors') ||
+         errorMsg.includes('access-control-allow-origin');
 };
 
 /**
@@ -77,7 +76,7 @@ export const testDatabaseConnection = async (credentials: DatabaseCredentials): 
   
   try {
     // Get the effective API URL (with or without proxy)
-    const effectiveUrl = getEffectiveApiUrl('/test-connection');
+    const effectiveUrl = getEffectiveApiUrl('/api/test-connection');
     console.log("Using API URL:", effectiveUrl);
     
     // Create a fetch request with timeout
@@ -190,11 +189,13 @@ export const testDatabaseConnection = async (credentials: DatabaseCredentials): 
 };
 
 /**
- * Select a database for a connection
+ * Select a database and get tables
  */
-export const selectDatabase = async (connectionId: string, databaseName: string): Promise<ApiResponse> => {
+export const selectDatabaseAndGetTables = async (credentials: DatabaseCredentials): Promise<string[]> => {
   try {
-    const effectiveUrl = getEffectiveApiUrl('/select-database');
+    const effectiveUrl = getEffectiveApiUrl('/database/select-database');
+    
+    console.log("Selecting database with credentials:", JSON.stringify(credentials, null, 2));
     
     const response = await Promise.race([
       fetch(effectiveUrl, {
@@ -205,61 +206,100 @@ export const selectDatabase = async (connectionId: string, databaseName: string)
           'X-Requested-With': 'XMLHttpRequest',
           'Origin': window.location.origin
         },
-        body: JSON.stringify({ connectionId, databaseName }),
+        body: JSON.stringify(credentials),
       }),
       timeoutPromise(API_TIMEOUT)
     ]);
 
     if (!response.ok) {
-      return {
-        success: false,
-        message: `Server error: ${response.status} ${response.statusText}. Failed to select database.`
-      };
+      console.error(`HTTP error: ${response.status} ${response.statusText}`);
+      throw new Error(`Server error: ${response.status} ${response.statusText}`);
     }
 
     const responseText = await response.text();
     
     if (isHtmlResponse(responseText)) {
       console.error("Received HTML instead of JSON when selecting database");
-      return {
-        success: false,
-        message: "Server returned HTML instead of JSON. Please check your API server configuration."
-      };
+      throw new Error("Server returned HTML instead of JSON. Please check your API server configuration.");
     }
     
     try {
-      return JSON.parse(responseText);
+      const data = JSON.parse(responseText);
+      console.log("Database selection response:", data);
+      
+      // Return the tables array or an empty array if not found
+      if (data && Array.isArray(data)) {
+        return data;
+      } else if (data && data.tables && Array.isArray(data.tables)) {
+        return data.tables;
+      } else {
+        console.warn("No tables found in response", data);
+        return [];
+      }
     } catch (e) {
       console.error("Error parsing selectDatabase response:", e);
-      return {
-        success: false,
-        message: "Invalid response format when selecting database."
-      };
+      throw new Error("Invalid response format when selecting database.");
     }
   } catch (error) {
     console.error("Database selection error:", error);
+    throw error;
+  }
+};
+
+/**
+ * Fetch table preview data
+ */
+export const fetchTablePreview = async (tableName: string): Promise<{ columns: string[], rows: any[][] }> => {
+  try {
+    const effectiveUrl = getEffectiveApiUrl('/database/preview-table');
     
-    if (error instanceof Error && error.message.includes('timed out')) {
-      return {
-        success: false,
-        message: "Connection timed out while selecting database. Please check your network and server status."
-      };
+    console.log("Fetching preview for table:", tableName);
+    
+    const response = await Promise.race([
+      fetch(effectiveUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Origin': window.location.origin
+        },
+        body: JSON.stringify({ table_name: tableName }),
+      }),
+      timeoutPromise(API_TIMEOUT)
+    ]);
+    
+    if (!response.ok) {
+      console.error(`HTTP error: ${response.status} ${response.statusText}`);
+      throw new Error(`Server error: ${response.status} ${response.statusText}`);
     }
     
-    if (error instanceof Error && 
-        (error.message.includes('CORS') || 
-        error.message.includes('blocked by CORS') || 
-        error.message.includes('cross-origin'))) {
-      return {
-        success: false,
-        message: "CORS error: Cross-origin request blocked. Try enabling the CORS proxy in Settings to resolve this issue."
-      };
+    const responseText = await response.text();
+    
+    if (isHtmlResponse(responseText)) {
+      console.error("Received HTML instead of JSON when fetching table preview");
+      throw new Error("Server returned HTML instead of JSON. Please check your API configuration.");
     }
     
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : "Failed to select database."
-    };
+    try {
+      const data = JSON.parse(responseText);
+      console.log("Table preview response:", data);
+      
+      // Normalize the response to match our expected format
+      if (data && typeof data === 'object') {
+        const columns = data.columns || [];
+        const rows = data.rows || [];
+        return { columns, rows };
+      }
+      
+      throw new Error("Invalid response format for table preview");
+    } catch (e) {
+      console.error("Error parsing table preview response:", e);
+      throw new Error("Failed to parse table preview data");
+    }
+  } catch (error) {
+    console.error("Fetch table preview error:", error);
+    throw error;
   }
 };
 
@@ -478,3 +518,4 @@ export const processDataTransformation = async (
     };
   }
 };
+
