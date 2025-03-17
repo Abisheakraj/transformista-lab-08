@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { previewTable } from "@/lib/api-check";
+import { fetchTablePreview } from "@/lib/api-check";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -34,7 +34,7 @@ const TablePreviewDialog = ({
     setIsLoading(true);
     setError(null);
     try {
-      const data = await previewTable(tableName);
+      const data = await fetchTablePreview(tableName);
       setTableData(data);
     } catch (err) {
       console.error("Failed to fetch table preview:", err);

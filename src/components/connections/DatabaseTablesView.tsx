@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { fetchTables } from "@/lib/api-check";
+import { fetchDatabaseTables } from "@/lib/api-check";
 import { DatabaseConnection } from "@/hooks/useDatabaseConnections";
 import { Table, Database, Loader2, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -44,7 +44,7 @@ const DatabaseTablesView = ({
         database: selectedDatabase
       };
       
-      const tableList = await fetchTables(credentials);
+      const tableList = await fetchDatabaseTables(credentials);
       setTables(tableList);
     } catch (err) {
       console.error("Failed to fetch tables:", err);
