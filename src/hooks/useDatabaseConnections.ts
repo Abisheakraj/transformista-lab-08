@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { 
   DatabaseCredentials, 
@@ -5,7 +6,8 @@ import {
   testDatabaseConnection, 
   fetchDatabaseSchemas, 
   fetchTableSampleData,
-  processDataTransformation
+  processDataTransformation,
+  selectDatabaseAndGetTables
 } from "@/lib/database-client";
 import { useToast } from "@/hooks/use-toast";
 
