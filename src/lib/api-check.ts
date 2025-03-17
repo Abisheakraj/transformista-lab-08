@@ -139,113 +139,127 @@ export const getApiBaseUrl = (): string => {
  * @param credentials Database connection credentials
  * @returns Promise with the list of databases
  */
-export const fetchDatabases = async (credentials: {
+export async function fetchDatabases(credentials: {
   db_type: string;
   host: string;
   port: string;
   username: string;
   password: string;
-}): Promise<string[]> => {
+}) {
   try {
-    const apiUrl = `${getApiBaseUrl()}/database/connect`;
-    console.log("Fetching databases from:", apiUrl);
+    const apiUrl = 'https://9574-2405-201-e01c-b2bd-d926-14ba-a311-6173.ngrok-free.app/database/connect';
     
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
       },
-      body: JSON.stringify(credentials)
+      body: JSON.stringify(credentials),
     });
-    
+
     if (!response.ok) {
-      throw new Error(`Server responded with status: ${response.status}`);
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to fetch databases');
     }
-    
+
     const data = await response.json();
-    console.log("Databases response:", data);
     
     if (data.status === 'success' && Array.isArray(data.databases)) {
       return data.databases;
     } else {
-      throw new Error('Invalid response format');
+      throw new Error(data.message || 'Invalid response format');
     }
   } catch (error) {
-    console.error("Error fetching databases:", error);
-    throw error;
+    console.error('Error fetching databases:', error);
+    if (error instanceof Error) {
+      throw new Error(`Unable to connect to database: ${error.message}`);
+    } else {
+      throw new Error('Unable to connect to database: Unknown error');
+    }
   }
-};
+}
+
+/**
+ * Function to select a database
+ * @param connectionId The ID of the connection
+ * @param databaseName The name of the database to select
+ * @returns Promise with the selection result
+ */
+export async function selectDatabase(connectionId: string, databaseName: string) {
+  // This is a mock implementation since we don't have a real endpoint for this yet
+  console.log(`Selecting database ${databaseName} for connection ${connectionId}`);
+  return { success: true, message: `Database ${databaseName} selected` };
+}
 
 /**
  * Function to fetch tables from the selected database
  * @param credentials Database connection credentials with selected database
  * @returns Promise with the list of tables
  */
-export const fetchTables = async (credentials: {
+export async function fetchDatabaseTables(credentials: {
   db_type: string;
   host: string;
   port: string;
   username: string;
   password: string;
   database: string;
-}): Promise<string[]> => {
+}) {
   try {
-    const apiUrl = `${getApiBaseUrl()}/database/select-database`;
-    console.log("Fetching tables from:", apiUrl);
+    const apiUrl = 'https://9574-2405-201-e01c-b2bd-d926-14ba-a311-6173.ngrok-free.app/database/select-database';
     
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
       },
-      body: JSON.stringify(credentials)
+      body: JSON.stringify(credentials),
     });
-    
+
     if (!response.ok) {
-      throw new Error(`Server responded with status: ${response.status}`);
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to fetch tables');
     }
-    
+
     const data = await response.json();
-    console.log("Tables response:", data);
     
     if (data.status === 'success' && Array.isArray(data.tables)) {
       return data.tables;
     } else {
-      throw new Error('Invalid response format');
+      throw new Error(data.message || 'Invalid response format');
     }
   } catch (error) {
-    console.error("Error fetching tables:", error);
-    throw error;
+    console.error('Error fetching tables:', error);
+    if (error instanceof Error) {
+      throw new Error(`Unable to fetch tables: ${error.message}`);
+    } else {
+      throw new Error('Unable to fetch tables: Unknown error');
+    }
   }
-};
+}
 
 /**
  * Function to preview table data
  * @param tableName The name of the table to preview
  * @returns Promise with the table data
  */
-export const previewTable = async (tableName: string): Promise<any[]> => {
+export async function fetchTablePreview(tableName: string) {
   try {
-    const apiUrl = `${getApiBaseUrl()}/database/preview-table`;
-    console.log("Fetching table preview from:", apiUrl);
+    const apiUrl = 'https://9574-2405-201-e01c-b2bd-d926-14ba-a311-6173.ngrok-free.app/database/preview-table';
     
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
       },
-      body: JSON.stringify({ table_name: tableName })
+      body: JSON.stringify({ table_name: tableName }),
     });
-    
+
     if (!response.ok) {
-      throw new Error(`Server responded with status: ${response.status}`);
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to fetch table preview');
     }
-    
+
     const data = await response.json();
-    console.log("Table preview response:", data);
     
     if (data.data && Array.isArray(data.data)) {
       return data.data;
@@ -253,7 +267,11 @@ export const previewTable = async (tableName: string): Promise<any[]> => {
       throw new Error('Invalid response format');
     }
   } catch (error) {
-    console.error("Error fetching table preview:", error);
-    throw error;
+    console.error('Error fetching table preview:', error);
+    if (error instanceof Error) {
+      throw new Error(`Unable to fetch table preview: ${error.message}`);
+    } else {
+      throw new Error('Unable to fetch table preview: Unknown error');
+    }
   }
-};
+}
