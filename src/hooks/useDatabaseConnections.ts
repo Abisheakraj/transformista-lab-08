@@ -216,14 +216,50 @@ export function useDatabaseConnections() {
         database: databaseName
       });
       
-      toast({
-        title: "Database selected",
-        description: `Successfully selected database ${databaseName}`
+      const updatedConnection = connections.find(conn => conn.id === connectionId);
+      if (!updatedConnection) {
+        throw new Error("Failed to update connection");
+      }
+      
+      const credentials = {
+        connectionType: updatedConnection.connectionType,
+        db_type: updatedConnection.connectionType,
+        host: updatedConnection.host,
+        port: updatedConnection.port || "3306",
+        username: updatedConnection.username || "",
+        password: updatedConnection.password || "",
+        database: databaseName
+      };
+      
+      console.log("Calling selectDatabaseAndGetTables with:", {
+        connectionType: credentials.connectionType,
+        host: credentials.host,
+        database: credentials.database
       });
       
-      await fetchSchemas(connectionId);
-      
-      return true;
+      try {
+        const tables = await selectDatabaseAndGetTables(credentials);
+        console.log("Tables fetched after database selection:", tables);
+        
+        setSelectedConnection(updatedConnection);
+        
+        toast({
+          title: "Database selected",
+          description: `Successfully selected database ${databaseName} with ${tables.length} tables`
+        });
+        
+        await fetchSchemas(connectionId);
+        
+        return true;
+      } catch (err) {
+        console.error("Error fetching tables:", err);
+        toast({
+          title: "Error loading tables",
+          description: err instanceof Error ? err.message : "Failed to load tables",
+          variant: "destructive"
+        });
+        return false;
+      }
     } catch (error) {
       console.error("Database selection error:", error);
       toast({

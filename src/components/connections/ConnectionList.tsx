@@ -77,10 +77,16 @@ const ConnectionList = ({
 
   // Function to handle database selection
   const handleDatabaseSelect = async (database: string) => {
-    if (!showDatabaseSelect) return;
+    if (!showDatabaseSelect) {
+      console.error("No connection selected for database selection");
+      return;
+    }
     
     const connection = connections.find(conn => conn.id === showDatabaseSelect);
-    if (!connection) return;
+    if (!connection) {
+      console.error("Connection not found:", showDatabaseSelect);
+      return;
+    }
     
     console.log("Handling database selection in ConnectionList:", {
       connectionId: showDatabaseSelect,

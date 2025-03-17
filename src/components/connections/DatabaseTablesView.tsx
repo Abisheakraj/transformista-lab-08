@@ -71,15 +71,20 @@ const DatabaseTablesView = ({
       console.log("DatabaseTablesView: Tables loaded successfully:", tableList);
       setTables(tableList);
       
-      toast({
-        title: "Tables loaded",
-        description: `Successfully loaded ${tableList.length} tables from database ${selectedDatabase}`
-      });
-      
-      // If tables are available, select the first one automatically to show preview
       if (tableList.length > 0) {
+        toast({
+          title: "Tables loaded",
+          description: `Successfully loaded ${tableList.length} tables from database ${selectedDatabase}`
+        });
+        
+        // If tables are available, select the first one automatically to show preview
         console.log("Auto-selecting first table:", tableList[0]);
         handleTableSelect(tableList[0]);
+      } else {
+        toast({
+          title: "No tables found",
+          description: `No tables found in database ${selectedDatabase}`
+        });
       }
     } catch (err) {
       console.error("Failed to fetch tables:", err);

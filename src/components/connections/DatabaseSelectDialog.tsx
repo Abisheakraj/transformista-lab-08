@@ -61,8 +61,17 @@ const DatabaseSelectDialog = ({
 
   const handleSelectDatabase = (database: string) => {
     console.log("Database selected from dialog:", database);
+    
+    // Call the onDatabaseSelect callback with the selected database
     onDatabaseSelect(database);
+    
+    // Close the dialog
     onOpenChange(false);
+    
+    toast({
+      title: "Database Selected",
+      description: `Selected database: ${database}`
+    });
   };
 
   return (

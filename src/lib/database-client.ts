@@ -199,8 +199,36 @@ export const selectDatabaseAndGetTables = async (credentials: DatabaseCredential
     if (data.tables && Array.isArray(data.tables)) {
       console.log("Found tables in response:", data.tables);
       return data.tables;
-    } else if (data.status === "success") {
-      console.warn("Success status but no tables array in response");
+    } else if (data.status === "success" && data.tables === undefined) {
+      console.warn("Success status but no tables array in response, making follow-up call to fetch tables");
+      
+      // If the API doesn't return tables directly, make a follow-up call to get tables
+      const tableListResponse = await fetch(`${apiUrl}/database/get-tables`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          db_type: credentials.db_type || credentials.connectionType,
+          host: credentials.host,
+          port: credentials.port,
+          username: credentials.username,
+          password: credentials.password,
+          database: credentials.database
+        }),
+      });
+      
+      if (!tableListResponse.ok) {
+        throw new Error("Failed to fetch tables after database selection");
+      }
+      
+      const tableData = await tableListResponse.json();
+      console.log("Follow-up tables response:", tableData);
+      
+      if (tableData.tables && Array.isArray(tableData.tables)) {
+        return tableData.tables;
+      }
+      
       return [];
     } else {
       throw new Error("Invalid response format from server");
