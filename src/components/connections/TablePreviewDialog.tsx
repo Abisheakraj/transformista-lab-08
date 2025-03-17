@@ -34,7 +34,9 @@ const TablePreviewDialog = ({
     setIsLoading(true);
     setError(null);
     try {
+      console.log("Fetching preview for table:", tableName);
       const data = await fetchTablePreview(tableName);
+      console.log("Preview data received:", data);
       setTableData(data);
     } catch (err) {
       console.error("Failed to fetch table preview:", err);

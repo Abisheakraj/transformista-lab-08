@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { fetchDatabaseTables } from "@/lib/api-check";
 import { DatabaseConnection } from "@/hooks/useDatabaseConnections";
-import { Table, Database, Loader2, Eye } from "lucide-react";
+import { Table, Database, Loader2, Eye, ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import TablePreviewDialog from "./TablePreviewDialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface DatabaseTablesViewProps {
   connection: DatabaseConnection;
@@ -44,6 +45,7 @@ const DatabaseTablesView = ({
         database: selectedDatabase
       };
       
+      console.log("Fetching tables for database:", selectedDatabase);
       const tableList = await fetchDatabaseTables(credentials);
       setTables(tableList);
     } catch (err) {
@@ -60,7 +62,7 @@ const DatabaseTablesView = ({
     }
   };
 
-  const handleTableClick = (tableName: string) => {
+  const handleTableSelect = (tableName: string) => {
     setSelectedTable(tableName);
     setPreviewDialogOpen(true);
   };
@@ -95,23 +97,31 @@ const DatabaseTablesView = ({
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+          <div className="space-y-4">
             {tables.length === 0 ? (
-              <p className="text-center py-4 col-span-3 text-muted-foreground">No tables found</p>
+              <p className="text-center py-4 text-muted-foreground">No tables found</p>
             ) : (
-              tables.map(table => (
-                <div 
-                  key={table}
-                  className="border p-3 rounded-md hover:bg-gray-50 cursor-pointer flex items-center justify-between"
-                  onClick={() => handleTableClick(table)}
-                >
-                  <div className="flex items-center">
-                    <Table className="h-4 w-4 text-blue-500 mr-2" />
-                    <span>{table}</span>
-                  </div>
-                  <Eye className="h-4 w-4 text-gray-400 hover:text-blue-500" />
+              <>
+                <div className="flex items-center">
+                  <Table className="h-4 w-4 text-blue-500 mr-2" />
+                  <span className="mr-2">Select a table to preview:</span>
                 </div>
-              ))
+                <Select onValueChange={handleTableSelect}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a table" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tables.map(table => (
+                      <SelectItem key={table} value={table}>
+                        <div className="flex items-center">
+                          <Table className="h-4 w-4 text-blue-500 mr-2" />
+                          {table}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
             )}
           </div>
         )}

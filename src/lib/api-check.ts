@@ -1,3 +1,4 @@
+
 // Utility function to check API server availability and CORS configuration
 
 /**
@@ -207,6 +208,8 @@ export async function fetchDatabaseTables(credentials: {
   try {
     const apiUrl = 'https://9574-2405-201-e01c-b2bd-d926-14ba-a311-6173.ngrok-free.app/database/select-database';
     
+    console.log("Fetching tables with credentials:", JSON.stringify(credentials, null, 2));
+    
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -221,6 +224,8 @@ export async function fetchDatabaseTables(credentials: {
     }
 
     const data = await response.json();
+    
+    console.log("Tables response:", data);
     
     if (data.status === 'success' && Array.isArray(data.tables)) {
       return data.tables;
