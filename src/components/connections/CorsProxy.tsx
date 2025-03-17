@@ -30,9 +30,6 @@ const CorsProxy = () => {
     try {
       setIsLoading(true);
       
-      // Store proxy URL in localStorage
-      localStorage.setItem('corsProxyUrl', proxyUrl);
-      
       // Check if proxyUrl is valid
       if (!proxyUrl.startsWith('http')) {
         toast({
@@ -42,6 +39,9 @@ const CorsProxy = () => {
         });
         return;
       }
+      
+      // Store proxy URL in localStorage
+      localStorage.setItem('corsProxyUrl', proxyUrl);
       
       // Let's test the proxy
       try {

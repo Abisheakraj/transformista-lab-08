@@ -45,6 +45,19 @@ const timeoutPromise = (ms: number): Promise<never> => {
   });
 };
 
+// Helper function to get the effective API URL, considering CORS proxy if enabled
+const getEffectiveApiUrl = (endpoint: string): string => {
+  const corsProxyUrl = localStorage.getItem('corsProxyUrl');
+  
+  if (corsProxyUrl) {
+    // Use CORS proxy
+    return `${corsProxyUrl}${API_URL}${endpoint}`;
+  }
+  
+  // Use direct API URL
+  return `${API_URL}${endpoint}`;
+};
+
 /**
  * Test a database connection with the provided credentials
  */
@@ -52,12 +65,18 @@ export const testDatabaseConnection = async (credentials: DatabaseCredentials): 
   console.log("Testing connection with credentials:", JSON.stringify(credentials, null, 2));
   
   try {
+    // Get the effective API URL (with or without proxy)
+    const effectiveUrl = getEffectiveApiUrl('/test-connection');
+    console.log("Using API URL:", effectiveUrl);
+    
     // Create a fetch request with timeout
-    const fetchPromise = fetch(`${API_URL}/test-connection`, {
+    const fetchPromise = fetch(effectiveUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Origin': window.location.origin
       },
       body: JSON.stringify(credentials),
       // Don't include credentials for initial test to avoid CORS preflight issues
@@ -132,10 +151,13 @@ export const testDatabaseConnection = async (credentials: DatabaseCredentials): 
     }
     
     // For CORS errors
-    if (error instanceof Error && error.message.includes('CORS')) {
+    if (error instanceof Error && 
+        (error.message.includes('CORS') || 
+        error.message.includes('blocked by CORS') || 
+        error.message.includes('cross-origin'))) {
       return {
         success: false,
-        message: "CORS error: Cross-origin request blocked. Please ensure your API server allows cross-origin requests."
+        message: "CORS error: Cross-origin request blocked. Try enabling the CORS proxy in Settings to resolve this issue."
       };
     }
     
@@ -163,18 +185,18 @@ export const testDatabaseConnection = async (credentials: DatabaseCredentials): 
  */
 export const selectDatabase = async (connectionId: string, databaseName: string): Promise<ApiResponse> => {
   try {
+    const effectiveUrl = getEffectiveApiUrl('/select-database');
+    
     const response = await Promise.race([
-      fetch(`${API_URL}/select-database`, {
+      fetch(effectiveUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+          'X-Requested-With': 'XMLHttpRequest',
+          'Origin': window.location.origin
         },
         body: JSON.stringify({ connectionId, databaseName }),
-        credentials: 'include',
       }),
       timeoutPromise(API_TIMEOUT)
     ]);
@@ -215,6 +237,16 @@ export const selectDatabase = async (connectionId: string, databaseName: string)
       };
     }
     
+    if (error instanceof Error && 
+        (error.message.includes('CORS') || 
+        error.message.includes('blocked by CORS') || 
+        error.message.includes('cross-origin'))) {
+      return {
+        success: false,
+        message: "CORS error: Cross-origin request blocked. Try enabling the CORS proxy in Settings to resolve this issue."
+      };
+    }
+    
     return {
       success: false,
       message: error instanceof Error ? error.message : "Failed to select database."
@@ -227,16 +259,16 @@ export const selectDatabase = async (connectionId: string, databaseName: string)
  */
 export const fetchDatabaseSchemas = async (connectionId: string): Promise<ApiResponse> => {
   try {
+    const effectiveUrl = getEffectiveApiUrl(`/schemas/${connectionId}`);
+    
     const response = await Promise.race([
-      fetch(`${API_URL}/schemas/${connectionId}`, {
+      fetch(effectiveUrl, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+          'X-Requested-With': 'XMLHttpRequest',
+          'Origin': window.location.origin
         },
-        credentials: 'include',
       }),
       timeoutPromise(API_TIMEOUT)
     ]);
@@ -277,6 +309,16 @@ export const fetchDatabaseSchemas = async (connectionId: string): Promise<ApiRes
       };
     }
     
+    if (error instanceof Error && 
+        (error.message.includes('CORS') || 
+        error.message.includes('blocked by CORS') || 
+        error.message.includes('cross-origin'))) {
+      return {
+        success: false,
+        message: "CORS error: Cross-origin request blocked. Try enabling the CORS proxy in Settings to resolve this issue."
+      };
+    }
+    
     return {
       success: false,
       message: error instanceof Error ? error.message : "Failed to fetch database schemas."
@@ -294,18 +336,18 @@ export const fetchTableSampleData = async (
   limit: number = 50
 ): Promise<{ columns: string[], rows: any[][] }> => {
   try {
+    const effectiveUrl = getEffectiveApiUrl('/table-data');
+    
     const response = await Promise.race([
-      fetch(`${API_URL}/table-data`, {
+      fetch(effectiveUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+          'X-Requested-With': 'XMLHttpRequest',
+          'Origin': window.location.origin
         },
         body: JSON.stringify({ credentials, schema, table, limit }),
-        credentials: 'include',
       }),
       timeoutPromise(API_TIMEOUT)
     ]);
@@ -334,6 +376,14 @@ export const fetchTableSampleData = async (
     }
   } catch (error) {
     console.error("Fetch table data error:", error);
+    
+    if (error instanceof Error && 
+        (error.message.includes('CORS') || 
+        error.message.includes('blocked by CORS') || 
+        error.message.includes('cross-origin'))) {
+      console.error("CORS error when fetching table data");
+    }
+    
     // Return empty data structure on error
     return {
       columns: [],
@@ -351,18 +401,18 @@ export const processDataTransformation = async (
   schemaName: string
 ): Promise<ApiResponse> => {
   try {
+    const effectiveUrl = getEffectiveApiUrl('/transform');
+    
     const response = await Promise.race([
-      fetch(`${API_URL}/transform`, {
+      fetch(effectiveUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+          'X-Requested-With': 'XMLHttpRequest',
+          'Origin': window.location.origin
         },
         body: JSON.stringify({ instruction, tableName, schemaName }),
-        credentials: 'include',
       }),
       timeoutPromise(API_TIMEOUT)
     ]);
@@ -400,6 +450,16 @@ export const processDataTransformation = async (
       return {
         success: false,
         message: "Connection timed out while processing transformation. Please check your network and server status."
+      };
+    }
+    
+    if (error instanceof Error && 
+        (error.message.includes('CORS') || 
+        error.message.includes('blocked by CORS') || 
+        error.message.includes('cross-origin'))) {
+      return {
+        success: false,
+        message: "CORS error: Cross-origin request blocked. Try enabling the CORS proxy in Settings to resolve this issue."
       };
     }
     

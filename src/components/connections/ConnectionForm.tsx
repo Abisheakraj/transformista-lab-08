@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,7 @@ import { testDatabaseConnection, ApiResponse } from "@/lib/database-client";
 import { useDatabaseConnections } from "@/hooks/useDatabaseConnections";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, CheckCircle, Info } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface ConnectionFormProps {
   type: "source" | "target";
@@ -141,6 +143,23 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
       });
       
       if (!testResult.success) {
+        // Check if it's a CORS error
+        if (testResult.message.includes('CORS') || testResult.message.includes('cross-origin')) {
+          toast({
+            title: "CORS Error Detected",
+            description: "Please enable the CORS proxy in Settings menu to resolve this issue.",
+            variant: "destructive"
+          });
+          
+          // Explicitly create a new object with the required properties
+          setConnectionResult({
+            success: false,
+            message: testResult.message
+          });
+          setIsLoading(false);
+          return;
+        }
+        
         toast({
           title: "Connection Failed",
           description: testResult.message,
@@ -204,6 +223,12 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
   const connectionTypes = type === "source" 
     ? ["mysql", "postgresql", "oracle", "mssql"] 
     : ["mysql", "postgresql", "bigquery", "snowflake", "redshift"];
+
+  // Detect if the connection error is CORS-related
+  const isCorsError = connectionResult && !connectionResult.success && 
+    (connectionResult.message.includes("CORS") || 
+     connectionResult.message.includes("cross-origin") ||
+     connectionResult.message.includes("blocked by CORS"));
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -329,6 +354,28 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
                   Using simulated connection because the backend server may be unavailable.
                 </div>
               )}
+            </AlertDescription>
+          </div>
+        </Alert>
+      )}
+
+      {/* CORS error help */}
+      {isCorsError && (
+        <Alert className="border-amber-200 bg-amber-50 text-amber-800">
+          <div className="flex">
+            <AlertTriangle className="h-5 w-5 text-amber-500 mr-2" />
+            <AlertDescription>
+              <p className="font-medium">CORS Issue Detected</p>
+              <p className="mt-1">Your browser is blocking cross-origin requests to the API server. Try these solutions:</p>
+              <ol className="list-decimal ml-5 mt-2">
+                <li className="mb-1">
+                  <Link to="/settings" className="text-blue-600 hover:underline">
+                    Enable the CORS proxy in the Settings menu
+                  </Link>
+                </li>
+                <li>Install a CORS browser extension like CORS Unblock</li>
+                <li>Your backend developer can also enable CORS on the server</li>
+              </ol>
             </AlertDescription>
           </div>
         </Alert>
