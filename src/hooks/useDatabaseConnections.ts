@@ -218,9 +218,6 @@ export function useDatabaseConnections() {
         database: databaseName
       };
       
-      // Fix: Pass the correct parameters to selectDatabase
-      await selectDatabase(credentials, databaseName);
-      
       updateConnection(connectionId, { 
         status: "selected",
         database: databaseName
@@ -230,6 +227,8 @@ export function useDatabaseConnections() {
         title: "Database selected",
         description: `Successfully selected database ${databaseName}`
       });
+      
+      await fetchSchemas(connectionId);
       
       return true;
     } catch (error) {
