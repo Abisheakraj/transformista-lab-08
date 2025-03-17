@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import DatabaseTransformation from "@/components/connections/DatabaseTransformation";
 
 const ConnectionsPage = () => {
@@ -70,14 +71,22 @@ const ConnectionsPage = () => {
     }
   };
 
+  // Initiate delete connection
+  const initiateDeleteConnection = (connectionId: string) => {
+    setConnectionToDelete(connectionId);
+    setDeleteConfirmOpen(true);
+  };
+
   // Handle delete connection
-  const handleDeleteConnection = (connectionId: string) => {
-    console.log("Handling delete connection with id:", connectionId);
+  const handleDeleteConnection = () => {
+    if (!connectionToDelete) return;
     
-    removeConnection(connectionId);
+    console.log("Deleting connection with id:", connectionToDelete);
+    
+    removeConnection(connectionToDelete);
     
     // Reset selected connection if it was deleted
-    if (selectedConnectionId === connectionId) {
+    if (selectedConnectionId === connectionToDelete) {
       setSelectedConnectionId(null);
       setSelectedSchema(null);
       setSelectedTable(null);
@@ -87,6 +96,10 @@ const ConnectionsPage = () => {
       title: "Connection Deleted",
       description: "The database connection has been successfully removed."
     });
+    
+    // Reset state
+    setConnectionToDelete(null);
+    setDeleteConfirmOpen(false);
   };
 
   // Handle export
@@ -184,7 +197,7 @@ const ConnectionsPage = () => {
                   type="source" 
                   onSelectConnection={handleDatabaseSelect}
                   selectedConnectionId={selectedConnectionId}
-                  onDeleteConnection={handleDeleteConnection}
+                  onDeleteConnection={initiateDeleteConnection}
                 />
                 <div className="mt-8">
                   <Card className="border-indigo-100">
@@ -304,7 +317,7 @@ const ConnectionsPage = () => {
                   type="target" 
                   onSelectConnection={handleDatabaseSelect}
                   selectedConnectionId={selectedConnectionId}
-                  onDeleteConnection={handleDeleteConnection}
+                  onDeleteConnection={initiateDeleteConnection}
                 />
                 <div className="mt-8">
                   <Card className="border-indigo-100">
@@ -553,6 +566,24 @@ const ConnectionsPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Delete Connection Confirmation */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Connection</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this connection? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConnectionToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConnection} className="bg-red-600 hover:bg-red-700 text-white">
+              Delete Connection
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarLayout>
   );
 };

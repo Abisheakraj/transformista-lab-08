@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,19 +78,15 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
       
       console.log("Connection test result:", result);
       
-      // Check if this is a fallback result
-      const isFallback = result.data?.fallback === true;
-      
       // Explicitly create a new object with the required properties
       setConnectionResult({
         success: result.success,
-        message: result.message,
-        isFallback
+        message: result.message
       });
       
       if (result.success) {
         toast({
-          title: isFallback ? "Connection Simulated" : "Connection Successful",
+          title: "Connection Successful",
           description: result.message
         });
       } else {
@@ -178,6 +173,17 @@ const ConnectionForm = ({ type, onSuccess }: ConnectionFormProps) => {
       
       // Reset connection result
       setConnectionResult(null);
+      
+      // Reset form
+      setFormData({
+        name: "",
+        connectionType: "mysql",
+        host: "localhost",
+        port: "3306",
+        database: "airportdb",
+        username: "root",
+        password: "9009"
+      });
       
       toast({
         title: `${type === "source" ? "Source" : "Target"} connection added`,

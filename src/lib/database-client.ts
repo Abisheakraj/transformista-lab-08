@@ -28,7 +28,7 @@ export interface SchemaInfo {
 // Use a configurable API URL that defaults to localhost but can be changed
 // for different environments
 const API_URL = "http://localhost:3001/api";
-const API_TIMEOUT = 10000; // 10 seconds timeout
+const API_TIMEOUT = 30000; // Increase timeout to 30 seconds for slower networks
 
 // Helper function to detect if response is HTML instead of JSON
 const isHtmlResponse = (text: string): boolean => {
@@ -59,6 +59,9 @@ export const testDatabaseConnection = async (credentials: DatabaseCredentials): 
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization'
       },
       body: JSON.stringify(credentials),
       // Include credentials for CORS requests
@@ -70,9 +73,32 @@ export const testDatabaseConnection = async (credentials: DatabaseCredentials): 
     
     if (!response.ok) {
       console.error(`HTTP error: ${response.status} ${response.statusText}`);
+      
+      // Handle specific HTTP errors
+      if (response.status === 0 || response.status === 404) {
+        return {
+          success: false,
+          message: "Connection failed: Backend server is unreachable. Please check if the API server is running."
+        };
+      }
+      
+      if (response.status === 401 || response.status === 403) {
+        return {
+          success: false,
+          message: "Authentication error: Invalid credentials or insufficient permissions."
+        };
+      }
+      
+      if (response.status === 500) {
+        return {
+          success: false,
+          message: "Server error: The database server encountered an error. Please check your database credentials."
+        };
+      }
+      
       return {
         success: false,
-        message: `Server error: ${response.status} ${response.statusText}. Please check your database credentials and ensure the server is running.`
+        message: `Connection error (${response.status}): ${response.statusText}. Please verify your database credentials and server status.`
       };
     }
     
@@ -84,7 +110,7 @@ export const testDatabaseConnection = async (credentials: DatabaseCredentials): 
       console.error("Received HTML instead of JSON:", responseText.substring(0, 200));
       return {
         success: false,
-        message: "Server returned HTML instead of JSON. Please check your API server configuration."
+        message: "Received HTML instead of JSON response. This usually indicates a CORS issue or network problem. Please check your API server configuration."
       };
     }
     
@@ -110,6 +136,22 @@ export const testDatabaseConnection = async (credentials: DatabaseCredentials): 
       };
     }
     
+    // For CORS errors
+    if (error instanceof Error && error.message.includes('CORS')) {
+      return {
+        success: false,
+        message: "CORS error: Cross-origin request blocked. Please ensure your API server allows cross-origin requests."
+      };
+    }
+    
+    // For network errors
+    if (error instanceof Error && (error.message.includes('network') || error.message.includes('fetch'))) {
+      return {
+        success: false,
+        message: "Network error: Unable to reach the database server. Please check your network connection and server status."
+      };
+    }
+    
     // For other errors
     return {
       success: false,
@@ -123,15 +165,21 @@ export const testDatabaseConnection = async (credentials: DatabaseCredentials): 
  */
 export const selectDatabase = async (connectionId: string, databaseName: string): Promise<ApiResponse> => {
   try {
-    const response = await fetch(`${API_URL}/select-database`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({ connectionId, databaseName }),
-      credentials: 'include',
-    });
+    const response = await Promise.race([
+      fetch(`${API_URL}/select-database`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        },
+        body: JSON.stringify({ connectionId, databaseName }),
+        credentials: 'include',
+      }),
+      timeoutPromise(API_TIMEOUT)
+    ]);
 
     if (!response.ok) {
       return {
@@ -161,6 +209,14 @@ export const selectDatabase = async (connectionId: string, databaseName: string)
     }
   } catch (error) {
     console.error("Database selection error:", error);
+    
+    if (error instanceof Error && error.message.includes('timed out')) {
+      return {
+        success: false,
+        message: "Connection timed out while selecting database. Please check your network and server status."
+      };
+    }
+    
     return {
       success: false,
       message: error instanceof Error ? error.message : "Failed to select database."
@@ -178,6 +234,9 @@ export const fetchDatabaseSchemas = async (connectionId: string): Promise<ApiRes
         method: 'GET',
         headers: {
           'Accept': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
         },
         credentials: 'include',
       }),
@@ -212,6 +271,14 @@ export const fetchDatabaseSchemas = async (connectionId: string): Promise<ApiRes
     }
   } catch (error) {
     console.error("Fetch schemas error:", error);
+    
+    if (error instanceof Error && error.message.includes('timed out')) {
+      return {
+        success: false,
+        message: "Connection timed out while fetching schemas. Please check your network and server status."
+      };
+    }
+    
     return {
       success: false,
       message: error instanceof Error ? error.message : "Failed to fetch database schemas."
@@ -235,6 +302,9 @@ export const fetchTableSampleData = async (
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
         },
         body: JSON.stringify({ credentials, schema, table, limit }),
         credentials: 'include',
@@ -283,15 +353,21 @@ export const processDataTransformation = async (
   schemaName: string
 ): Promise<ApiResponse> => {
   try {
-    const response = await fetch(`${API_URL}/transform`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({ instruction, tableName, schemaName }),
-      credentials: 'include',
-    });
+    const response = await Promise.race([
+      fetch(`${API_URL}/transform`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+        },
+        body: JSON.stringify({ instruction, tableName, schemaName }),
+        credentials: 'include',
+      }),
+      timeoutPromise(API_TIMEOUT)
+    ]);
     
     if (!response.ok) {
       return {
@@ -321,6 +397,14 @@ export const processDataTransformation = async (
     }
   } catch (error) {
     console.error("Processing transformation error:", error);
+    
+    if (error instanceof Error && error.message.includes('timed out')) {
+      return {
+        success: false,
+        message: "Connection timed out while processing transformation. Please check your network and server status."
+      };
+    }
+    
     return {
       success: false,
       message: error instanceof Error ? error.message : "Unknown error occurred during transformation."
