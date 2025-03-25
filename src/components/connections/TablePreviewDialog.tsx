@@ -1,129 +1,74 @@
 
-import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { fetchTablePreview } from "@/lib/api-check";
-import { Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface TablePreviewDialogProps {
-  open: boolean;
+  isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  tableName: string;
+  selectedSchema: string | null;
+  selectedTable: string | null;
+  tableData: { columns: string[]; rows: any[][] } | null;
+  isLoading: boolean;
 }
 
-const TablePreviewDialog = ({
-  open,
-  onOpenChange,
-  tableName
+const TablePreviewDialog = ({ 
+  isOpen, 
+  onOpenChange, 
+  selectedSchema, 
+  selectedTable, 
+  tableData, 
+  isLoading 
 }: TablePreviewDialogProps) => {
-  const [tableData, setTableData] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
-
-  useEffect(() => {
-    if (open && tableName) {
-      loadTablePreview();
-    }
-  }, [open, tableName]);
-
-  const loadTablePreview = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      console.log("Fetching preview for table:", tableName);
-      const data = await fetchTablePreview(tableName);
-      console.log("Preview data received:", data);
-      setTableData(data);
-    } catch (err) {
-      console.error("Failed to fetch table preview:", err);
-      const errorMessage = err instanceof Error ? err.message : "Unknown error";
-      setError(errorMessage);
-      toast({
-        title: "Failed to fetch table preview",
-        description: errorMessage,
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Get column names from the first row of data
-  const columns = tableData.length > 0 ? Object.keys(tableData[0]) : [];
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>Table Preview: {tableName}</DialogTitle>
+          <DialogTitle>Table Preview: {selectedSchema}.{selectedTable}</DialogTitle>
           <DialogDescription>
-            Preview of the first few rows of the table
+            Preview data from the selected table
           </DialogDescription>
         </DialogHeader>
 
         <div className="py-4">
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 text-blue-500 animate-spin mb-2" />
-              <p>Loading table data...</p>
+            <div className="flex justify-center items-center py-10">
+              <div className="animate-spin w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full"></div>
+              <span className="ml-2">Loading data...</span>
             </div>
-          ) : error ? (
-            <div className="text-center py-8 text-red-500">
-              <p className="mb-2">Failed to load table data</p>
-              <p className="text-sm">{error}</p>
-              <Button 
-                variant="outline" 
-                onClick={loadTablePreview} 
-                className="mt-4"
-              >
-                Retry
-              </Button>
-            </div>
-          ) : tableData.length === 0 ? (
-            <p className="text-center py-4 text-muted-foreground">No data found</p>
           ) : (
-            <ScrollArea className="h-96">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {columns.map(column => (
-                      <TableHead key={column}>{column}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tableData.map((row, rowIndex) => (
-                    <TableRow key={rowIndex}>
-                      {columns.map(column => (
-                        <TableCell key={`${rowIndex}-${column}`}>
-                          {row[column]?.toString() || ''}
-                        </TableCell>
+            tableData && (
+              <div className="overflow-auto max-h-96">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      {tableData.columns.map((column, idx) => (
+                        <th key={idx} className="border px-4 py-2 text-left">{column}</th>
                       ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableData.rows.map((row, rowIdx) => (
+                      <tr key={rowIdx} className={rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                        {row.map((cell, cellIdx) => (
+                          <td key={cellIdx} className="border px-4 py-2">{cell?.toString() || ""}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          )}
+          {!isLoading && !tableData && (
+            <div className="text-center py-10 border border-dashed rounded-md">
+              <p className="text-gray-500">No data available for this table</p>
+            </div>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button onClick={() => onOpenChange(false)}>
             Close
-          </Button>
-          <Button onClick={loadTablePreview} disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Loading...
-              </>
-            ) : (
-              "Refresh"
-            )}
           </Button>
         </DialogFooter>
       </DialogContent>
